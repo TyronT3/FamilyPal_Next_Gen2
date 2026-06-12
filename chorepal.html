@@ -51,7 +51,7 @@
   .goal-add-btn{background:var(--accent);border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;color:#fff;cursor:pointer;}
   .chores-list{padding:0 16px;}
   .section-header{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 8px;font-weight:700;}
-  .chore-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;}
+  .chore-card{padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;}
   .chore-card.done{opacity:.55;}
   .chore-card.done .chore-name{text-decoration:line-through;}
   .chore-emoji{font-size:26px;flex-shrink:0;}
@@ -77,8 +77,6 @@
   .done-btn:active{opacity:.7;}
   .count-badge{background:var(--accent);color:#fff;border-radius:10px;font-size:11px;font-weight:700;padding:2px 8px;text-align:center;}
   .undone-btn{background:none;border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;color:var(--muted);cursor:pointer;}
-  .empty-state{text-align:center;padding:50px 20px;color:var(--muted);}
-  .empty-state .big{font-size:48px;margin-bottom:10px;}
   .progress-wrap{margin:8px 16px 4px;}
   .progress-bar{background:var(--border);border-radius:10px;height:6px;overflow:hidden;margin-top:6px;}
   .progress-fill{background:linear-gradient(90deg,var(--accent),var(--accent2));height:100%;border-radius:10px;transition:width .4s;}
@@ -101,10 +99,7 @@
   .setup-add-card h3{font-size:15px;font-weight:700;margin-bottom:14px;}
   .form-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
   .form-row .field{flex:1;margin-bottom:0;min-width:100px;}
-  .field{margin-bottom:12px;}
-  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;}
-  .field input,.field select{width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;outline:none;}
-  .field input:focus,.field select:focus{border-color:var(--accent);}
+  .field input,.field select{border-radius:8px;padding:10px 12px;font-size:14px;}
   .field select option{background:var(--card);}
   .emoji-input{width:60px!important;text-align:center;font-size:20px;}
   .pts-input{width:70px!important;text-align:center;}
@@ -142,12 +137,6 @@
   .winner-prize{font-size:16px;color:var(--yellow);font-weight:700;margin-bottom:6px;}
   .winner-sub{font-size:13px;color:var(--muted);margin-bottom:20px;}
   .winner-close{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:12px;padding:14px 32px;font-size:15px;font-weight:700;color:#fff;cursor:pointer;width:100%;}
-  .modal h2{font-size:18px;margin-bottom:16px;font-weight:700;}
-  .modal .btn{margin-top:8px;}
-  .btn{width:100%;padding:13px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;transition:opacity .2s;}
-  .btn:active{opacity:.8;}
-  .btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;}
-  .btn-secondary{background:var(--card);color:var(--text);border:1px solid var(--border);margin-top:10px;}
   .who-btns{display:flex;gap:10px;margin-bottom:8px;}
   .who-btn{flex:1;padding:16px;border:2px solid var(--border);border-radius:12px;background:var(--card);font-size:15px;font-weight:700;cursor:pointer;text-align:center;}
   .who-btn.tyron{border-color:var(--tyron);background:rgba(33,150,243,.15);color:var(--tyron);}
