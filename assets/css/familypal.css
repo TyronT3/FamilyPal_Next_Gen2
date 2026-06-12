@@ -15,6 +15,20 @@
   --font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 }
 
+html[data-theme="light"]{
+  --bg:#f6f7fb;
+  --surface:#ffffff;
+  --card:#ffffff;
+  --text:#1d2433;
+  --muted:#657084;
+  --border:#d8deea;
+  --green:#12805c;
+  --yellow:#b7791f;
+  --red:#c53030;
+  --orange:#c05621;
+  color-scheme:light;
+}
+
 *{box-sizing:border-box;margin:0;padding:0;}
 
 body{
@@ -28,6 +42,37 @@ body{
 .app-title{font-size:30px;font-weight:800;background:linear-gradient(135deg,#6c63ff,#e91e8c);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px;}
 .app-sub{color:var(--muted);font-size:14px;margin-bottom:28px;}
 
+html[data-theme="light"] .auth-box,
+html[data-theme="light"] .app-card,
+html[data-theme="light"] .modal,
+html[data-theme="light"] .surface-card,
+html[data-theme="light"] .item-card,
+html[data-theme="light"] .summary-card,
+html[data-theme="light"] .chore-card,
+html[data-theme="light"] .log-item{
+  box-shadow:0 8px 24px rgba(18,29,47,.08);
+}
+
+html[data-theme="light"] .app-card.pantry{background:linear-gradient(135deg,#ffffff,#f1f0ff);border-color:#d9d6ff;}
+html[data-theme="light"] .app-card.baby{background:linear-gradient(135deg,#ffffff,#fff0f7);border-color:#f3c4de;}
+html[data-theme="light"] .app-card.chores{background:linear-gradient(135deg,#ffffff,#ecfbf6);border-color:#bceadd;}
+html[data-theme="light"] .count-stocked,
+html[data-theme="light"] .action-btn.green,
+html[data-theme="light"] .rating-opt.selected-love{background:#e7f7ef;}
+html[data-theme="light"] .count-open,
+html[data-theme="light"] .action-btn.yellow{background:#fff5dc;}
+html[data-theme="light"] .badge-hate,
+html[data-theme="light"] .badge-expired,
+html[data-theme="light"] .action-btn.red,
+html[data-theme="light"] .rating-opt.selected-hate{background:#ffe8e8;}
+html[data-theme="light"] .badge-expiring{background:#fff1d6;}
+html[data-theme="light"] .badge-priority,
+html[data-theme="light"] .pill-monthly{background:#eee9ff;}
+html[data-theme="light"] .pill-daily{background:#e7f7ef;}
+html[data-theme="light"] .pill-weekly{background:#e8f1ff;}
+html[data-theme="light"] .pill-once{background:#fff1d6;}
+html[data-theme="light"] .sleep-banner{background:linear-gradient(135deg,#e7fbff,#eef4ff);}
+
 .app-screen{display:none;flex-direction:column;min-height:100vh;max-width:600px;margin:0 auto;}
 
 header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:10;}
@@ -39,6 +84,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .header-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap;}
 .icon-btn{background:var(--card);border:1px solid var(--border);border-radius:8px;min-width:38px;height:38px;padding:0 9px;color:var(--text);cursor:pointer;font-size:15px;display:inline-flex;align-items:center;justify-content:center;line-height:1;}
 .icon-btn:active{opacity:.78;}
+.theme-toggle{font-size:16px;}
 
 .tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);}
 .tab{flex:1;padding:12px 4px;text-align:center;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;}

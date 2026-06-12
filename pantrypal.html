@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>PantryPal</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<script src="assets/js/familypal-theme.js"></script>
 <link rel="stylesheet" href="assets/css/familypal.css">
 <style>
   /* ── COLOURS — edit these to change the app theme ──────
@@ -172,6 +173,7 @@
       <button class="icon-btn" title="Shopping mode" aria-label="Shopping mode" onclick="openShoppingMode()">🛒</button>
       <button class="icon-btn" title="Scan barcode" aria-label="Scan barcode" onclick="openScanModal()">📷</button>
       <button class="icon-btn" title="Categories" aria-label="Categories" onclick="openCatModal()">🏷️</button>
+      <button class="icon-btn theme-toggle" data-theme-toggle onclick="FamilyPalTheme.toggleTheme()" type="button">☀️</button>
       <button class="icon-btn" title="Home" aria-label="Home" onclick="window.location.href='home.html'">🏠</button>
     </div>
   </header>

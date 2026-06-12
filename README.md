@@ -13,6 +13,7 @@ FamilyPal is a GitHub Pages household organizer backed by Supabase. This staging
 ## Shared Assets
 
 - `assets/js/familypal-core.js` - shared Supabase config, REST helper, auth guard, login, signup, and sign-out helpers
+- `assets/js/familypal-theme.js` - shared light/dark theme persistence and toggle behavior
 - `assets/js/pantrypal.js` - PantryPal app behavior extracted from `pantrypal.html`
 - `assets/js/babypal.js` - BabyPal app behavior extracted from `babypal.html`
 - `assets/js/chorepal.js` - ChoresPal app behavior extracted from `chorepal.html`

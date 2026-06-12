@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>FamilyPal</title>
+<script src="assets/js/familypal-theme.js"></script>
 <link rel="stylesheet" href="assets/css/familypal.css">
 <style>
   :root{--radius:16px;}
@@ -21,9 +22,11 @@
   .app-card.chores .app-card-title{background:linear-gradient(135deg,#00c896,#0088ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
   .app-card-sub{font-size:12px;color:var(--muted);}
   .signout{margin-top:20px;font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline;}
+  .theme-corner{position:fixed;top:14px;right:14px;z-index:20;}
 </style>
 </head>
 <body>
+<button class="icon-btn theme-toggle theme-corner" data-theme-toggle onclick="FamilyPalTheme.toggleTheme()" type="button">☀️</button>
 <div class="logo">🌟</div>
 <div class="app-title">FamilyPal</div>
 <div class="app-sub">What would you like to do?</div>
