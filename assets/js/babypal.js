@@ -177,11 +177,12 @@ async function loadToday(){
   try{
     var results=await Promise.all([
       sbFetch('/rest/v1/baby_feeds?logged_at=gte.'+r.start+'&logged_at=lte.'+r.end+'&order=logged_at.desc&select=*'),
-      sbFetch('/rest/v1/baby_diapers?logged_at=gte.'+r.start+'&logged_at=lte.'+r.end+'&select=*'),
+      sbFetch('/rest/v1/baby_diapers?logged_at=gte.'+r.start+'&logged_at=lte.'+r.end+'&order=logged_at.desc&select=*'),
       sbFetch('/rest/v1/baby_sleep?logged_at=gte.'+r.start+'&logged_at=lte.'+r.end+'&select=*'),
-      sbFetch('/rest/v1/baby_pumping?logged_at=gte.'+r.start+'&logged_at=lte.'+r.end+'&select=*')
+      sbFetch('/rest/v1/baby_pumping?logged_at=gte.'+r.start+'&logged_at=lte.'+r.end+'&select=*'),
+      sbFetch('/rest/v1/mama_meals?logged_at=gte.'+r.start+'&logged_at=lte.'+r.end+'&select=*')
     ]);
-    var feeds=results[0],diapers=results[1],sleeps=results[2],pumps=results[3];
+    var feeds=results[0],diapers=results[1],sleeps=results[2],pumps=results[3],meals=results[4];
     var totalMl=feeds.filter(function(f){return f.feed_type==='bottle';}).reduce(function(s,f){return s+(f.amount_ml||0);},0);
     var breastFeeds=feeds.filter(function(f){return f.feed_type==='breast';});
     var lastFeed=feeds[0];
@@ -190,6 +191,13 @@ async function loadToday(){
     var totalSleep=sleeps.reduce(function(s,sl){if(sl.sleep_start&&sl.sleep_end)return s+Math.round((new Date(sl.sleep_end)-new Date(sl.sleep_start))/60000);return s;},0);
     var totalPumped=pumps.reduce(function(s,p){return s+(p.amount_ml||0);},0);
     var sleepStr=totalSleep>=60?(Math.floor(totalSleep/60)+'h '+(totalSleep%60)+'m'):totalSleep+'m';
+    var recent=[].concat(
+      feeds.map(function(f){return{icon:f.feed_type==='bottle'?'🍼':'🤱',title:f.feed_type==='bottle'?'Bottle — '+f.amount_ml+'ml':'Breast — '+f.duration_mins+'min ('+f.breast_side+')',detail:f.notes,ts:f.logged_at};}),
+      diapers.map(function(d){return{icon:d.diaper_type==='wet'?'💧':'💩',title:d.diaper_type==='wet'?'Wet diaper':'Soiled diaper',detail:d.notes,ts:d.logged_at};}),
+      sleeps.map(function(s){var dur=s.sleep_end?Math.round((new Date(s.sleep_end)-new Date(s.sleep_start))/60000):null;return{icon:'😴',title:dur?'Sleep — '+Math.floor(dur/60)+'h '+(dur%60)+'m':'Sleep started',detail:s.notes,ts:s.logged_at};}),
+      pumps.map(function(p){return{icon:'🥛',title:'Pumped — '+p.amount_ml+'ml',detail:p.notes,ts:p.logged_at};}),
+      meals.map(function(m){return{icon:'🍽️',title:(m.meal_type?m.meal_type+' — ':'')+m.description,detail:m.notes,ts:m.logged_at};})
+    ).sort(function(a,b){return new Date(b.ts)-new Date(a.ts);}).slice(0,5);
     document.getElementById('summary-content').innerHTML=
       '<div style="padding:12px 16px 4px;font-size:13px;color:var(--muted)">'+new Date().toLocaleDateString([],{weekday:'long',month:'long',day:'numeric'})+'</div>'+
       '<div class="summary-grid">'+
@@ -200,7 +208,7 @@ async function loadToday(){
       '<div class="summary-card purple"><div class="s-icon">⏰</div><div class="s-val">'+(lastFeed?fmtTime(lastFeed.logged_at):'—')+'</div><div class="s-lbl">Last feed</div><div class="s-sub">'+(lastFeed?(lastFeed.feed_type==='bottle'?(lastFeed.amount_ml+'ml bottle'):(lastFeed.duration_mins+'min breast')):'No feeds yet')+'</div></div>'+
       '</div>'+
       '<div style="padding:4px 16px 16px"><div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;margin-top:8px">Recent activity</div>'+
-      feeds.slice(0,3).map(function(f){return '<div class="log-item"><div class="log-icon">'+(f.feed_type==='bottle'?'🍼':'🤱')+'</div><div class="log-info"><div class="log-title">'+(f.feed_type==='bottle'?'Bottle — '+f.amount_ml+'ml':'Breast — '+f.duration_mins+'min ('+f.breast_side+')')+'</div>'+(f.notes?'<div class="log-detail">'+esc(f.notes)+'</div>':'')+'</div><div class="log-time">'+fmtTime(f.logged_at)+'</div></div>';}).join('')+
+      (recent.length?recent.map(function(e){return '<div class="log-item"><div class="log-icon">'+e.icon+'</div><div class="log-info"><div class="log-title">'+esc(e.title)+'</div>'+(e.detail?'<div class="log-detail">'+esc(e.detail)+'</div>':'')+'</div><div class="log-time">'+fmtTime(e.ts)+'</div></div>';}).join(''):'<div class="empty-log">No activity yet today</div>')+
       '</div>';
   }catch(e){document.getElementById('summary-content').innerHTML='<div class="loading" style="color:var(--red)">Error: '+e.message+'</div>';}
 }
