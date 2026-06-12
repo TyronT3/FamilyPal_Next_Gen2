@@ -30,13 +30,15 @@ body{
 
 .app-screen{display:none;flex-direction:column;min-height:100vh;max-width:600px;margin:0 auto;}
 
-header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;}
-.header-left{display:flex;align-items:center;gap:10px;}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:10;}
+.header-left{display:flex;align-items:center;gap:10px;min-width:0;}
 .header-logo{font-size:22px;}
 .header-icon{font-size:24px;}
-.header-title{font-size:18px;font-weight:800;}
+.header-title{font-size:18px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .header-title span{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
-.icon-btn{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 9px;color:var(--text);cursor:pointer;font-size:15px;}
+.header-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap;}
+.icon-btn{background:var(--card);border:1px solid var(--border);border-radius:8px;min-width:38px;height:38px;padding:0 9px;color:var(--text);cursor:pointer;font-size:15px;display:inline-flex;align-items:center;justify-content:center;line-height:1;}
+.icon-btn:active{opacity:.78;}
 
 .tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);}
 .tab{flex:1;padding:12px 4px;text-align:center;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;}
@@ -53,5 +55,14 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .loading,.loading-screen{display:flex;align-items:center;justify-content:center;color:var(--muted);}
 .loading{padding:40px;}
 .loading-screen{min-height:200px;}
+
+@media (max-width:520px){
+  header{align-items:flex-start;}
+  .header-actions.is-dense{width:100%;justify-content:flex-start;}
+  .header-actions.is-dense .icon-btn{min-width:40px;height:40px;}
+  .tabs{overflow-x:auto;scrollbar-width:none;}
+  .tabs::-webkit-scrollbar{display:none;}
+  .tab{min-width:max-content;padding-left:12px;padding-right:12px;}
+}
 
 @keyframes spin{to{transform:rotate(360deg);}}

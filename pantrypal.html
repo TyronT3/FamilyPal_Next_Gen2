@@ -26,7 +26,6 @@
   }
   #app-screen{display:none;}
   .header-title{font-weight:700;}
-  .header-actions{display:flex;gap:6px;}
   .toolbar{padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;}
   .search-wrap{flex:1;min-width:150px;position:relative;}
   .search-wrap input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:9px 14px 9px 34px;color:var(--text);font-size:14px;outline:none;}
@@ -167,6 +166,7 @@
   .btn-primary{background:linear-gradient(135deg,var(--accent),#8b5cf6);color:#fff;}
   .btn-secondary{background:var(--card);color:var(--text);border:1px solid var(--border);margin-top:10px;}
   .btn-sm{padding:8px 14px;font-size:13px;border-radius:8px;border:none;cursor:pointer;font-weight:600;}
+  @media (max-width:520px){.toolbar{padding:10px 12px}.search-wrap{flex:1 0 100%;}.filters{width:100%;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}.filters::-webkit-scrollbar{display:none}.filter-btn,.sort-btn{flex:0 0 auto;}}
   @media print{body{background:#fff;color:#000;}#app-screen,header,.toolbar,.stats,.fab,#toast{display:none!important;}#print-area{display:block!important;}.print-item{padding:6px 0;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;font-size:13px;}.print-section{margin-bottom:16px;}.print-section h3{font-size:14px;font-weight:700;margin-bottom:6px;border-bottom:2px solid #000;padding-bottom:4px;}}
   #print-area{display:none;}
 </style>
@@ -175,14 +175,14 @@
 <div id="app-screen" class="app-screen">
   <header>
     <div class="header-left"><span class="header-logo">🥫</span><span class="header-title">PantryPal</span></div>
-    <div class="header-actions">
-      <button class="icon-btn" onclick="openInventoryModal()">📋</button>
-      <button class="icon-btn" onclick="openPriorityModal()">⭐</button>
-      <button class="icon-btn" onclick="openTableView()">📊</button>
-      <button class="icon-btn" onclick="openShoppingMode()">🛒</button>
-      <button class="icon-btn" onclick="openScanModal()">📷</button>
-      <button class="icon-btn" onclick="openCatModal()">🏷️</button>
-      <button class="icon-btn" onclick="window.location.href='home.html'">🏠</button>
+    <div class="header-actions is-dense">
+      <button class="icon-btn" title="Inventory" aria-label="Inventory" onclick="openInventoryModal()">📋</button>
+      <button class="icon-btn" title="Priority items" aria-label="Priority items" onclick="openPriorityModal()">⭐</button>
+      <button class="icon-btn" title="Table view" aria-label="Table view" onclick="openTableView()">📊</button>
+      <button class="icon-btn" title="Shopping mode" aria-label="Shopping mode" onclick="openShoppingMode()">🛒</button>
+      <button class="icon-btn" title="Scan barcode" aria-label="Scan barcode" onclick="openScanModal()">📷</button>
+      <button class="icon-btn" title="Categories" aria-label="Categories" onclick="openCatModal()">🏷️</button>
+      <button class="icon-btn" title="Home" aria-label="Home" onclick="window.location.href='home.html'">🏠</button>
     </div>
   </header>
   <div class="toolbar">
