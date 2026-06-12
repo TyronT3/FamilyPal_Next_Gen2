@@ -12,14 +12,31 @@
     return localStorage.getItem('fp_pass');
   }
 
-  function rememberCredentials(email, password) {
-    localStorage.setItem('fp_email', email);
-    localStorage.setItem('fp_pass', password);
+  function getAccessToken() {
+    return localStorage.getItem('fp_access_token');
+  }
+
+  function getRefreshToken() {
+    return localStorage.getItem('fp_refresh_token');
+  }
+
+  function rememberSession(email, session) {
+    var sessionEmail = email || (session.user && session.user.email);
+    if (sessionEmail) localStorage.setItem('fp_email', sessionEmail);
+    localStorage.removeItem('fp_pass');
+    if (session.access_token) localStorage.setItem('fp_access_token', session.access_token);
+    if (session.refresh_token) localStorage.setItem('fp_refresh_token', session.refresh_token);
+    if (session.expires_in) {
+      localStorage.setItem('fp_token_expires_at', String(Date.now() + (session.expires_in * 1000)));
+    }
   }
 
   function clearCredentials() {
     localStorage.removeItem('fp_email');
     localStorage.removeItem('fp_pass');
+    localStorage.removeItem('fp_access_token');
+    localStorage.removeItem('fp_refresh_token');
+    localStorage.removeItem('fp_token_expires_at');
   }
 
   function requireAuth() {
@@ -35,13 +52,43 @@
     window.location.href = 'index.html';
   }
 
+  function tokenExpiresSoon() {
+    var expiresAt = parseInt(localStorage.getItem('fp_token_expires_at') || '0', 10);
+    return !expiresAt || Date.now() > expiresAt - 60000;
+  }
+
+  async function refreshSession() {
+    var refreshToken = getRefreshToken();
+    if (!refreshToken) return null;
+    var email = getEmail();
+    var data = await authJson('/auth/v1/token?grant_type=refresh_token', {
+      method: 'POST',
+      body: JSON.stringify({ refresh_token: refreshToken })
+    });
+    rememberSession(email || '', data);
+    return data.access_token;
+  }
+
+  async function getAuthToken() {
+    var token = getAccessToken();
+    if (token && !tokenExpiresSoon()) return token;
+    try {
+      return await refreshSession();
+    } catch (e) {
+      clearCredentials();
+      return null;
+    }
+  }
+
   async function requestJson(path, opts) {
     opts = opts || {};
+    var token = await getAuthToken();
+    if (!token) throw new Error('Please sign in again.');
     var response = await fetch(config.supabaseUrl + path, Object.assign({}, opts, {
       headers: Object.assign({
         'Content-Type': 'application/json',
         'apikey': config.supabaseAnonKey,
-        'Authorization': 'Bearer ' + config.supabaseAnonKey
+        'Authorization': 'Bearer ' + token
       }, opts.headers || {})
     }));
     var data = await response.json().catch(function () { return {}; });
@@ -67,14 +114,19 @@
       method: 'POST',
       body: JSON.stringify({ email: email, password: password })
     });
-    rememberCredentials(email, password);
+    rememberSession(email, data);
     return data;
   }
 
   async function tryStoredSignIn() {
     var email = getEmail();
+    if (!email) return false;
+    if (getRefreshToken()) {
+      await refreshSession();
+      return true;
+    }
     var password = getPassword();
-    if (!email || !password) return false;
+    if (!password) return false;
     await signIn(email, password);
     return true;
   }
@@ -89,9 +141,11 @@
   global.FamilyPal = {
     config: config,
     getEmail: getEmail,
-    getPassword: getPassword,
+    getAccessToken: getAccessToken,
+    getRefreshToken: getRefreshToken,
     requireAuth: requireAuth,
     authJson: authJson,
+    refreshSession: refreshSession,
     requestJson: requestJson,
     sbFetch: requestJson,
     signIn: signIn,

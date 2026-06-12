@@ -20,9 +20,11 @@ FamilyPal is a GitHub Pages household organizer backed by Supabase. This staging
 
 ## Current Architecture
 
-The app is plain HTML/CSS/JS and is intended to run as static files on GitHub Pages. Supabase provides auth and database storage. App pages currently use the Supabase anon key directly from the browser, so database access should be protected with safe Row Level Security policies before treating this as production-hardened.
+The app is plain HTML/CSS/JS and is intended to run as static files on GitHub Pages. Supabase provides auth and database storage. The anon key is public by design for login/signup and REST requests, but normal app data requests now attach the signed-in user's Supabase access token.
 
-Authentication currently preserves existing behavior by storing `fp_email` and `fp_pass` in `localStorage` for automatic login. This is a known security debt and should be replaced with Supabase session/token handling in a later refactor.
+Authentication stores `fp_email`, `fp_access_token`, `fp_refresh_token`, and `fp_token_expires_at` in `localStorage`. Older saved `fp_pass` values are removed after the next successful sign-in or sign-out.
+
+The migration `supabase/migrations/20260612010000_enable_authenticated_rls.sql` enables Row Level Security and allows only authenticated users to manage the current shared household tables. This blocks anonymous table access, but it is not yet per-household isolation because the schema does not have household/user ownership columns.
 
 ## Refactor Path
 
