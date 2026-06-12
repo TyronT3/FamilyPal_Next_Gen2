@@ -503,8 +503,8 @@ function renderToday(){
       // add diaper type if applicable
       var lastDiaper=logs.filter(function(l){ return l.notes&&DIAPER_NAMES[l.notes]; });
       var typeNote=lastDiaper.length>0?' ('+DIAPER_NAMES[lastDiaper[0].notes]+')':'';
-      doneInfo='✓ '+parts.join(', ')+typeNote;
-      doneClass=tCount>0&&aCount>0?'both':tCount>0?'tyron':'ansonette';
+      doneInfo=parts.join(', ')+typeNote;
+      doneClass=bCount>0||tCount>0&&aCount>0?'both':tCount>0?'tyron':'ansonette';
     }
     return '<div class="chore-card '+(count>0&&!canRepeat?'done':'')+'">' +
       '<div class="chore-emoji">'+(c.emoji||'🧹')+'</div>' +
