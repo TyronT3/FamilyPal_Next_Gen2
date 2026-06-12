@@ -22,14 +22,17 @@ function toggleCatSort(){
 
 function renderItems(){
   const q=document.getElementById('search-input').value.toLowerCase();
+  const clearBtn=document.getElementById('search-clear');
+  if(clearBtn)clearBtn.classList.toggle('visible',!!q);
   const filtered=items.filter(i=>{const match=!q||i.name.toLowerCase().includes(q)||(i.brand||'').toLowerCase().includes(q);const st=calcStatus(i),es=expiryStatus(i.expiry_date);if(!match)return false;if(currentFilter==='all')return true;if(currentFilter==='expiring')return es==='expiring'||es==='expired';if(currentFilter==='priority')return i.priority;if(currentFilter==='low')return st==='low';return st===currentFilter;});
   document.getElementById('stat-stocked').textContent=items.filter(i=>calcStatus(i)==='stocked').length;
   document.getElementById('stat-low').textContent=items.filter(i=>calcStatus(i)==='low').length;
   document.getElementById('stat-open').textContent=items.filter(i=>calcStatus(i)==='open').length;
   document.getElementById('stat-empty').textContent=items.filter(i=>calcStatus(i)==='empty').length;
   document.getElementById('stat-total').textContent=items.length;
+  document.querySelectorAll('[data-stat-filter]').forEach(b=>b.classList.toggle('active',b.dataset.statFilter===currentFilter));
   const grid=document.getElementById('items-grid');
-  if(!filtered.length){grid.innerHTML=`<div class="empty-state"><div class="big">🥫</div><div>No items found</div><div style="font-size:12px;margin-top:6px">Tap + to add your first item</div></div>`;return;}
+  if(!filtered.length){grid.innerHTML=`<div class="empty-state"><div class="big">🥫</div><div>No items found</div><div style="font-size:12px;margin-top:6px">${q||currentFilter!=='all'?'Try clearing search or switching filters.':'Tap + to add your first item'}</div></div>`;return;}
 
   const renderCard=item=>{
     const st=calcStatus(item),es=expiryStatus(item.expiry_date),cat=catName(item.category_id);
@@ -74,7 +77,9 @@ function renderItems(){
   }
 }
 
-function setFilter(f,btn){currentFilter=f;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderItems();}
+function setFilter(f,btn){currentFilter=f;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');renderItems();}
+function setFilterByName(f){const btn=[...document.querySelectorAll('.filter-btn')].find(b=>b.getAttribute('onclick')&&b.getAttribute('onclick').includes(`'${f}'`));setFilter(f,btn);}
+function clearSearch(){const input=document.getElementById('search-input');input.value='';input.focus();renderItems();}
 
 async function quickAction(id,action){
   const item=items.find(i=>i.id===id);if(!item)return;
@@ -211,6 +216,7 @@ function buildShopItems(){const list=[];items.forEach(item=>{const st=calcStatus
 function openShoppingMode(){document.getElementById('shop-modal').style.display='flex';updateSyncBanner();renderUnknownList();renderShopList();}
 function renderShopList(){const all=buildShopItems();const priority=all.filter(x=>x.isPriority),other=all.filter(x=>!x.isPriority);const renderItem=({item,tag,label})=>{const ticked=!!shopTicked[item.id];return`<div class="shop-list-item ${ticked?'ticked':''}" onclick="tickShopItem('${item.id}')"><div class="shop-tick">${ticked?'✓':''}</div><div class="shop-item-emoji">${item.emoji||'🥫'}</div><div class="shop-item-info"><div class="shop-item-name">${esc(item.name)}</div><div class="shop-item-brand">${esc(item.brand||'')}${catName(item.category_id)?' · '+catName(item.category_id):''}</div></div><span class="shop-tag ${tag}">${label}</span></div>`;};let html='';if(priority.length)html+=`<div class="shop-section-title">⭐ Priority (${priority.length})</div>${priority.map(renderItem).join('')}`;if(other.length)html+=`<div class="shop-section-title">📋 Also Needed (${other.length})</div>${other.map(renderItem).join('')}`;if(!priority.length&&!other.length)html=`<div style="text-align:center;padding:40px;color:var(--muted)">🎉 Nothing to buy!</div>`;document.getElementById('shop-list-content').innerHTML=html;}
 function tickShopItem(id){shopTicked[id]=!shopTicked[id];localStorage.setItem('pp_ticked',JSON.stringify(shopTicked));renderShopList();}
+function resetShoppingTicks(){shopTicked={};localStorage.removeItem('pp_ticked');renderShopList();toast('Shopping ticks reset');}
 function shareWhatsApp(){const all=buildShopItems();if(!all.length){toast('Nothing to buy!');return;}let msg='🛒 *PantryPal Shopping List*\n\n';const p=all.filter(x=>x.isPriority),o=all.filter(x=>!x.isPriority);if(p.length){msg+='⭐ *Priority*\n';p.forEach(({item})=>{msg+=`${shopTicked[item.id]?'✅':'☐'} ${item.emoji||''} ${item.name}\n`;});}if(o.length){msg+='\n📋 *Also Needed*\n';o.forEach(({item})=>{msg+=`${shopTicked[item.id]?'✅':'☐'} ${item.emoji||''} ${item.name}\n`;});}window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');}
 function startShopScan(){document.getElementById('shop-scanner-wrap').style.display='block';if(shopScannerRunning)return;Quagga.init({inputStream:{type:'LiveStream',target:document.getElementById('shop-interactive'),constraints:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}},decoder:{readers:['ean_reader','ean_8_reader','upc_reader','upc_e_reader','code_128_reader']},locate:true},err=>{if(err){document.getElementById('shop-scan-status').textContent='Camera error: '+err;return;}Quagga.start();shopScannerRunning=true;document.getElementById('shop-scan-status').textContent='Point camera at a barcode…';const sc=document.getElementById('shop-scanner-container');if(!sc.querySelector('.scan-overlay'))sc.innerHTML+=`<div class="scan-overlay"><div class="scan-box"></div></div>`;});let lastCode='',lastTime=0;Quagga.onDetected(r=>{const code=r.codeResult.code,now=Date.now();if(code===lastCode&&now-lastTime<2000)return;lastCode=code;lastTime=now;stopShopScanner();handleShopScan(code);});}
 function stopShopScanner(){if(!shopScannerRunning)return;Quagga.stop();shopScannerRunning=false;document.getElementById('shop-interactive').innerHTML='';document.getElementById('shop-scanner-wrap').style.display='none';}

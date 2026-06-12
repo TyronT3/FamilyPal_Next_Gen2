@@ -29,9 +29,12 @@
   .header-title{font-weight:700;}
   .toolbar{padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;}
   .search-wrap{flex:1;min-width:150px;position:relative;}
-  .search-wrap input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:9px 14px 9px 34px;color:var(--text);font-size:14px;outline:none;}
+  .search-wrap input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:9px 42px 9px 34px;color:var(--text);font-size:14px;outline:none;}
   .search-wrap input:focus{border-color:var(--accent);}
   .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:13px;}
+  .search-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:28px;height:28px;border:0;border-radius:7px;background:transparent;color:var(--muted);cursor:pointer;font-size:16px;display:none;align-items:center;justify-content:center;}
+  .search-clear.visible{display:flex;}
+  .search-clear:active{background:var(--surface);}
   .filters{display:flex;gap:5px;flex-wrap:wrap;}
   .filter-btn{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:5px 10px;font-size:12px;color:var(--muted);cursor:pointer;white-space:nowrap;}
   .filter-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
@@ -46,7 +49,8 @@
   .rating-opt.selected-love{border-color:var(--green);background:#1a3d2b;color:var(--green);}
   .rating-opt.selected-hate{border-color:var(--red);background:#3d0e0e;color:var(--red);}
   .stats{display:flex;gap:8px;padding:10px 16px;overflow-x:auto;}
-  .stat-chip{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:7px 12px;text-align:center;flex-shrink:0;}
+  .stat-chip{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:7px 12px;text-align:center;flex-shrink:0;color:var(--text);cursor:pointer;font-family:inherit;}
+  .stat-chip.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(108,99,255,.16);}
   .stat-chip .num{font-size:18px;font-weight:700;}
   .stat-chip .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
   .stat-chip.green .num{color:var(--green);}
@@ -157,7 +161,7 @@
   .action-btn.red{border-color:var(--red);background:#3d0e0e;color:var(--red);}
   .btn-primary{background:linear-gradient(135deg,var(--accent),#8b5cf6);color:#fff;}
   .btn-sm{padding:8px 14px;font-size:13px;border-radius:8px;border:none;cursor:pointer;font-weight:600;}
-  @media (max-width:520px){.toolbar{padding:10px 12px}.search-wrap{flex:1 0 100%;}.filters{width:100%;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}.filters::-webkit-scrollbar{display:none}.filter-btn,.sort-btn{flex:0 0 auto;}}
+  @media (max-width:520px){.toolbar{padding:10px 12px}.search-wrap{flex:1 0 100%;}.filters{width:100%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));}.filter-btn,.sort-btn{min-height:34px;padding:6px 8px;}.sort-btn{grid-column:span 2;}.stats{padding:10px 12px;}.stat-chip{min-width:84px;}}
   @media print{body{background:#fff;color:#000;}#app-screen,header,.toolbar,.stats,.fab,#toast{display:none!important;}#print-area{display:block!important;}.print-item{padding:6px 0;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;font-size:13px;}.print-section{margin-bottom:16px;}.print-section h3{font-size:14px;font-weight:700;margin-bottom:6px;border-bottom:2px solid #000;padding-bottom:4px;}}
   #print-area{display:none;}
 </style>
@@ -178,7 +182,7 @@
     </div>
   </header>
   <div class="toolbar">
-    <div class="search-wrap"><span class="search-icon">🔍</span><input type="text" id="search-input" placeholder="Search items…" oninput="renderItems()"></div>
+    <div class="search-wrap"><span class="search-icon">🔍</span><input type="text" id="search-input" placeholder="Search items..." oninput="renderItems()"><button class="search-clear" id="search-clear" type="button" aria-label="Clear search" onclick="clearSearch()">×</button></div>
     <div class="filters">
       <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
       <button class="filter-btn" onclick="setFilter('stocked',this)">🟢</button>
@@ -191,11 +195,11 @@
     </div>
   </div>
   <div class="stats">
-    <div class="stat-chip green"><div class="num" id="stat-stocked">0</div><div class="lbl">Stocked</div></div>
-    <div class="stat-chip orange"><div class="num" id="stat-low">0</div><div class="lbl">Low</div></div>
-    <div class="stat-chip yellow"><div class="num" id="stat-open">0</div><div class="lbl">Open</div></div>
-    <div class="stat-chip red"><div class="num" id="stat-empty">0</div><div class="lbl">Empty</div></div>
-    <div class="stat-chip"><div class="num" id="stat-total">0</div><div class="lbl">Total</div></div>
+    <button class="stat-chip green" type="button" data-stat-filter="stocked" onclick="setFilterByName('stocked')"><div class="num" id="stat-stocked">0</div><div class="lbl">Stocked</div></button>
+    <button class="stat-chip orange" type="button" data-stat-filter="low" onclick="setFilterByName('low')"><div class="num" id="stat-low">0</div><div class="lbl">Low</div></button>
+    <button class="stat-chip yellow" type="button" data-stat-filter="open" onclick="setFilterByName('open')"><div class="num" id="stat-open">0</div><div class="lbl">Open</div></button>
+    <button class="stat-chip red" type="button" data-stat-filter="empty" onclick="setFilterByName('empty')"><div class="num" id="stat-empty">0</div><div class="lbl">Empty</div></button>
+    <button class="stat-chip" type="button" data-stat-filter="all" onclick="setFilterByName('all')"><div class="num" id="stat-total">0</div><div class="lbl">Total</div></button>
   </div>
   <div class="items-grid" id="items-grid"><div class="loading-screen"><span class="spinner"></span> Loading pantry…</div></div>
   <button class="fab" onclick="openAddModal()">+</button>
@@ -302,6 +306,7 @@
       <button class="btn btn-primary" style="font-size:13px;margin-top:0" onclick="startShopScan()">📷 Scan</button>
       <button class="btn btn-secondary" style="font-size:13px" onclick="shareWhatsApp()">💬 WhatsApp</button>
       <button class="btn btn-secondary" style="font-size:13px" onclick="printShoppingList()">🖨️ Print</button>
+      <button class="btn btn-secondary" style="font-size:13px" onclick="resetShoppingTicks()">Reset Ticks</button>
     </div>
     <div id="shop-scanner-wrap" style="display:none;margin-bottom:12px">
       <div id="shop-scanner-container"><div id="shop-interactive"></div></div>
