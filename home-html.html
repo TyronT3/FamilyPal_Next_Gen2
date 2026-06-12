@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>FamilyPal</title>
+<style>
+  :root{--bg:#0f1117;--surface:#1a1d27;--card:#22263a;--text:#e8eaf6;--muted:#8892b0;--border:#2e3250;--radius:16px;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
+  .logo{font-size:56px;margin-bottom:8px;}
+  .app-title{font-size:30px;font-weight:800;background:linear-gradient(135deg,#6c63ff,#e91e8c);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px;}
+  .app-sub{color:var(--muted);font-size:14px;margin-bottom:28px;}
+  .apps{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;}
+  .app-card{border-radius:20px;padding:24px;text-align:center;cursor:pointer;transition:transform .15s;border:1px solid var(--border);}
+  .app-card:active{transform:scale(.97);}
+  .app-card.pantry{background:linear-gradient(135deg,#1a1d27,#22263a);border-color:#2e3250;}
+  .app-card.baby{background:linear-gradient(135deg,#1a0a1e,#2a1040);border-color:#3a1a5a;}
+  .app-card.chores{background:linear-gradient(135deg,#0a1e1a,#0a2010);border-color:#1a4a30;}
+  .app-card-icon{font-size:44px;margin-bottom:10px;}
+  .app-card-title{font-size:22px;font-weight:800;margin-bottom:4px;}
+  .app-card.pantry .app-card-title{background:linear-gradient(135deg,#6c63ff,#ff6584);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+  .app-card.baby .app-card-title{background:linear-gradient(135deg,#e91e8c,#9c27b0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+  .app-card.chores .app-card-title{background:linear-gradient(135deg,#00c896,#0088ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+  .app-card-sub{font-size:12px;color:var(--muted);}
+  .signout{margin-top:20px;font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline;}
+</style>
+</head>
+<body>
+<div class="logo">🌟</div>
+<div class="app-title">FamilyPal</div>
+<div class="app-sub">What would you like to do?</div>
+<div class="apps">
+  <div class="app-card pantry" onclick="go('pantrypal.html')">
+    <div class="app-card-icon">🥫</div>
+    <div class="app-card-title">PantryPal</div>
+    <div class="app-card-sub">Pantry tracker · Shopping list · Inventory</div>
+  </div>
+  <div class="app-card baby" onclick="go('babypal.html')">
+    <div class="app-card-icon">🍼</div>
+    <div class="app-card-title">BabyPal</div>
+    <div class="app-card-sub">Feeds · Diapers · Sleep · Geomé's day</div>
+  </div>
+  <div class="app-card chores" onclick="go('chorepal.html')">
+    <div class="app-card-icon">🧹</div>
+    <div class="app-card-title">ChoresPal</div>
+    <div class="app-card-sub">Daily chores · Points · Tyron vs Ansonette</div>
+  </div>
+</div>
+<div class="signout" onclick="signOut()">Sign out</div>
+<script>
+  window.onload=()=>{if(!localStorage.getItem('fp_email'))window.location.href='index.html';};
+  function go(url){window.location.href=url;}
+  function signOut(){localStorage.removeItem('fp_email');localStorage.removeItem('fp_pass');window.location.href='index.html';}
+</script>
+</body>
+</html>
