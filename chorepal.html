@@ -327,9 +327,8 @@
 
 <div id="toast"></div>
 
+<script src="assets/js/familypal-core.js"></script>
 <script>
-const SB_URL = 'https://kfbvmabnblxwznmrjhny.supabase.co';
-const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmYnZtYWJuYmx4d3pubXJqaG55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MjM1MjQsImV4cCI6MjA5NjM5OTUyNH0._m5LmH81Xk3RU63jvKO7vs8R4lnPINHD3MMAXJwQOxc';
 
 const DIAPER_PTS   = { light:1, wet:2, soiled:5, blowout:10 };
 const DIAPER_NAMES = { light:'💛 Light', wet:'💧 Wet', soiled:'💩 Soiled', blowout:'💥 Blowout' };
@@ -349,16 +348,6 @@ const STARTER = [
   {emoji:'🍼',name:'Sterilise bottles',freq:'daily',assign:'rotating',pts:1,baby:false},
   {emoji:'🚿',name:'Change diaper',freq:'daily',assign:'rotating',pts:1,baby:true},
 ];
-
-async function sbFetch(path, opts) {
-  opts = opts || {};
-  var r = await fetch(SB_URL + path, Object.assign({}, opts, {
-    headers: Object.assign({'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}, opts.headers||{})
-  }));
-  var d = await r.json().catch(function(){ return {}; });
-  if (!r.ok) throw new Error(d.message || d.error || r.status);
-  return d;
-}
 
 function esc(s){ var d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
 function dateStr(d){ return d.toISOString().slice(0,10); }
@@ -390,7 +379,7 @@ var pendingChoreId=null, pendingPerson=null, editingChoreId=null;
 var diaperLogging=false; // guard against double-firing
 
 window.onload = function(){
-  if (!localStorage.getItem('fp_email')){ window.location.href='index.html'; return; }
+  if (!FamilyPal.requireAuth()) return;
   document.getElementById('chore-screen').style.display='flex';
   loadAll();
   renderStarterPack();

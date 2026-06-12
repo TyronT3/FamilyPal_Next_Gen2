@@ -48,10 +48,11 @@
   </div>
 </div>
 <div class="signout" onclick="signOut()">Sign out</div>
+<script src="assets/js/familypal-core.js"></script>
 <script>
-  window.onload=()=>{if(!localStorage.getItem('fp_email'))window.location.href='index.html';};
+  window.onload=()=>{FamilyPal.requireAuth();};
   function go(url){window.location.href=url;}
-  function signOut(){localStorage.removeItem('fp_email');localStorage.removeItem('fp_pass');window.location.href='index.html';}
+  function signOut(){FamilyPal.signOut();}
 </script>
 </body>
 </html>

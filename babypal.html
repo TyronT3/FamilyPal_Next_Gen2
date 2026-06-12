@@ -297,20 +297,11 @@
 
 <div id="toast"></div>
 
+<script src="assets/js/familypal-core.js"></script>
 <script>
-var SB_URL='https://kfbvmabnblxwznmrjhny.supabase.co';
-var SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmYnZtYWJuYmx4d3pubXJqaG55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MjM1MjQsImV4cCI6MjA5NjM5OTUyNH0._m5LmH81Xk3RU63jvKO7vs8R4lnPINHD3MMAXJwQOxc';
 
-// Session check — runs immediately
-if(!localStorage.getItem('fp_email')){ window.location.href='index.html'; }
-
-async function sbFetch(path,opts){
-  opts=opts||{};
-  var r=await fetch(SB_URL+path,Object.assign({},opts,{headers:Object.assign({'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY},opts.headers||{})}));
-  var d=await r.json().catch(function(){return{};});
-  if(!r.ok)throw new Error(d.message||d.error||r.status);
-  return d;
-}
+// Session check - runs immediately
+var isAuthed = FamilyPal.requireAuth();
 function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
 function nowLocal(){var n=new Date();n.setMinutes(n.getMinutes()-n.getTimezoneOffset());return n.toISOString().slice(0,16);}
 function toLocalInput(ts){if(!ts)return'';var d=new Date(ts);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,16);}
@@ -576,6 +567,7 @@ function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.c
 
 // ── Init ──────────────────────────────────────────────────
 window.onload=function(){
+  if(!isAuthed)return;
   document.getElementById('sleep-warn-input').value=getSleepWarn();
   loadSleepState();
   loadToday();

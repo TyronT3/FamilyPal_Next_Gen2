@@ -41,19 +41,13 @@
     <div class="auth-error" id="auth-error"></div>
   </div>
 </div>
+<script src="assets/js/familypal-core.js"></script>
 <script>
-const SB_URL='https://kfbvmabnblxwznmrjhny.supabase.co';
-const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmYnZtYWJuYmx4d3pubXJqaG55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MjM1MjQsImV4cCI6MjA5NjM5OTUyNH0._m5LmH81Xk3RU63jvKO7vs8R4lnPINHD3MMAXJwQOxc';
+window.onload=()=>{autoLogin();};
 
-window.onload=()=>{
-  const e=localStorage.getItem('fp_email'),p=localStorage.getItem('fp_pass');
-  if(e&&p) autoLogin(e,p);
-};
-
-async function autoLogin(email,pass){
+async function autoLogin(){
   try{
-    const r=await fetch(SB_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY},body:JSON.stringify({email,password:pass})});
-    if(r.ok){window.location.href='home.html';}
+    if(await FamilyPal.tryStoredSignIn()) window.location.href='home.html';
   }catch(e){}
 }
 
@@ -62,11 +56,7 @@ async function signIn(){
   const pass=document.getElementById('auth-password').value;
   document.getElementById('auth-error').textContent='';
   try{
-    const r=await fetch(SB_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY},body:JSON.stringify({email,password:pass})});
-    const d=await r.json();
-    if(!r.ok)throw new Error(d.message||d.error||'Login failed');
-    localStorage.setItem('fp_email',email);
-    localStorage.setItem('fp_pass',pass);
+    await FamilyPal.signIn(email,pass);
     window.location.href='home.html';
   }catch(e){document.getElementById('auth-error').textContent=e.message;}
 }
@@ -76,9 +66,10 @@ async function signUp(){
   const pass=document.getElementById('auth-password').value;
   document.getElementById('auth-error').textContent='';
   if(pass.length<6){document.getElementById('auth-error').textContent='Password must be 6+ chars.';return;}
-  const r=await fetch(SB_URL+'/auth/v1/signup',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY},body:JSON.stringify({email,password:pass})});
-  if(r.ok){document.getElementById('auth-error').style.color='#2ecc71';document.getElementById('auth-error').textContent='Account created! Please sign in.';}
-  else{const d=await r.json();document.getElementById('auth-error').textContent=d.message||'Error';}
+  try{
+    await FamilyPal.signUp(email,pass);
+    document.getElementById('auth-error').style.color='#2ecc71';document.getElementById('auth-error').textContent='Account created! Please sign in.';
+  }catch(e){document.getElementById('auth-error').textContent=e.message||'Error';}
 }
 </script>
 </body>
