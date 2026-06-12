@@ -1,7 +1,7 @@
 (function (global) {
   var config = {
-    supabaseUrl: 'https://kfbvmabnblxwznmrjhny.supabase.co',
-    supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmYnZtYWJuYmx4d3pubXJqaG55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MjM1MjQsImV4cCI6MjA5NjM5OTUyNH0._m5LmH81Xk3RU63jvKO7vs8R4lnPINHD3MMAXJwQOxc'
+    supabaseUrl: 'https://dcevozgqpemuivhakgro.supabase.co',
+    supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjZXZvemdxcGVtdWl2aGFrZ3JvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyMzQxNjIsImV4cCI6MjA5NjgxMDE2Mn0.ocqU2aqmpDo74G-GbaFBwCjY5avws-48DeXyoeyjGOg'
   };
 
   function getEmail() {
