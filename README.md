@@ -6,14 +6,16 @@ FamilyPal is a GitHub Pages household organizer backed by Supabase. This staging
 
 - `index.html` - login and account creation
 - `home.html` - FamilyPal app launcher
+- `settings.html` - shared household settings
 - `pantrypal.html` - PantryPal inventory, shopping, barcode scanning, and Open Food Facts lookup
-- `babypal.html` - BabyPal feeds, diapers, sleep, pumping, and meal tracking
-- `chorepal.html` - ChoresPal chores, points, goals, and BabyPal diaper-log integration
+- `babypal.html` - BabyPal feeds, diapers, sleep, pumping, health, undo, and diaper stock tracking
+- `chorepal.html` - ChoresPal chores, points, goals, streaks, and BabyPal diaper-log integration
 
 ## Shared Assets
 
 - `assets/js/familypal-core.js` - shared Supabase config, REST helper, auth guard, login, signup, and sign-out helpers
 - `assets/js/familypal-theme.js` - shared light/dark theme persistence and toggle behavior
+- `assets/js/settings.js` - shared household settings page behavior
 - `assets/js/pantrypal.js` - PantryPal app behavior extracted from `pantrypal.html`
 - `assets/js/babypal.js` - BabyPal app behavior extracted from `babypal.html`
 - `assets/js/chorepal.js` - ChoresPal app behavior extracted from `chorepal.html`

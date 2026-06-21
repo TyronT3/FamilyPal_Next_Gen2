@@ -44,6 +44,13 @@ create table if not exists public.history (
   created_at timestamptz default now()
 );
 
+create table if not exists public.settings (
+  id uuid primary key default gen_random_uuid(),
+  key text not null unique,
+  value text,
+  updated_at timestamptz default now()
+);
+
 create table if not exists public.baby_feeds (
   id uuid primary key default gen_random_uuid(),
   feed_type text not null,
@@ -85,12 +92,16 @@ create table if not exists public.baby_pumping (
   constraint baby_pumping_duration_nonnegative check (duration_mins is null or duration_mins >= 0)
 );
 
-create table if not exists public.mama_meals (
+create table if not exists public.baby_health (
   id uuid primary key default gen_random_uuid(),
-  meal_type text,
-  description text not null,
+  health_type text not null,
+  label text,
+  value_numeric numeric,
+  unit text,
   notes text,
-  logged_at timestamptz default now()
+  logged_at timestamptz default now(),
+  constraint baby_health_type_check check (health_type in ('weight', 'temperature', 'medicine', 'note')),
+  constraint baby_health_value_nonnegative check (value_numeric is null or value_numeric >= 0)
 );
 
 create table if not exists public.chores (
@@ -143,13 +154,13 @@ create index if not exists idx_items_name on public.items(name);
 create index if not exists idx_items_category_id on public.items(category_id);
 create index if not exists idx_items_barcode on public.items(barcode);
 create index if not exists idx_history_item_id_created_at on public.history(item_id, created_at desc);
+create index if not exists idx_settings_key on public.settings(key);
 
 create index if not exists idx_baby_feeds_logged_at on public.baby_feeds(logged_at desc);
 create index if not exists idx_baby_diapers_logged_at on public.baby_diapers(logged_at desc);
 create index if not exists idx_baby_sleep_logged_at on public.baby_sleep(logged_at desc);
 create index if not exists idx_baby_pumping_logged_at on public.baby_pumping(logged_at desc);
-create index if not exists idx_mama_meals_logged_at on public.mama_meals(logged_at desc);
-
+create index if not exists idx_baby_health_logged_at on public.baby_health(logged_at desc);
 create index if not exists idx_chores_active_name on public.chores(active, name);
 create index if not exists idx_chore_logs_completed_at on public.chore_logs(completed_at desc);
 create index if not exists idx_chore_logs_chore_id on public.chore_logs(chore_id);
@@ -160,11 +171,12 @@ create index if not exists idx_chore_goals_active_created_at on public.chore_goa
 alter table public.categories disable row level security;
 alter table public.items disable row level security;
 alter table public.history disable row level security;
+alter table public.settings disable row level security;
 alter table public.baby_feeds disable row level security;
 alter table public.baby_diapers disable row level security;
 alter table public.baby_sleep disable row level security;
 alter table public.baby_pumping disable row level security;
-alter table public.mama_meals disable row level security;
+alter table public.baby_health disable row level security;
 alter table public.chores disable row level security;
 alter table public.chore_logs disable row level security;
 alter table public.chore_goals disable row level security;

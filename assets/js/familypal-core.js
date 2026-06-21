@@ -20,6 +20,39 @@
     return localStorage.getItem('fp_refresh_token');
   }
 
+  async function getSetting(key) {
+    var rows = await requestJson('/rest/v1/settings?key=eq.' + encodeURIComponent(key) + '&select=value&limit=1');
+    return rows && rows[0] ? rows[0].value || '' : null;
+  }
+
+  async function setSetting(key, value) {
+    var body = { key: key, value: value || '', updated_at: new Date().toISOString() };
+    var rows = await requestJson('/rest/v1/settings?on_conflict=key', {
+      method: 'POST',
+      headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' },
+      body: JSON.stringify(body)
+    });
+    return rows && rows[0] ? rows[0] : body;
+  }
+
+  async function getDiaperItemId() {
+    try {
+      var sharedValue = await getSetting('diaper_item_id');
+      if (sharedValue !== null) {
+        if (sharedValue) localStorage.setItem('bp_diaper_item_id', sharedValue);
+        else localStorage.removeItem('bp_diaper_item_id');
+        return sharedValue;
+      }
+    } catch (e) {}
+    return localStorage.getItem('bp_diaper_item_id') || '';
+  }
+
+  async function setDiaperItemId(itemId) {
+    await setSetting('diaper_item_id', itemId || '');
+    if (itemId) localStorage.setItem('bp_diaper_item_id', itemId);
+    else localStorage.removeItem('bp_diaper_item_id');
+  }
+
   function rememberSession(email, session) {
     var sessionEmail = email || (session.user && session.user.email);
     if (sessionEmail) localStorage.setItem('fp_email', sessionEmail);
@@ -41,6 +74,19 @@
 
   function requireAuth() {
     if (!getEmail()) {
+      window.location.href = 'index.html';
+      return false;
+    }
+    return true;
+  }
+
+  async function requireSession() {
+    if (!getEmail()) {
+      window.location.href = 'index.html';
+      return false;
+    }
+    var token = await getAuthToken();
+    if (!token) {
       window.location.href = 'index.html';
       return false;
     }
@@ -96,6 +142,60 @@
     return data;
   }
 
+  async function decrementPantryItem(itemId, action) {
+    if (!itemId) return { skipped: true };
+    var items = await requestJson('/rest/v1/items?id=eq.' + encodeURIComponent(itemId) + '&select=id,name,qty_stocked');
+    var item = Array.isArray(items) ? items[0] : null;
+    if (!item) return { skipped: true, missing: true };
+    var currentQty = parseInt(item.qty_stocked || 0, 10);
+    var nextQty = Math.max(0, currentQty - 1);
+    await requestJson('/rest/v1/items?id=eq.' + encodeURIComponent(itemId), {
+      method: 'PATCH',
+      headers: { 'Prefer': 'return=representation' },
+      body: JSON.stringify({ qty_stocked: nextQty, updated_at: new Date().toISOString() })
+    });
+    try {
+      await requestJson('/rest/v1/history', {
+        method: 'POST',
+        body: JSON.stringify({ item_id: itemId, action: action || 'Used 1 item' })
+      });
+    } catch (e) {}
+    return { skipped: false, name: item.name, previousQty: currentQty, qty_stocked: nextQty };
+  }
+
+  async function incrementPantryItem(itemId, action) {
+    if (!itemId) return { skipped: true };
+    var items = await requestJson('/rest/v1/items?id=eq.' + encodeURIComponent(itemId) + '&select=id,name,qty_stocked');
+    var item = Array.isArray(items) ? items[0] : null;
+    if (!item) return { skipped: true, missing: true };
+    var currentQty = parseInt(item.qty_stocked || 0, 10);
+    var nextQty = currentQty + 1;
+    await requestJson('/rest/v1/items?id=eq.' + encodeURIComponent(itemId), {
+      method: 'PATCH',
+      headers: { 'Prefer': 'return=representation' },
+      body: JSON.stringify({ qty_stocked: nextQty, updated_at: new Date().toISOString() })
+    });
+    try {
+      await requestJson('/rest/v1/history', {
+        method: 'POST',
+        body: JSON.stringify({ item_id: itemId, action: action || 'Restored 1 item' })
+      });
+    } catch (e) {}
+    return { skipped: false, name: item.name, previousQty: currentQty, qty_stocked: nextQty };
+  }
+
+  async function decrementDiaperStock(source) {
+    var itemId = await getDiaperItemId();
+    if (!itemId) return { skipped: true };
+    return decrementPantryItem(itemId, 'Used 1 diaper (' + (source || 'BabyPal') + ')');
+  }
+
+  async function incrementDiaperStock(source) {
+    var itemId = await getDiaperItemId();
+    if (!itemId) return { skipped: true };
+    return incrementPantryItem(itemId, 'Restored 1 diaper (' + (source || 'BabyPal undo') + ')');
+  }
+
   async function authJson(path, opts) {
     opts = opts || {};
     var response = await fetch(config.supabaseUrl + path, Object.assign({}, opts, {
@@ -143,11 +243,20 @@
     getEmail: getEmail,
     getAccessToken: getAccessToken,
     getRefreshToken: getRefreshToken,
+    getSetting: getSetting,
+    setSetting: setSetting,
+    getDiaperItemId: getDiaperItemId,
+    setDiaperItemId: setDiaperItemId,
     requireAuth: requireAuth,
+    requireSession: requireSession,
     authJson: authJson,
     refreshSession: refreshSession,
     requestJson: requestJson,
     sbFetch: requestJson,
+    decrementPantryItem: decrementPantryItem,
+    incrementPantryItem: incrementPantryItem,
+    decrementDiaperStock: decrementDiaperStock,
+    incrementDiaperStock: incrementDiaperStock,
     signIn: signIn,
     signUp: signUp,
     signOut: signOut,

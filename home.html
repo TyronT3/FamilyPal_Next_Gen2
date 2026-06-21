@@ -15,11 +15,13 @@
   .app-card.pantry{background:linear-gradient(135deg,#1a1d27,#22263a);border-color:#2e3250;}
   .app-card.baby{background:linear-gradient(135deg,#1a0a1e,#2a1040);border-color:#3a1a5a;}
   .app-card.chores{background:linear-gradient(135deg,#0a1e1a,#0a2010);border-color:#1a4a30;}
+  .app-card.settings{background:linear-gradient(135deg,#1a1d27,#262a38);border-color:var(--border);}
   .app-card-icon{font-size:44px;margin-bottom:10px;}
   .app-card-title{font-size:22px;font-weight:800;margin-bottom:4px;}
   .app-card.pantry .app-card-title{background:linear-gradient(135deg,#6c63ff,#ff6584);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
   .app-card.baby .app-card-title{background:linear-gradient(135deg,#e91e8c,#9c27b0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
   .app-card.chores .app-card-title{background:linear-gradient(135deg,#00c896,#0088ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+  .app-card.settings .app-card-title{background:linear-gradient(135deg,#f39c12,#6c63ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
   .app-card-sub{font-size:12px;color:var(--muted);}
   .signout{margin-top:20px;font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline;}
   .theme-corner{position:fixed;top:14px;right:14px;z-index:20;}
@@ -46,11 +48,16 @@
     <div class="app-card-title">ChoresPal</div>
     <div class="app-card-sub">Daily chores · Points · Tyron vs Ansonette</div>
   </div>
+  <div class="app-card settings" onclick="go('settings.html')">
+    <div class="app-card-icon">⚙️</div>
+    <div class="app-card-title">Settings</div>
+    <div class="app-card-sub">Household · Diaper stock · Theme</div>
+  </div>
 </div>
 <div class="signout" onclick="signOut()">Sign out</div>
 <script src="assets/js/familypal-core.js"></script>
 <script>
-  window.onload=()=>{FamilyPal.requireAuth();};
+  window.onload=async()=>{await FamilyPal.requireSession();};
   function go(url){window.location.href=url;}
   function signOut(){FamilyPal.signOut();}
 </script>

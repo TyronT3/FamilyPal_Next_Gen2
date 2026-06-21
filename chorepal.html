@@ -28,6 +28,13 @@
   .score-side.tyron .score-pts{color:var(--tyron);}
   .score-side.ansonette .score-pts{color:var(--ansonette);}
   .score-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+  .streak-strip{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 16px 0;}
+  .streak-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;}
+  .streak-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+  .streak-value{font-size:22px;font-weight:800;}
+  .streak-card.tyron .streak-value{color:var(--tyron);}
+  .streak-card.ansonette .streak-value{color:var(--ansonette);}
+  .streak-sub{font-size:11px;color:var(--muted);margin-top:2px;}
   .goal-strip{padding:10px 16px 0;}
   .goal-card{border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;border:1px solid;}
   .goal-card.weekly{background:linear-gradient(135deg,rgba(0,200,150,.08),rgba(0,136,255,.08));border-color:var(--accent);}
@@ -172,6 +179,7 @@
 
   <div id="tab-today">
     <div id="score-area"></div>
+    <div id="streak-area"></div>
     <div id="goal-strip" class="goal-strip"></div>
     <div id="progress-area"></div>
     <div class="chores-list" id="chores-today"></div>

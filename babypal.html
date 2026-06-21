@@ -68,6 +68,7 @@
   .settings-row-info label{font-size:14px;font-weight:600;display:block;}
   .settings-row-info small{font-size:12px;color:var(--muted);}
   .settings-row input[type=number]{width:70px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:15px;text-align:center;outline:none;}
+  .settings-row select{width:100%;margin-top:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;outline:none;}
   .modal-overlay{background:rgba(0,0,0,.75);}
   .modal h2{font-weight:800;}
   .section-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;margin-top:14px;}
@@ -77,6 +78,16 @@
   .time-row{display:flex;gap:8px;align-items:center;margin-bottom:14px;}
   .time-row label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;min-width:80px;}
   .time-row input{flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:14px;outline:none;}
+  .time-presets{display:flex;gap:6px;flex-wrap:wrap;margin:-6px 0 14px 88px;}
+  .time-presets button{background:var(--card);border:1px solid var(--border);border-radius:999px;padding:6px 10px;color:var(--muted);font-size:12px;cursor:pointer;}
+  .time-presets button:active{border-color:var(--accent);color:var(--accent);}
+  .insight-card{margin:12px 16px 0;padding:13px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);}
+  .insight-title{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+  .insight-row{display:flex;justify-content:space-between;gap:10px;font-size:13px;margin-top:4px;}
+  .insight-row strong{font-size:14px;}
+  .warning-card{border-color:var(--orange);background:rgba(230,126,34,.12);}
+  .log-actions{display:flex;gap:6px;align-items:center;}
+  .undo-btn{background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);padding:5px 8px;font-size:11px;cursor:pointer;}
   .log-picker-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:8px 0;}
   .lp-btn{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 12px;text-align:center;cursor:pointer;transition:transform .15s;}
   .lp-btn:active{transform:scale(.95);}
@@ -108,6 +119,7 @@
     <div class="tab" onclick="switchTab('log',this)">➕ Log</div>
     <div class="tab" onclick="switchTab('history',this)">📋 History</div>
     <div class="tab" onclick="switchTab('trends',this)">📈 Trends</div>
+    <div class="tab" onclick="switchTab('health',this)">Health</div>
   </div>
 
   <div class="sleep-banner" id="sleep-banner" style="display:none">
@@ -126,16 +138,17 @@
     <div class="quicklog-grid">
       <div class="ql-btn pink" onclick="openModal('feed-modal')"><div class="ql-icon">🍼</div><div class="ql-label">Bottle Feed</div><div class="ql-sub">Log milk amount</div></div>
       <div class="ql-btn purple" onclick="openModal('breast-modal')"><div class="ql-icon">🤱</div><div class="ql-label">Breast Feed</div><div class="ql-sub">Duration & side</div></div>
-      <div class="ql-btn blue" onclick="logDiaper('wet')"><div class="ql-icon">💧</div><div class="ql-label">Wet Diaper</div><div class="ql-sub">Tap to log now</div></div>
-      <div class="ql-btn yellow" onclick="logDiaper('soiled')"><div class="ql-icon">💩</div><div class="ql-label">Soiled Diaper</div><div class="ql-sub">Tap to log now</div></div>
+      <div class="ql-btn blue" onclick="openDiaperModal('wet')"><div class="ql-icon">💧</div><div class="ql-label">Wet Diaper</div><div class="ql-sub">Time adjustable</div></div>
+      <div class="ql-btn yellow" onclick="openDiaperModal('soiled')"><div class="ql-icon">💩</div><div class="ql-label">Soiled Diaper</div><div class="ql-sub">Time adjustable</div></div>
       <div class="ql-btn green" id="sleep-btn" onclick="handleSleepBtn()"><div class="ql-icon" id="sleep-btn-icon">😴</div><div class="ql-label" id="sleep-btn-label">She fell asleep</div><div class="ql-sub" id="sleep-btn-sub">Start sleep timer</div></div>
       <div class="ql-btn teal" onclick="openModal('pump-modal')"><div class="ql-icon">🥛</div><div class="ql-label">Pump</div><div class="ql-sub">Log session</div></div>
-      <div class="ql-btn yellow" onclick="openModal('meal-modal')"><div class="ql-icon">🍽️</div><div class="ql-label">Mama's Meal</div><div class="ql-sub">Log what she ate</div></div>
+      <div class="ql-btn purple" onclick="openHealthModal('temperature')"><div class="ql-icon">🌡️</div><div class="ql-label">Health</div><div class="ql-sub">Temp, meds, notes</div></div>
       <div class="ql-btn teal" onclick="openSleepListModal()"><div class="ql-icon">✏️</div><div class="ql-label">Edit Sleep</div><div class="ql-sub">View & edit sessions</div></div>
     </div>
   </div>
   <div id="tab-history" style="display:none"><div id="history-content"><div class="loading"><span class="spinner"></span></div></div></div>
   <div id="tab-trends" style="display:none"><div id="trends-content"><div class="loading"><span class="spinner"></span></div></div></div>
+  <div id="tab-health" style="display:none"><div id="health-content"><div class="loading"><span class="spinner"></span></div></div></div>
 
   <button class="log-fab" onclick="openModal('log-picker-modal')">➕ Log Something</button>
 </div>
@@ -149,11 +162,11 @@
     <div class="log-picker-grid">
       <div class="lp-btn" onclick="closeModal('log-picker-modal');openModal('feed-modal')"><div class="lp-icon">🍼</div><div class="lp-label">Bottle Feed</div></div>
       <div class="lp-btn" onclick="closeModal('log-picker-modal');openModal('breast-modal')"><div class="lp-icon">🤱</div><div class="lp-label">Breast Feed</div></div>
-      <div class="lp-btn" onclick="closeModal('log-picker-modal');logDiaper('wet')"><div class="lp-icon">💧</div><div class="lp-label">Wet Diaper</div></div>
-      <div class="lp-btn" onclick="closeModal('log-picker-modal');logDiaper('soiled')"><div class="lp-icon">💩</div><div class="lp-label">Soiled Diaper</div></div>
+      <div class="lp-btn" onclick="closeModal('log-picker-modal');openDiaperModal('wet')"><div class="lp-icon">💧</div><div class="lp-label">Wet Diaper</div></div>
+      <div class="lp-btn" onclick="closeModal('log-picker-modal');openDiaperModal('soiled')"><div class="lp-icon">💩</div><div class="lp-label">Soiled Diaper</div></div>
       <div class="lp-btn" onclick="closeModal('log-picker-modal');handleSleepBtn()"><div class="lp-icon" id="lp-sleep-icon">😴</div><div class="lp-label" id="lp-sleep-label">She fell asleep</div></div>
       <div class="lp-btn" onclick="closeModal('log-picker-modal');openModal('pump-modal')"><div class="lp-icon">🥛</div><div class="lp-label">Pump</div></div>
-      <div class="lp-btn" onclick="closeModal('log-picker-modal');openModal('meal-modal')"><div class="lp-icon">🍽️</div><div class="lp-label">Mama's Meal</div></div>
+      <div class="lp-btn" onclick="closeModal('log-picker-modal');openHealthModal('temperature')"><div class="lp-icon">🌡️</div><div class="lp-label">Health</div></div>
       <div class="lp-btn" onclick="closeModal('log-picker-modal');openSleepListModal()"><div class="lp-icon">✏️</div><div class="lp-label">Edit Sleep</div></div>
     </div>
   </div>
@@ -167,6 +180,7 @@
     <h2>🍼 Bottle Feed</h2>
     <div class="field"><label>Amount (ml)</label><input type="number" id="feed-ml" placeholder="e.g. 120" min="0" max="500"></div>
     <div class="time-row"><label>Time</label><input type="datetime-local" id="feed-time"></div>
+    <div class="time-presets"><button onclick="setLogTime('feed-time',0)">Now</button><button onclick="setLogTime('feed-time',15)">15 min ago</button><button onclick="setLogTime('feed-time',30)">30 min ago</button></div>
     <div class="field"><label>Notes (optional)</label><input type="text" id="feed-notes" placeholder="e.g. finished the whole bottle"></div>
     <button class="btn btn-primary" onclick="logBottleFeed()">Log Feed</button>
   </div>
@@ -187,6 +201,7 @@
     <input type="hidden" id="breast-side" value="left">
     <div class="field"><label>Duration (minutes)</label><input type="number" id="breast-mins" placeholder="e.g. 15" min="1" max="60"></div>
     <div class="time-row"><label>Time</label><input type="datetime-local" id="breast-time"></div>
+    <div class="time-presets"><button onclick="setLogTime('breast-time',0)">Now</button><button onclick="setLogTime('breast-time',15)">15 min ago</button><button onclick="setLogTime('breast-time',30)">30 min ago</button></div>
     <div class="field"><label>Notes (optional)</label><input type="text" id="breast-notes" placeholder="e.g. latched well"></div>
     <button class="btn btn-primary" onclick="logBreastFeed()">Log Feed</button>
   </div>
@@ -229,29 +244,47 @@
     <div class="field"><label>Amount pumped (ml)</label><input type="number" id="pump-ml" placeholder="e.g. 80" min="0"></div>
     <div class="field"><label>Duration (minutes, optional)</label><input type="number" id="pump-mins" placeholder="e.g. 20" min="1"></div>
     <div class="time-row"><label>Time</label><input type="datetime-local" id="pump-time"></div>
+    <div class="time-presets"><button onclick="setLogTime('pump-time',0)">Now</button><button onclick="setLogTime('pump-time',15)">15 min ago</button><button onclick="setLogTime('pump-time',30)">30 min ago</button></div>
     <div class="field"><label>Notes (optional)</label><input type="text" id="pump-notes" placeholder="e.g. left side only"></div>
     <button class="btn btn-primary" onclick="logPump()">Log Session</button>
   </div>
 </div>
 
-<!-- Mama Meal -->
-<div class="modal-overlay" id="meal-modal" style="display:none" onclick="closeModalClick(event)">
+<!-- Diaper -->
+<div class="modal-overlay" id="diaper-log-modal" style="display:none" onclick="closeModalClick(event)">
   <div class="modal">
     <div class="modal-handle"></div>
-    <button class="modal-close" onclick="closeModal('meal-modal')">✕</button>
-    <h2>🍽️ Mama's Meal</h2>
-    <div class="section-label">Meal type</div>
-    <div class="type-toggle">
-      <button class="type-opt selected" data-m="breakfast" onclick="selectMealType('breakfast',this)">🌅 Breakfast</button>
-      <button class="type-opt" data-m="lunch" onclick="selectMealType('lunch',this)">☀️ Lunch</button>
-      <button class="type-opt" data-m="dinner" onclick="selectMealType('dinner',this)">🌙 Dinner</button>
-      <button class="type-opt" data-m="snack" onclick="selectMealType('snack',this)">🍎 Snack</button>
+    <button class="modal-close" onclick="closeModal('diaper-log-modal')">✕</button>
+    <h2 id="diaper-log-title">Diaper</h2>
+    <input type="hidden" id="diaper-type" value="wet">
+    <div class="time-row"><label>Time</label><input type="datetime-local" id="diaper-time"></div>
+    <div class="time-presets"><button onclick="setLogTime('diaper-time',0)">Now</button><button onclick="setLogTime('diaper-time',15)">15 min ago</button><button onclick="setLogTime('diaper-time',30)">30 min ago</button></div>
+    <div class="field"><label>Notes (optional)</label><input type="text" id="diaper-notes" placeholder="e.g. rash cream used"></div>
+    <button class="btn btn-primary" onclick="saveDiaperLog()">Log Diaper</button>
+  </div>
+</div>
+
+<!-- Health -->
+<div class="modal-overlay" id="health-modal" style="display:none" onclick="closeModalClick(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeModal('health-modal')">✕</button>
+    <h2>Health Log</h2>
+    <div class="field"><label>Type</label>
+      <select id="health-type" onchange="syncHealthFields()">
+        <option value="temperature">Temperature</option>
+        <option value="weight">Weight</option>
+        <option value="medicine">Medicine</option>
+        <option value="note">Note</option>
+      </select>
     </div>
-    <input type="hidden" id="meal-type" value="breakfast">
-    <div class="field"><label>What did she eat? *</label><textarea id="meal-desc" placeholder="e.g. Pasta with tomato sauce"></textarea></div>
-    <div class="time-row"><label>Time</label><input type="datetime-local" id="meal-time"></div>
-    <div class="field"><label>Notes (optional)</label><textarea id="meal-notes" placeholder="e.g. tried a new spice" style="min-height:60px"></textarea></div>
-    <button class="btn btn-primary" onclick="logMeal()">Log Meal</button>
+    <div class="field"><label>Label</label><input type="text" id="health-label" placeholder="e.g. Panado, checkup, fever"></div>
+    <div class="field"><label>Value</label><input type="number" id="health-value" step="0.01" placeholder="e.g. 37.2"></div>
+    <div class="field"><label>Unit</label><input type="text" id="health-unit" placeholder="C, kg, ml"></div>
+    <div class="time-row"><label>Time</label><input type="datetime-local" id="health-time"></div>
+    <div class="time-presets"><button onclick="setLogTime('health-time',0)">Now</button><button onclick="setLogTime('health-time',15)">15 min ago</button><button onclick="setLogTime('health-time',30)">30 min ago</button></div>
+    <div class="field"><label>Notes</label><textarea id="health-notes" placeholder="Optional notes"></textarea></div>
+    <button class="btn btn-primary" onclick="saveHealthLog()">Save Health Log</button>
   </div>
 </div>
 
@@ -265,6 +298,12 @@
       <div class="settings-row">
         <div class="settings-row-info"><label>Sleep warning (hours)</label><small>Warn if sleep exceeds this</small></div>
         <input type="number" id="sleep-warn-input" min="1" max="24" value="6" onchange="saveSleepWarn()">
+      </div>
+      <div class="settings-row" style="display:block">
+        <div class="settings-row-info"><label>Diaper pantry item</label><small>Shared across phones. Each diaper log reduces this PantryPal item by 1 sealed stock.</small></div>
+        <select id="diaper-item-select" onchange="saveDiaperItem()">
+          <option value="">No pantry item selected</option>
+        </select>
       </div>
     </div>
   </div>

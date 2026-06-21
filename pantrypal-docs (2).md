@@ -35,7 +35,6 @@ A free, self-hosted family life management suite. One login, three apps — all 
 - Wet and soiled diaper logging (one tap)
 - Smart sleep tracking with live timer, wake-up button and long-sleep warning
 - Pump session logging
-- Mama's meal diary (full notes, correlate with baby fussiness)
 - Today summary dashboard
 - 7-day history timeline
 - Trend charts (milk, diapers, sleep)
@@ -145,14 +144,6 @@ create table baby_pumping (
   logged_at timestamptz default now()
 );
 
-create table mama_meals (
-  id uuid primary key default gen_random_uuid(),
-  meal_type text,
-  description text not null,
-  notes text,
-  logged_at timestamptz default now()
-);
-
 -- ChoresPal
 create table chores (
   id uuid primary key default gen_random_uuid(),
@@ -198,7 +189,6 @@ alter table baby_feeds disable row level security;
 alter table baby_diapers disable row level security;
 alter table baby_sleep disable row level security;
 alter table baby_pumping disable row level security;
-alter table mama_meals disable row level security;
 alter table chores disable row level security;
 alter table chore_logs disable row level security;
 alter table chore_goals disable row level security;
@@ -354,7 +344,6 @@ The big **➕ Log Something** button is always visible. Tap it to log anything:
 | 💩 Soiled Diaper | one tap — instant |
 | 😴 She fell asleep | starts live sleep timer |
 | 🥛 Pump | ml amount + duration |
-| 🍽️ Mama's Meal | full diary with notes |
 
 **Sleep tracking:**
 - Tap **😴 She fell asleep** — live timer starts and shows at the top

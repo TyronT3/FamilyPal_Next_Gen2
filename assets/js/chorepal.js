@@ -42,12 +42,31 @@ function calcScores(logs) {
   return {tyron:t, ansonette:a};
 }
 
+function personDidLogOnDate(person, dateKey) {
+  return monthLogs.some(function(l){
+    var key = dateStr(new Date(l.completed_at));
+    if (key !== dateKey) return false;
+    return l.shared || l.completed_by === person || l.completed_by_2 === person;
+  });
+}
+
+function calcPersonStreak(person) {
+  var streak = 0;
+  for (var i=0; i<31; i++){
+    var d = new Date();
+    d.setDate(d.getDate()-i);
+    if (personDidLogOnDate(person, dateStr(d))) streak++;
+    else break;
+  }
+  return streak;
+}
+
 var chores=[], todayLogs=[], weekLogs=[], monthLogs=[], goals=[], activeTab='today';
 var pendingChoreId=null, pendingPerson=null, editingChoreId=null;
 var diaperLogging=false; // guard against double-firing
 
-window.onload = function(){
-  if (!FamilyPal.requireAuth()) return;
+window.onload = async function(){
+  if (!await FamilyPal.requireSession()) return;
   document.getElementById('chore-screen').style.display='flex';
   loadAll();
   renderStarterPack();
@@ -128,6 +147,14 @@ function renderToday(){
     '</div>' +
     '</div>';
 
+  var tStreak = calcPersonStreak('Tyron');
+  var aStreak = calcPersonStreak('Ansonette');
+  document.getElementById('streak-area').innerHTML =
+    '<div class="streak-strip">' +
+    '<div class="streak-card tyron"><div class="streak-label">Tyron streak</div><div class="streak-value">'+tStreak+' day'+(tStreak!==1?'s':'')+'</div><div class="streak-sub">Any chore logged daily</div></div>' +
+    '<div class="streak-card ansonette"><div class="streak-label">Ansonette streak</div><div class="streak-value">'+aStreak+' day'+(aStreak!==1?'s':'')+'</div><div class="streak-sub">Shared chores count too</div></div>' +
+    '</div>';
+
   renderGoalStrip();
 
   var daily = chores.filter(function(c){ return c.frequency==='daily'; });
@@ -201,7 +228,8 @@ function renderGoalStrip(){
   function card(goal, type){
     if (!goal) return '<div class="goal-empty"><span class="goal-empty-txt">'+(type==='weekly'?'📅 No weekly goal':'🗓️ No monthly goal')+'</span><button class="goal-add-btn" onclick="openGoalModal(\''+type+'\')">+ Set Goal</button></div>';
     var start = goal.period==='weekly' ? getWeekStart() : getMonthStart();
-    var periodLogs = todayLogs.filter(function(l){ return new Date(l.completed_at)>=start; });
+    var sourceLogs = goal.period==='weekly' ? weekLogs : monthLogs;
+    var periodLogs = sourceLogs.filter(function(l){ return new Date(l.completed_at)>=start; });
     var s = calcScores(periodLogs);
     var total = s.tyron+s.ansonette||1;
     var tPct = Math.round(s.tyron/total*100);
@@ -251,11 +279,16 @@ async function completeDiaperLog(diaperType, babypalType){
     todayLogs.unshift(log);
     weekLogs.unshift(log);
     monthLogs.unshift(log);
+    var stockMsg='';
     if (chore && chore.babypal_link==='diaper' && babypalType){
       await sbFetch('/rest/v1/baby_diapers',{method:'POST',body:JSON.stringify({diaper_type:babypalType, logged_at:new Date().toISOString()})});
+      try{
+        var stock=await FamilyPal.decrementDiaperStock('ChoresPal');
+        if(!stock.skipped) stockMsg=stock.previousQty<1?' Diaper stock already 0.':' '+stock.name+' now '+stock.qty_stocked+'.';
+      }catch(stockErr){ stockMsg=' Diaper stock was not updated.'; }
     }
     var label = diaperType ? DIAPER_NAMES[diaperType] : 'Done';
-    toast(shared?'👨👩 Together! '+label+' +'+eachPts+'pts each':label+' — '+person+' +'+pts+'pt'+(pts!==1?'s':''));
+    toast((shared?'👨👩 Together! '+label+' +'+eachPts+'pts each':label+' — '+person+' +'+pts+'pt'+(pts!==1?'s':''))+stockMsg);
     pendingChoreId=null; pendingPerson=null; diaperLogging=false;
     renderToday();
   } catch(e){ diaperLogging=false; toast('Error: '+e.message); }
@@ -265,6 +298,8 @@ async function undoChore(logId){
   try{
     await sbFetch('/rest/v1/chore_logs?id=eq.'+logId,{method:'DELETE'});
     todayLogs=todayLogs.filter(function(l){ return l.id!==logId; });
+    weekLogs=weekLogs.filter(function(l){ return l.id!==logId; });
+    monthLogs=monthLogs.filter(function(l){ return l.id!==logId; });
     renderToday(); toast('↩ Undone');
   }catch(e){ toast('Error: '+e.message); }
 }

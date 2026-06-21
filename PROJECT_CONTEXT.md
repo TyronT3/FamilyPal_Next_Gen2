@@ -41,6 +41,7 @@ Never put a Supabase service role key in this repo or in browser JavaScript.
 
 - `index.html`: login and account creation page.
 - `home.html`: FamilyPal launcher.
+- `settings.html`: shared household settings.
 - `pantrypal.html`: PantryPal app shell and PantryPal-specific inline styles.
 - `babypal.html`: BabyPal app shell and BabyPal-specific inline styles.
 - `chorepal.html`: ChoresPal app shell and ChoresPal-specific inline styles.
@@ -58,6 +59,7 @@ Earlier filename mapping:
 - `assets/css/familypal.css`: shared layout, app shell, cards, modals, buttons, tabs, light mode, and common mobile behavior.
 - `assets/js/familypal-core.js`: shared Supabase config, auth, session handling, REST helper, auth guard, sign in, sign up, sign out.
 - `assets/js/familypal-theme.js`: shared light/dark theme persistence and toggle behavior.
+- `assets/js/settings.js`: shared household settings behavior.
 - `assets/js/pantrypal.js`: PantryPal behavior.
 - `assets/js/babypal.js`: BabyPal behavior.
 - `assets/js/chorepal.js`: ChoresPal behavior.
@@ -67,7 +69,7 @@ Earlier filename mapping:
 Current auth behavior:
 
 - Login happens through Supabase Auth.
-- App pages call `FamilyPal.requireAuth()` before loading.
+- App pages call `FamilyPal.requireSession()` before loading so a stale email without a usable token does not open the app shell.
 - Supabase data calls go through `sbFetch`, which is an alias for `FamilyPal.requestJson`.
 - Normal data requests send the signed-in user's Supabase access token as `Authorization: Bearer <token>`.
 - `localStorage` stores:
@@ -134,7 +136,11 @@ BabyPal:
 - `baby_diapers`
 - `baby_sleep`
 - `baby_pumping`
-- `mama_meals`
+- `baby_health`
+
+Shared:
+
+- `settings`
 
 ChoresPal:
 
@@ -188,7 +194,9 @@ PantryPal currently supports:
 - Quick inventory modal.
 - Priority modal.
 - Category manager.
+- Category rename and merge tools.
 - Table view.
+- Pantry reports with price-aware history summaries and CSV export.
 - Shopping mode.
 - Shopping mode ticked items stored in `localStorage` as `pp_ticked`.
 - Shopping mode reset ticks.
@@ -213,9 +221,12 @@ BabyPal currently supports:
 - Diapers.
 - Sleep sessions.
 - Pumping.
-- Mama meals.
+- Health tracking for temperature, weight, medicine, and health notes.
+- Undo for recent BabyPal logs.
+- Quick time presets for feed, diaper, pumping, and health logs.
 - Sleep timer state stored locally as `bp_sleep_start`.
 - Sleep warning preference stored locally as `bp_sleep_warn`.
+- Diaper logs can decrement a selected PantryPal diaper item stored in Supabase `settings` as `diaper_item_id`.
 
 Disabled/omitted:
 
@@ -237,6 +248,7 @@ ChoresPal currently supports:
 - Points and score calculations.
 - Shared chores with `completed_by_2`.
 - Goal tracking for weekly/monthly goals.
+- Current chore streak cards.
 - Starter chores.
 - Soft delete for chores by setting `active=false`.
 - BabyPal diaper linked chores.
@@ -291,6 +303,15 @@ BabyPal:
 
 - `bp_sleep_start`
 - `bp_sleep_warn`
+- `bp_diaper_item_id` may exist as an old local cache; the active shared value is `settings.key='diaper_item_id'`.
+
+Shared Supabase settings:
+
+- `diaper_item_id`
+- `household_name`
+- `baby_name`
+- `person_1_name`
+- `person_2_name`
 
 ## Safe Testing Checklist
 
@@ -334,8 +355,8 @@ BabyPal:
 - Log a bottle feed.
 - Log a breast feed.
 - Log wet and soiled diapers.
+- Confirm the selected PantryPal diaper item decreases by 1 per diaper log.
 - Log pumping.
-- Log mama meal.
 - Start and stop a sleep session.
 - Confirm Today, History, and Trends views update.
 
@@ -348,6 +369,7 @@ ChoresPal:
 - Create a weekly/monthly goal.
 - Complete a BabyPal-linked diaper chore.
 - Confirm the diaper appears in BabyPal Today and History.
+- Confirm the selected PantryPal diaper item decreases by 1 for linked diaper chores.
 
 Security:
 
