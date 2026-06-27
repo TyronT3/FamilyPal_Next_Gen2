@@ -57,7 +57,7 @@
 <div class="signout" onclick="signOut()">Sign out</div>
 <script src="assets/js/familypal-core.js"></script>
 <script>
-  window.onload=async()=>{await FamilyPal.requireSession();};
+  window.onload=async()=>{if(!await FamilyPal.requireSession())return;FamilyPal.startTokenRefresh();};
   function go(url){window.location.href=url;}
   function signOut(){FamilyPal.signOut();}
 </script>

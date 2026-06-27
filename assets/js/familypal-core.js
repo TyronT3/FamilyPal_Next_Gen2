@@ -1,4 +1,7 @@
 (function (global) {
+  // Clear any legacy plaintext password stored by older app versions
+  localStorage.removeItem('fp_pass');
+
   var config = {
     supabaseUrl: 'https://dcevozgqpemuivhakgro.supabase.co',
     supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjZXZvemdxcGVtdWl2aGFrZ3JvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyMzQxNjIsImV4cCI6MjA5NjgxMDE2Mn0.ocqU2aqmpDo74G-GbaFBwCjY5avws-48DeXyoeyjGOg'
@@ -238,6 +241,18 @@
     });
   }
 
+  var _refreshInterval = null;
+  function startTokenRefresh() {
+    if (_refreshInterval) return;
+    _refreshInterval = setInterval(function () {
+      if (!getEmail()) { stopTokenRefresh(); return; }
+      refreshSession().catch(function () {});
+    }, 30 * 60 * 1000);
+  }
+  function stopTokenRefresh() {
+    if (_refreshInterval) { clearInterval(_refreshInterval); _refreshInterval = null; }
+  }
+
   global.FamilyPal = {
     config: config,
     getEmail: getEmail,
@@ -260,7 +275,9 @@
     signIn: signIn,
     signUp: signUp,
     signOut: signOut,
-    tryStoredSignIn: tryStoredSignIn
+    tryStoredSignIn: tryStoredSignIn,
+    startTokenRefresh: startTokenRefresh,
+    stopTokenRefresh: stopTokenRefresh
   };
 
   global.SB_URL = config.supabaseUrl;

@@ -1,4 +1,11 @@
-window.onload=async()=>{if(!await FamilyPal.requireSession())return;document.getElementById('app-screen').style.display='flex';loadAll();loadOfflineQueue();syncOfflineQueue();};
+window.onload=async()=>{
+  if(!await FamilyPal.requireSession())return;
+  FamilyPal.startTokenRefresh();
+  document.getElementById('app-screen').style.display='flex';
+  var searchTimer;
+  document.getElementById('search-input').oninput=function(){clearTimeout(searchTimer);searchTimer=setTimeout(renderItems,200);};
+  loadAll();loadOfflineQueue();syncOfflineQueue();
+};
 function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
 function escAttr(s){return esc(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function expiryStatus(ds){if(!ds)return null;const diff=Math.ceil((new Date(ds)-new Date())/(864e5));return diff<0?'expired':diff<=7?'expiring':'ok';}
@@ -287,12 +294,48 @@ function downloadReportCsv(days){
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`pantrypal-report-${days}d.csv`;a.click();URL.revokeObjectURL(a.href);
 }
 
+// Lazy-load Quagga barcode library only when the scanner is first used
+var quaggaLoaded=false,quaggaLoading=null;
+function loadQuagga(){
+  if(quaggaLoaded)return Promise.resolve();
+  if(quaggaLoading)return quaggaLoading;
+  quaggaLoading=new Promise(function(resolve,reject){
+    var s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js';
+    s.onload=function(){quaggaLoaded=true;resolve();};
+    s.onerror=function(){reject(new Error('Failed to load barcode scanner'));};
+    document.head.appendChild(s);
+  });
+  return quaggaLoading;
+}
+
 // Shopping mode
 let shopTicked={},pendingScan=null,pendingUnknownBarcode=null,offlineQueue=[],unknownScans=[],shopScannerRunning=false,scannerRunning=false,shopScanHandler=null,scanHandler=null;
 function loadOfflineQueue(){try{offlineQueue=JSON.parse(localStorage.getItem('pp_queue')||'[]');}catch(e){offlineQueue=[];}try{unknownScans=JSON.parse(localStorage.getItem('pp_unknown')||'[]');}catch(e){unknownScans=[];}try{shopTicked=JSON.parse(localStorage.getItem('pp_ticked')||'{}');}catch(e){shopTicked={};}}
 function saveOfflineQueue(){localStorage.setItem('pp_queue',JSON.stringify(offlineQueue));}
 function saveUnknownScans(){localStorage.setItem('pp_unknown',JSON.stringify(unknownScans));}
-async function syncOfflineQueue(){if(!offlineQueue.length)return;const toSync=[...offlineQueue];for(const op of toSync){try{const item=items.find(i=>i.id===op.item_id);if(item){await sbFetch(`/rest/v1/items?id=eq.${op.item_id}`,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify({qty_stocked:op.new_qty,updated_at:new Date().toISOString()})});await sbFetch('/rest/v1/history',{method:'POST',body:JSON.stringify({item_id:op.item_id,action:'Bought 1 more (shop)',price:op.price||null})});item.qty_stocked=op.new_qty;}offlineQueue=offlineQueue.filter(q=>q!==op);}catch(e){}}saveOfflineQueue();updateSyncBanner();}
+async function syncOfflineQueue(){
+  if(!offlineQueue.length)return;
+  const toSync=[...offlineQueue];
+  const succeeded=[];
+  // Run all stock updates concurrently instead of one-by-one
+  await Promise.all(toSync.map(async op=>{
+    try{
+      await sbFetch(`/rest/v1/items?id=eq.${op.item_id}`,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify({qty_stocked:op.new_qty,updated_at:new Date().toISOString()})});
+      const item=items.find(i=>i.id===op.item_id);
+      if(item)item.qty_stocked=op.new_qty;
+      succeeded.push(op);
+    }catch(e){}
+  }));
+  // Batch insert all history records in a single request
+  if(succeeded.length){
+    try{
+      await sbFetch('/rest/v1/history',{method:'POST',body:JSON.stringify(succeeded.map(op=>({item_id:op.item_id,action:'Bought 1 more (shop)',price:op.price||null})))});
+    }catch(e){}
+    offlineQueue=offlineQueue.filter(op=>!succeeded.includes(op));
+  }
+  saveOfflineQueue();updateSyncBanner();
+}
 function updateSyncBanner(){const b=document.getElementById('sync-banner');if(offlineQueue.length>0){b.style.display='block';document.getElementById('sync-count').textContent=offlineQueue.length;}else{b.style.display='none';}}
 function buildShopItems(){const list=[];items.forEach(item=>{const st=calcStatus(item);const isEmpty=st==='empty',isLowItem=st==='low';if(!isEmpty&&!isLowItem&&!item.priority)return;const tag=isEmpty?'buy-now':isLowItem?'buy-soon':'priority-tag';const label=isEmpty?'BUY NOW':isLowItem?'BUY SOON':'PRIORITY';list.push({item,tag,label,isPriority:!!item.priority});});return list;}
 function openShoppingMode(){document.getElementById('shop-modal').style.display='flex';updateSyncBanner();renderUnknownList();renderShopList();}
@@ -300,8 +343,9 @@ function renderShopList(){const all=buildShopItems();const priority=all.filter(x
 function tickShopItem(id){shopTicked[id]=!shopTicked[id];localStorage.setItem('pp_ticked',JSON.stringify(shopTicked));renderShopList();}
 function resetShoppingTicks(){shopTicked={};localStorage.removeItem('pp_ticked');renderShopList();toast('Shopping ticks reset');}
 function shareWhatsApp(){const all=buildShopItems();if(!all.length){toast('Nothing to buy!');return;}let msg='🛒 *PantryPal Shopping List*\n\n';const p=all.filter(x=>x.isPriority),o=all.filter(x=>!x.isPriority);if(p.length){msg+='⭐ *Priority*\n';p.forEach(({item})=>{msg+=`${shopTicked[item.id]?'✅':'☐'} ${item.emoji||''} ${item.name}\n`;});}if(o.length){msg+='\n📋 *Also Needed*\n';o.forEach(({item})=>{msg+=`${shopTicked[item.id]?'✅':'☐'} ${item.emoji||''} ${item.name}\n`;});}window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');}
-function startShopScan(){
+async function startShopScan(){
   document.getElementById('shop-scanner-wrap').style.display='block';
+  try{await loadQuagga();}catch(e){document.getElementById('shop-scan-status').textContent='Could not load barcode scanner';return;}
   if(shopScannerRunning)return;
   let lastCode='',lastTime=0;
   shopScanHandler=function(r){
@@ -405,7 +449,11 @@ async function saveTableRow(id){
     toast(`✓ ${payload.name} saved`);
   }catch(e){toast('Error: '+e.message);}
 }
-function openScanModal(){document.getElementById('scan-modal').style.display='flex';setTimeout(startScanner,300);}
+async function openScanModal(){
+  document.getElementById('scan-modal').style.display='flex';
+  try{await loadQuagga();}catch(e){toast('Could not load barcode scanner');closeModal('scan-modal');return;}
+  setTimeout(startScanner,300);
+}
 function startScanner(){
   if(scannerRunning)return;
   let lastCode='',lastTime=0;

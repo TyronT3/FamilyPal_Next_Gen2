@@ -462,6 +462,7 @@ function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.c
 // ── Init ──────────────────────────────────────────────────
 window.onload=async function(){
   if(!await FamilyPal.requireSession())return;
+  FamilyPal.startTokenRefresh();
   document.getElementById('sleep-warn-input').value=getSleepWarn();
   loadSleepState();
   loadDiaperItemOptions();
