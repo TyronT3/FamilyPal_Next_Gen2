@@ -154,6 +154,28 @@
   .diaper-option{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border:2px solid var(--border);border-radius:12px;background:var(--card);cursor:pointer;margin-bottom:8px;font-size:14px;font-weight:600;}
   .diaper-option:active{opacity:.75;}
   .fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#fff;font-size:24px;cursor:pointer;box-shadow:0 4px 20px rgba(0,200,150,.4);display:flex;align-items:center;justify-content:center;z-index:50;}
+  .an-section{margin-bottom:18px;}
+  .an-section h3{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
+  .an-chart{display:flex;align-items:flex-end;gap:3px;height:72px;margin-bottom:4px;}
+  .an-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;}
+  .an-bar-wrap{width:100%;display:flex;gap:1px;align-items:flex-end;justify-content:center;}
+  .an-bar{flex:1;border-radius:3px 3px 0 0;min-height:2px;}
+  .an-lbl{font-size:8px;color:var(--muted);text-align:center;white-space:nowrap;}
+  .an-val{font-size:8px;color:var(--text);text-align:center;}
+  .an-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;}
+  .an-legend{display:flex;gap:12px;font-size:11px;color:var(--muted);margin-top:6px;}
+  .an-legend span{display:flex;align-items:center;gap:4px;}
+  .an-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .an-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;}
+  .an-row:last-child{border-bottom:none;}
+  .an-row .lbl{color:var(--muted);}
+  .an-row .val{font-weight:700;}
+  .an-neglect{color:var(--orange);font-size:12px;}
+  .an-chip{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;}
+  .an-chip-t{background:rgba(100,150,220,.18);color:#4370A6;}
+  .an-chip-a{background:rgba(200,80,120,.18);color:#C85F72;}
+  .an-chip-b{background:rgba(100,180,140,.18);color:#3E8B7B;}
+  .an-empty{font-size:13px;color:var(--muted);padding:10px 0;}
 </style>
 </head>
 <body>
@@ -174,6 +196,7 @@
     <div class="tab active" onclick="switchTab('today',this)">✅ Today</div>
     <div class="tab" onclick="switchTab('goals',this)">🏆 Goals</div>
     <div class="tab" onclick="switchTab('history',this)">📋 History</div>
+    <div class="tab" onclick="switchTab('analytics',this)">📊 Analytics</div>
     <div class="tab" onclick="switchTab('setup',this)">⚙️ Setup</div>
   </div>
 
@@ -191,6 +214,10 @@
 
   <div id="tab-history" style="display:none">
     <div class="history-list" id="history-content"><div class="loading"><span class="spinner"></span></div></div>
+  </div>
+
+  <div id="tab-analytics" style="display:none">
+    <div style="padding:14px 16px" id="analytics-content"><div class="loading"><span class="spinner"></span></div></div>
   </div>
 
   <div id="tab-setup" style="display:none">

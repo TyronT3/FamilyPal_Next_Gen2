@@ -450,17 +450,111 @@ async function addStarter(i){
   }catch(e){ toast('Error: '+e.message); }
 }
 
+async function loadAnalytics(){
+  var el=document.getElementById('analytics-content');
+  el.innerHTML='<div class="loading"><span class="spinner"></span></div>';
+  try{
+    var since8w=new Date();since8w.setDate(since8w.getDate()-55);since8w.setHours(0,0,0,0);
+    var since30=new Date();since30.setDate(since30.getDate()-29);since30.setHours(0,0,0,0);
+    var results=await Promise.all([
+      sbFetch('/rest/v1/chore_logs?completed_at=gte.'+since8w.toISOString()+'&select=*'),
+      sbFetch('/rest/v1/chore_logs?completed_at=gte.'+since30.toISOString()+'&order=completed_at.desc&select=*')
+    ]);
+    var logs8w=results[0],logs30=results[1];
+
+    // ── 8-week points trend ──────────────────────────
+    var weeks=[];
+    for(var w=7;w>=0;w--){
+      var ws=new Date();ws.setDate(ws.getDate()-w*7);ws.setHours(0,0,0,0);
+      var we=new Date(ws);we.setDate(we.getDate()+6);we.setHours(23,59,59,999);
+      var wLogs=logs8w.filter(function(l){var t=new Date(l.completed_at);return t>=ws&&t<=we;});
+      var sc=calcScores(wLogs);
+      var label=ws.toLocaleDateString([],{month:'short',day:'numeric'});
+      weeks.push({label:label,t:sc.tyron,a:sc.ansonette});
+    }
+    var maxPts=Math.max.apply(null,weeks.map(function(w){return w.t+w.a;}).concat([1]));
+    var trendHtml='<div class="an-chart">'+weeks.map(function(w){
+      var tH=Math.max(2,w.t/maxPts*68);var aH=Math.max(2,w.a/maxPts*68);
+      return'<div class="an-col">'+
+        '<div class="an-bar-wrap">'+
+          '<div class="an-bar" style="height:'+tH+'px;background:#4370A6" title="Tyron '+w.t+'pts"></div>'+
+          '<div class="an-bar" style="height:'+aH+'px;background:#C85F72" title="Ansonette '+w.a+'pts"></div>'+
+        '</div>'+
+        '<div class="an-lbl">'+w.label+'</div>'+
+      '</div>';
+    }).join('')+'</div>'+
+    '<div class="an-legend"><span><div class="an-dot" style="background:#4370A6"></div>Tyron</span><span><div class="an-dot" style="background:#C85F72"></div>Ansonette</span></div>';
+
+    // ── Points this month split ──────────────────────
+    var mStart=getMonthStart();
+    var mLogs=logs8w.filter(function(l){return new Date(l.completed_at)>=mStart;});
+    var mSc=calcScores(mLogs);
+    var mTotal=mSc.tyron+mSc.ansonette||1;
+    var mDiaperPts=0,mOtherPts=0;
+    mLogs.forEach(function(l){
+      var pts=getLogPts(l);
+      var c=chores.find(function(c){return c.id===l.chore_id;});
+      if(c&&c.babypal_link)mDiaperPts+=pts;else mOtherPts+=pts;
+    });
+    var splitHtml=
+      '<div class="an-row"><span class="lbl">👨 Tyron</span><span class="val an-chip an-chip-t">'+mSc.tyron+' pts</span></div>'+
+      '<div class="an-row"><span class="lbl">👩 Ansonette</span><span class="val an-chip an-chip-a">'+mSc.ansonette+' pts</span></div>'+
+      '<div class="an-row"><span class="lbl">🍼 Diaper chore pts</span><span class="val">'+mDiaperPts+'</span></div>'+
+      '<div class="an-row"><span class="lbl">🧹 Household chore pts</span><span class="val">'+mOtherPts+'</span></div>';
+
+    // ── Most done chores (last 30d) ──────────────────
+    var choreCounts={};
+    logs30.forEach(function(l){
+      var c=chores.find(function(c){return c.id===l.chore_id;});
+      var name=c?(c.emoji||'🧹')+' '+c.name:'Unknown';
+      if(!choreCounts[name]){choreCounts[name]={t:0,a:0,b:0};}
+      if(l.shared){choreCounts[name].b++;}else if(l.completed_by==='Tyron'){choreCounts[name].t++;}else{choreCounts[name].a++;}
+    });
+    var choreRanked=Object.entries(choreCounts).sort(function(a,b){return(b[1].t+b[1].a+b[1].b)-(a[1].t+a[1].a+a[1].b);}).slice(0,8);
+    var choreHtml=choreRanked.length?choreRanked.map(function(e){
+      var total=e[1].t+e[1].a+e[1].b;
+      var parts=[];
+      if(e[1].t)parts.push('<span class="an-chip an-chip-t">👨 '+e[1].t+'</span>');
+      if(e[1].a)parts.push('<span class="an-chip an-chip-a">👩 '+e[1].a+'</span>');
+      if(e[1].b)parts.push('<span class="an-chip an-chip-b">👨👩 '+e[1].b+'</span>');
+      return'<div class="an-row"><span class="lbl">'+esc(e[0])+'</span><span style="display:flex;gap:4px;align-items:center">'+parts.join('')+'<strong style="font-size:12px;color:var(--muted);margin-left:4px">×'+total+'</strong></span></div>';
+    }).join(''):'<div class="an-empty">No logs in last 30 days</div>';
+
+    // ── Neglected chores (not done in 7+ days) ───────
+    var now=new Date();
+    var neglected=chores.filter(function(c){
+      if(c.frequency==='once')return false;
+      var last=logs8w.filter(function(l){return l.chore_id===c.id;}).sort(function(a,b){return new Date(b.completed_at)-new Date(a.completed_at);})[0];
+      if(!last)return true;
+      var daysSince=Math.floor((now-new Date(last.completed_at))/86400000);
+      return c.frequency==='daily'?daysSince>=2:daysSince>=7;
+    });
+    var neglectHtml=neglected.length?neglected.map(function(c){
+      var last=logs8w.filter(function(l){return l.chore_id===c.id;}).sort(function(a,b){return new Date(b.completed_at)-new Date(a.completed_at);})[0];
+      var daysSince=last?Math.floor((now-new Date(last.completed_at))/86400000):null;
+      return'<div class="an-row"><span class="lbl">'+(c.emoji||'🧹')+' '+esc(c.name)+'</span><span class="an-neglect">'+(daysSince!==null?daysSince+'d ago':'never')+'</span></div>';
+    }).join(''):'<div class="an-empty">✅ All chores up to date!</div>';
+
+    el.innerHTML=
+      '<div class="an-card an-section"><h3>📈 Weekly points (8 weeks)</h3>'+trendHtml+'</div>'+
+      '<div class="an-card an-section"><h3>🏅 This month</h3>'+splitHtml+'</div>'+
+      '<div class="an-card an-section"><h3>🔝 Most done — last 30 days</h3>'+choreHtml+'</div>'+
+      '<div class="an-card an-section"><h3>⚠️ Neglected chores</h3>'+neglectHtml+'</div>';
+  }catch(e){el.innerHTML='<div style="color:var(--red)">Error: '+e.message+'</div>';}
+}
+
 function switchTab(tab,btn){
   activeTab=tab;
   document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
   btn.classList.add('active');
-  ['today','goals','history','setup'].forEach(function(t){ document.getElementById('tab-'+t).style.display=t===tab?'block':'none'; });
+  ['today','goals','history','analytics','setup'].forEach(function(t){ document.getElementById('tab-'+t).style.display=t===tab?'block':'none'; });
   if(tab==='today') renderToday();
   if(tab==='goals') renderGoalsTab();
   if(tab==='history') loadHistory();
+  if(tab==='analytics') loadAnalytics();
   if(tab==='setup') renderSetup();
 }
-function switchTabById(tab){ var idx={today:0,goals:1,history:2,setup:3}[tab]; if(idx!==undefined) switchTab(tab,document.querySelectorAll('.tab')[idx]); }
+function switchTabById(tab){ var idx={today:0,goals:1,history:2,analytics:3,setup:4}[tab]; if(idx!==undefined) switchTab(tab,document.querySelectorAll('.tab')[idx]); }
 
 function closeModal(id){ document.getElementById(id).style.display='none'; }
 function closeModalClick(e){ if(e.target===e.currentTarget) closeModal(e.currentTarget.id); }

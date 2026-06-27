@@ -263,28 +263,73 @@ async function renderPantryReport(days){
   try{
     const hist=await sbFetch(`/rest/v1/history?created_at=gte.${since.toISOString()}&order=created_at.desc&limit=500&select=*`);
     const itemMap={};items.forEach(i=>itemMap[i.id]=i);
+    const catMap={};categories.forEach(c=>catMap[c.id]=c);
     const rows=hist.map(h=>({date:h.created_at,item:itemMap[h.item_id],action:h.action||'',note:h.note||'',price:h.price===null||h.price===undefined?null:parseFloat(h.price)}));
     lastReportRows=rows;
     const bought=rows.filter(r=>/bought|shop|add/i.test(r.action)).length;
     const used=rows.filter(r=>/finished|used|opened|restored/i.test(r.action)).length;
     const spend=rows.reduce((s,r)=>s+(r.price||0),0);
     const priced=rows.filter(r=>r.price!==null).length;
+
+    // ── Most active items ──────────────────────────────
     const byItem={};
     rows.forEach(r=>{const name=r.item?r.item.name:'Unknown item';if(!byItem[name])byItem[name]={count:0,spend:0};byItem[name].count++;byItem[name].spend+=r.price||0;});
     const top=Object.entries(byItem).sort((a,b)=>b[1].count-a[1].count).slice(0,8);
+
+    // ── Spend by category ──────────────────────────────
+    const byCat={};
+    rows.filter(r=>r.price).forEach(r=>{
+      const item=r.item;
+      const cat=item&&item.category_id?catMap[item.category_id]:null;
+      const catName=cat?(cat.emoji?cat.emoji+' '+cat.name:cat.name):'Uncategorised';
+      if(!byCat[catName])byCat[catName]=0;
+      byCat[catName]+=r.price||0;
+    });
+    const catSpend=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+
+    // ── Stock forecast (days until low) ───────────────
+    // For each item with min_stock > 0, compute avg daily use from history
+    const useRows=rows.filter(r=>/finished|used|opened/i.test(r.action)&&r.item);
+    const useByItem={};
+    useRows.forEach(r=>{const id=r.item.id;if(!useByItem[id])useByItem[id]=0;useByItem[id]++;});
+    const forecastItems=items
+      .filter(i=>i.min_stock>0&&i.qty_stocked>=0)
+      .map(i=>{
+        const uses=useByItem[i.id]||0;
+        const ratePerDay=uses/days;
+        const current=i.qty_stocked+(i.qty_open?1:0);
+        const daysLeft=ratePerDay>0?Math.floor((current-i.min_stock)/ratePerDay):null;
+        return{item:i,ratePerDay,daysLeft,current};
+      })
+      .filter(f=>f.ratePerDay>0)
+      .sort((a,b)=>(a.daysLeft??9999)-(b.daysLeft??9999))
+      .slice(0,10);
+
+    // ── Expiry tracker ────────────────────────────────
+    const today=new Date();today.setHours(0,0,0,0);
+    const soon=new Date(today);soon.setDate(soon.getDate()+14);
+    const expiryItems=items
+      .filter(i=>i.expiry_date&&(i.qty_stocked>0||i.qty_open>0))
+      .map(i=>{const exp=new Date(i.expiry_date);return{item:i,exp,daysLeft:Math.ceil((exp-today)/86400000)};})
+      .sort((a,b)=>a.daysLeft-b.daysLeft)
+      .slice(0,10);
+
     el.innerHTML=
       `<div class="report-summary">
         <div class="report-card"><div class="num">${rows.length}</div><div class="lbl">History rows</div></div>
         <div class="report-card"><div class="num">R${spend.toFixed(2)}</div><div class="lbl">Tracked spend</div></div>
-        <div class="report-card"><div class="num">${bought}</div><div class="lbl">Add/bought actions</div></div>
-        <div class="report-card"><div class="num">${used}</div><div class="lbl">Use/open actions</div></div>
+        <div class="report-card"><div class="num">${bought}</div><div class="lbl">Bought actions</div></div>
+        <div class="report-card"><div class="num">${used}</div><div class="lbl">Used actions</div></div>
       </div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">${priced} row${priced!==1?'s':''} included price data. Price reporting will get better as more purchases are logged.</div>
-      <button class="btn btn-secondary" onclick="downloadReportCsv(${days})">Download CSV</button>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">${priced} row${priced!==1?'s':''} included price data. Price reporting improves as more purchases are scanned with a price.</div>
+      <button class="btn btn-secondary" onclick="downloadReportCsv(${days})">⬇ Download CSV</button>
       <div class="section-label">Most active items</div>
-      ${top.length?top.map(([name,v])=>`<div class="history-item"><div style="flex:1">${esc(name)}</div><div class="history-time">${v.count} changes${v.spend?` - R${v.spend.toFixed(2)}`:''}</div></div>`).join(''):'<div class="empty-state" style="padding:20px">No history yet</div>'}
+      ${top.length?top.map(([name,v])=>`<div class="history-item"><div style="flex:1">${esc(name)}</div><div class="history-time">${v.count} changes${v.spend?` · R${v.spend.toFixed(2)}`:''}</div></div>`).join(''):'<div class="empty-state" style="padding:16px">No history yet</div>'}
+      ${catSpend.length?`<div class="section-label">Spend by category</div>${catSpend.map(([cat,amt])=>`<div class="history-item"><div style="flex:1">${esc(cat)}</div><div class="history-time" style="font-weight:700">R${amt.toFixed(2)}</div></div>`).join('')}`:''}
+      ${forecastItems.length?`<div class="section-label">Stock forecast</div><div style="font-size:11px;color:var(--muted);margin-bottom:8px">Based on usage rate over the last ${days} days</div>${forecastItems.map(f=>{const urgStyle=f.daysLeft!==null&&f.daysLeft<=3?'color:var(--red);font-weight:700':f.daysLeft<=7?'color:var(--orange)':'';return`<div class="history-item"><div style="flex:1"><div>${esc(f.item.name)}</div><div class="history-time">${f.ratePerDay.toFixed(2)}/day · ${f.current} in stock</div></div><div class="history-time" style="${urgStyle}">${f.daysLeft!==null?f.daysLeft+'d left':'—'}</div></div>`;}).join('')}`:''}
+      ${expiryItems.length?`<div class="section-label">Expiry tracker</div>${expiryItems.map(f=>{const style=f.daysLeft<0?'color:var(--red);font-weight:700':f.daysLeft<=7?'color:var(--orange)':'';return`<div class="history-item"><div style="flex:1">${esc(f.item.name)}</div><div class="history-time" style="${style}">${f.daysLeft<0?'Expired '+Math.abs(f.daysLeft)+'d ago':f.daysLeft===0?'Expires today':'In '+f.daysLeft+'d'}</div></div>`;}).join('')}`:''}
       <div class="section-label">Recent history</div>
-      ${rows.length?rows.slice(0,80).map(r=>`<div class="history-item"><div class="history-dot" style="background:var(--accent)"></div><div style="flex:1"><div>${esc(r.item?r.item.name:'Unknown item')} - ${esc(r.action)}</div><div class="history-time">${new Date(r.date).toLocaleString()}${r.price?` - R${r.price.toFixed(2)}`:''}</div></div></div>`).join(''):'<div class="empty-state" style="padding:20px">No report data for this period</div>'}`;
+      ${rows.length?rows.slice(0,80).map(r=>`<div class="history-item"><div class="history-dot" style="background:var(--accent)"></div><div style="flex:1"><div>${esc(r.item?r.item.name:'Unknown item')} · ${esc(r.action)}</div><div class="history-time">${new Date(r.date).toLocaleString()}${r.price?` · R${r.price.toFixed(2)}`:''}</div></div></div>`).join(''):'<div class="empty-state" style="padding:16px">No report data for this period</div>'}`;
   }catch(e){el.innerHTML=`<div style="color:var(--red)">Error: ${e.message}</div>`;}
 }
 function downloadReportCsv(days){

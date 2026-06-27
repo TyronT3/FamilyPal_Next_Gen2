@@ -272,19 +272,88 @@ async function loadHistory(){
 }
 
 // ── Trends ────────────────────────────────────────────────
-async function loadTrends(){
+var trendDays=7;
+async function loadTrends(days){
+  if(days)trendDays=days;
+  var d=trendDays;
+  var el=document.getElementById('trends-content');
+  el.innerHTML='<div class="loading-screen"><span class="spinner"></span></div>';
   try{
-    var since=new Date();since.setDate(since.getDate()-6);since.setHours(0,0,0,0);
-    var results=await Promise.all([sbFetch('/rest/v1/baby_feeds?logged_at=gte.'+since.toISOString()+'&select=*'),sbFetch('/rest/v1/baby_diapers?logged_at=gte.'+since.toISOString()+'&select=*'),sbFetch('/rest/v1/baby_sleep?logged_at=gte.'+since.toISOString()+'&select=*')]);
-    var days=[];for(var i=6;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);days.push(d);}
-    function dk(d){return d.toISOString().slice(0,10);}
-    function dl(d){return d.toLocaleDateString([],{weekday:'short'});}
-    var mlPerDay=days.map(function(d){return{lbl:dl(d),val:results[0].filter(function(f){return f.feed_type==='bottle'&&f.logged_at.startsWith(dk(d));}).reduce(function(s,f){return s+(f.amount_ml||0);},0)};});
-    var diapersPerDay=days.map(function(d){return{lbl:dl(d),val:results[1].filter(function(dia){return dia.logged_at.startsWith(dk(d));}).length};});
-    var sleepPerDay=days.map(function(d){return{lbl:dl(d),val:Math.round(results[2].filter(function(s){return s.sleep_start&&s.sleep_end&&s.logged_at.startsWith(dk(d));}).reduce(function(s,sl){return s+(new Date(sl.sleep_end)-new Date(sl.sleep_start))/60000;},0))};});
-    function bar(data,color,unit){var max=Math.max.apply(null,data.map(function(d){return d.val;}).concat([1]));return'<div class="bar-chart">'+data.map(function(d){return'<div class="bar-col"><div class="bar-val">'+(d.val>0?d.val+unit:'')+'</div><div class="bar" style="height:'+Math.max(4,d.val/max*70)+'px;background:'+color+'"></div><div class="bar-lbl">'+d.lbl+'</div></div>';}).join('')+'</div>';}
-    document.getElementById('trends-content').innerHTML='<div class="chart-wrap"><div class="chart-card"><h3>🍼 Bottle milk (ml)</h3>'+bar(mlPerDay,'var(--pink)','')+'</div><div class="chart-card"><h3>🚿 Diapers</h3>'+bar(diapersPerDay,'var(--blue)','')+'</div><div class="chart-card"><h3>😴 Sleep (mins)</h3>'+bar(sleepPerDay,'var(--green)','m')+'</div></div>';
-  }catch(e){document.getElementById('trends-content').innerHTML='<div class="loading" style="color:var(--red)">Error: '+e.message+'</div>';}
+    var since=new Date();since.setDate(since.getDate()-(d-1));since.setHours(0,0,0,0);
+    var results=await Promise.all([
+      sbFetch('/rest/v1/baby_feeds?logged_at=gte.'+since.toISOString()+'&select=*'),
+      sbFetch('/rest/v1/baby_diapers?logged_at=gte.'+since.toISOString()+'&select=*'),
+      sbFetch('/rest/v1/baby_sleep?logged_at=gte.'+since.toISOString()+'&select=*')
+    ]);
+    var feeds=results[0],diapers=results[1],sleeps=results[2];
+    var dayArr=[];for(var i=d-1;i>=0;i--){var dd=new Date();dd.setDate(dd.getDate()-i);dayArr.push(dd);}
+    function dk(day){return day.toISOString().slice(0,10);}
+    function dl(day){return d>14?day.toLocaleDateString([],{month:'short',day:'numeric'}):day.toLocaleDateString([],{weekday:'short'});}
+    var mlPerDay=dayArr.map(function(day){return{lbl:dl(day),val:feeds.filter(function(f){return f.feed_type==='bottle'&&f.logged_at.startsWith(dk(day));}).reduce(function(s,f){return s+(f.amount_ml||0);},0)};});
+    var diapersPerDay=dayArr.map(function(day){return{lbl:dl(day),val:diapers.filter(function(dia){return dia.logged_at.startsWith(dk(day));}).length};});
+    var sleepPerDay=dayArr.map(function(day){return{lbl:dl(day),val:Math.round(sleeps.filter(function(s){return s.sleep_start&&s.sleep_end&&s.logged_at.startsWith(dk(day));}).reduce(function(s,sl){return s+(new Date(sl.sleep_end)-new Date(sl.sleep_start))/60000;},0))};});
+    function bar(data,color,unit){var max=Math.max.apply(null,data.map(function(x){return x.val;}).concat([1]));return'<div class="bar-chart">'+data.map(function(x){return'<div class="bar-col"><div class="bar-val">'+(x.val>0?x.val+unit:'')+'</div><div class="bar" style="height:'+Math.max(4,x.val/max*70)+'px;background:'+color+'"></div><div class="bar-lbl">'+x.lbl+'</div></div>';}).join('')+'</div>';}
+    // Sleep insights
+    var completedSleeps=sleeps.filter(function(s){return s.sleep_start&&s.sleep_end;});
+    var durations=completedSleeps.map(function(s){return Math.round((new Date(s.sleep_end)-new Date(s.sleep_start))/60000);});
+    var avgSleep=durations.length?Math.round(durations.reduce(function(a,b){return a+b;},0)/durations.length):0;
+    var longestSleep=durations.length?Math.max.apply(null,durations):0;
+    var startHours=completedSleeps.map(function(s){return new Date(s.sleep_start).getHours();});
+    var avgStartHour=startHours.length?Math.round(startHours.reduce(function(a,b){return a+b;},0)/startHours.length):null;
+    var avgStartStr=avgStartHour!==null?((avgStartHour%12||12)+(avgStartHour>=12?'pm':'am')):'—';
+    function minStr(m){return Math.floor(m/60)+'h '+(m%60)+'m';}
+    // Feed insights
+    var bottleFeeds=feeds.filter(function(f){return f.feed_type==='bottle';});
+    var breastFeedsArr=feeds.filter(function(f){return f.feed_type==='breast';});
+    var avgBottle=bottleFeeds.length?Math.round(bottleFeeds.reduce(function(s,f){return s+(f.amount_ml||0);},0)/bottleFeeds.length):0;
+    var totalFeeds=bottleFeeds.length+breastFeedsArr.length;
+    var bPct=totalFeeds?Math.round(bottleFeeds.length/totalFeeds*100):0;
+    var avgDiapersPerDay=diapers.length/d;
+    // 24-hour feed heatmap
+    var hourCounts=Array(24).fill(0);
+    feeds.forEach(function(f){hourCounts[new Date(f.logged_at).getHours()]++;});
+    var maxHr=Math.max.apply(null,hourCounts.concat([1]));
+    var heatmapHtml='<div class="heatmap">'+hourCounts.map(function(v,h){
+      var pct=v/maxHr;var alpha=pct>0?0.15+pct*0.75:0;
+      var lbl=h===0?'12a':h<12?(h+'a'):h===12?'12p':((h-12)+'p');
+      return'<div class="hm-cell" title="'+h+':00 — '+v+' feeds"><div class="hm-bar" style="height:'+Math.max(2,pct*40)+'px;background:rgba(220,100,170,'+alpha.toFixed(2)+')"></div><div class="hm-lbl">'+(h%4===0?lbl:'')+'</div></div>';
+    }).join('')+'</div>';
+    // Diaper forecast (cross-app)
+    var forecastHtml='';
+    try{
+      var diaperItemId=await FamilyPal.getDiaperItemId();
+      if(diaperItemId){
+        var dItems=await sbFetch('/rest/v1/items?id=eq.'+diaperItemId+'&select=name,qty_stocked');
+        var dItem=dItems&&dItems[0];
+        if(dItem&&avgDiapersPerDay>0){
+          var daysRem=Math.floor(dItem.qty_stocked/avgDiapersPerDay);
+          var urg=daysRem<=2?'color:var(--red);font-weight:700':daysRem<=5?'color:var(--orange)':'color:var(--green)';
+          forecastHtml='<div class="insight-card" style="margin:0 0 12px"><div class="insight-title">🔮 Diaper stock forecast</div><div class="insight-row"><span>'+esc(dItem.name)+'</span><strong>'+dItem.qty_stocked+' in stock</strong></div><div class="log-detail" style="margin-top:5px">Based on avg '+avgDiapersPerDay.toFixed(1)+'/day → <span style="'+urg+'">~'+daysRem+' days remaining</span></div></div>';
+        }
+      }
+    }catch(e){}
+    el.innerHTML=
+      '<div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">'+
+        [7,14,30].map(function(n){return'<button class="chip'+(n===d?' chip-active':'')+'" onclick="loadTrends('+n+')">'+n+' days</button>';}).join('')+
+      '</div>'+
+      forecastHtml+
+      '<div class="chart-card"><h3>🍼 Bottle milk (ml/day)</h3>'+bar(mlPerDay,'var(--pink)','')+'</div>'+
+      '<div class="chart-card"><h3>🚿 Diapers per day</h3>'+bar(diapersPerDay,'var(--blue)','')+'</div>'+
+      '<div class="chart-card"><h3>😴 Sleep (mins/day)</h3>'+bar(sleepPerDay,'var(--green)','m')+'</div>'+
+      '<div class="insight-row-wrap">'+
+        '<div class="insight-stat"><div class="is-val">'+(avgBottle||'—')+(avgBottle?'ml':'')+'</div><div class="is-lbl">Avg bottle</div></div>'+
+        '<div class="insight-stat"><div class="is-val">'+bPct+'%</div><div class="is-lbl">Bottle %</div></div>'+
+        '<div class="insight-stat"><div class="is-val">'+(avgSleep?minStr(avgSleep):'—')+'</div><div class="is-lbl">Avg nap</div></div>'+
+        '<div class="insight-stat"><div class="is-val">'+(longestSleep?minStr(longestSleep):'—')+'</div><div class="is-lbl">Longest nap</div></div>'+
+        '<div class="insight-stat"><div class="is-val">'+avgStartStr+'</div><div class="is-lbl">Avg sleep start</div></div>'+
+        '<div class="insight-stat"><div class="is-val">'+avgDiapersPerDay.toFixed(1)+'</div><div class="is-lbl">Diapers/day</div></div>'+
+      '</div>'+
+      '<div class="chart-card" style="margin-top:12px">'+
+        '<h3>🕐 Feed times (24hr)</h3>'+
+        '<div style="font-size:11px;color:var(--muted);margin-bottom:4px">When feeds typically happen</div>'+
+        heatmapHtml+
+      '</div>';
+  }catch(e){el.innerHTML='<div style="color:var(--red)">Error: '+e.message+'</div>';}
 }
 
 // ── Log functions ─────────────────────────────────────────
