@@ -1,6 +1,6 @@
 # FamilyPal Next Gen Project Context
 
-Last updated: 2026-06-21
+Last updated: 2026-06-27
 
 This document is the working memory for the FamilyPal staging refactor. Read it before making changes so the staging app stays coherent and the live FamilyPal app is not accidentally affected.
 
@@ -78,7 +78,8 @@ Current auth behavior:
   - `fp_refresh_token`
   - `fp_token_expires_at`
   - `fp_theme`
-- The old insecure `fp_pass` value is removed after successful sign-in or sign-out.
+- Any legacy `fp_pass` value is cleared immediately when `familypal-core.js` loads (not just on sign-in/out).
+- All app pages call `FamilyPal.startTokenRefresh()` after `requireSession()` succeeds, which refreshes the access token every 30 minutes in the background so idle sessions stay alive.
 
 Important limitation:
 
@@ -202,8 +203,9 @@ PantryPal currently supports:
 - Shopping mode reset ticks.
 - Offline shopping scan queue stored in `localStorage` as `pp_queue`.
 - Unknown scans stored in `localStorage` as `pp_unknown`.
-- Barcode scanning with QuaggaJS.
+- Barcode scanning with QuaggaJS (lazy-loaded on first scan, not on page load).
 - Barcode product lookup with Open Food Facts.
+- Offline shopping scan queue syncs concurrently (batch stock PATCHes + single history insert) on reconnect.
 
 Known testing note:
 
@@ -291,7 +293,7 @@ Shared:
 
 Legacy cleanup:
 
-- `fp_pass` may exist from older versions and should be removed after sign-in/sign-out.
+- `fp_pass` is cleared on every `familypal-core.js` load. No manual cleanup needed.
 
 PantryPal:
 
@@ -469,6 +471,13 @@ ChoresPal:
 - Improve recurring chore logic.
 - Add clearer weekly/monthly summaries.
 - Add better shared chore completion UX.
+
+Offline support (scoped, not yet started):
+
+- BabyPal and ChoresPal are mostly append-only logs — easy to queue offline and sync on reconnect.
+- PantryPal stock quantities are read-modify-write — need delta tracking (+1/-1) instead of absolute values to avoid conflicts when both phones edit the same item offline.
+- Estimated effort: ~1 week for a good-enough family app version (no full conflict resolution); ~3 weeks for a solid implementation with service worker and proper conflict handling.
+- Decision: hold off until needed. Design doc saved in Claude memory.
 
 Docs:
 
