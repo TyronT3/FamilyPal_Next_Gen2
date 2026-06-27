@@ -385,8 +385,25 @@ function updateSyncBanner(){const b=document.getElementById('sync-banner');if(of
 function buildShopItems(){const list=[];items.forEach(item=>{const st=calcStatus(item);const isEmpty=st==='empty',isLowItem=st==='low';if(!isEmpty&&!isLowItem&&!item.priority)return;const tag=isEmpty?'buy-now':isLowItem?'buy-soon':'priority-tag';const label=isEmpty?'BUY NOW':isLowItem?'BUY SOON':'PRIORITY';list.push({item,tag,label,isPriority:!!item.priority});});return list;}
 function openShoppingMode(){document.getElementById('shop-modal').style.display='flex';updateSyncBanner();renderUnknownList();renderShopList();}
 function renderShopList(){const all=buildShopItems();const priority=all.filter(x=>x.isPriority),other=all.filter(x=>!x.isPriority);const renderItem=({item,tag,label})=>{const ticked=!!shopTicked[item.id];return`<div class="shop-list-item ${ticked?'ticked':''}" onclick="tickShopItem('${item.id}')"><div class="shop-tick">${ticked?'✓':''}</div><div class="shop-item-emoji">${item.emoji||'🥫'}</div><div class="shop-item-info"><div class="shop-item-name">${esc(item.name)}</div><div class="shop-item-brand">${esc(item.brand||'')}${catName(item.category_id)?' · '+catName(item.category_id):''}</div></div><span class="shop-tag ${tag}">${label}</span></div>`;};let html='';if(priority.length)html+=`<div class="shop-section-title">⭐ Priority (${priority.length})</div>${priority.map(renderItem).join('')}`;if(other.length)html+=`<div class="shop-section-title">📋 Also Needed (${other.length})</div>${other.map(renderItem).join('')}`;if(!priority.length&&!other.length)html=`<div style="text-align:center;padding:40px;color:var(--muted)">🎉 Nothing to buy!</div>`;document.getElementById('shop-list-content').innerHTML=html;}
-function tickShopItem(id){shopTicked[id]=!shopTicked[id];localStorage.setItem('pp_ticked',JSON.stringify(shopTicked));renderShopList();}
-function resetShoppingTicks(){shopTicked={};localStorage.removeItem('pp_ticked');renderShopList();toast('Shopping ticks reset');}
+async function tickShopItem(id){
+  const wasTicked=!!shopTicked[id];
+  shopTicked[id]=!wasTicked;
+  localStorage.setItem('pp_ticked',JSON.stringify(shopTicked));
+  renderShopList();
+  if(!wasTicked){
+    const item=items.find(i=>i.id===id);if(!item)return;
+    const newQty=(item.qty_stocked||0)+1;
+    if(navigator.onLine){
+      try{
+        await sbFetch(`/rest/v1/items?id=eq.${id}`,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify({qty_stocked:newQty,updated_at:new Date().toISOString()})});
+        await sbFetch('/rest/v1/history',{method:'POST',body:JSON.stringify({item_id:id,action:'Bought 1 more (shop)'})});
+        item.qty_stocked=newQty;toast(`✅ ${item.name} +1 in pantry`);
+      }catch(e){queueScan(item,newQty,null);}
+    }else{queueScan(item,newQty,null);}
+    renderItems();renderShopList();updateSyncBanner();
+  }
+}
+function resetShoppingTicks(){shopTicked={};localStorage.removeItem('pp_ticked');renderShopList();toast('Shopping session cleared');}
 function shareWhatsApp(){const all=buildShopItems();if(!all.length){toast('Nothing to buy!');return;}let msg='🛒 *PantryPal Shopping List*\n\n';const p=all.filter(x=>x.isPriority),o=all.filter(x=>!x.isPriority);if(p.length){msg+='⭐ *Priority*\n';p.forEach(({item})=>{msg+=`${shopTicked[item.id]?'✅':'☐'} ${item.emoji||''} ${item.name}\n`;});}if(o.length){msg+='\n📋 *Also Needed*\n';o.forEach(({item})=>{msg+=`${shopTicked[item.id]?'✅':'☐'} ${item.emoji||''} ${item.name}\n`;});}window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');}
 async function startShopScan(){
   document.getElementById('shop-scanner-wrap').style.display='block';
