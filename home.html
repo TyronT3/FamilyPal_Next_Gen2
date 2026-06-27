@@ -53,16 +53,17 @@
     <div class="app-card-title">Settings</div>
     <div class="app-card-sub">Household · Diaper stock · Theme</div>
   </div>
-  <div class="app-card settings" onclick="go('priceseeder.html')">
-    <div class="app-card-icon">💰</div>
-    <div class="app-card-title">Price Seeder</div>
-    <div class="app-card-sub">Set reference prices for pantry items</div>
-  </div>
 </div>
+<div style="margin-top:20px;font-size:12px;color:var(--muted);text-align:center">Signed in as <span id="user-email" style="font-weight:600"></span></div>
 <div class="signout" onclick="signOut()">Sign out</div>
 <script src="assets/js/familypal-core.js"></script>
 <script>
-  window.onload=async()=>{if(!await FamilyPal.requireSession())return;FamilyPal.startTokenRefresh();};
+  window.onload=async()=>{
+    if(!await FamilyPal.requireSession())return;
+    FamilyPal.startTokenRefresh();
+    var el=document.getElementById('user-email');
+    if(el)el.textContent=FamilyPal.getEmail()||'';
+  };
   function go(url){window.location.href=url;}
   function signOut(){FamilyPal.signOut();}
 </script>
