@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>FamilyPal — Price Seeder</title>
+  <link rel="stylesheet" href="assets/css/familypal.css">
+  <style>
+    .ps-wrap{max-width:680px;margin:0 auto;padding:16px 16px 60px;}
+    .ps-intro{font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+    .ps-actions{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
+    .ps-count{font-size:13px;color:var(--muted);}
+    .ps-cat-label{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:600;margin:18px 0 6px 2px;}
+    .ps-row{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:10px;}
+    .ps-name{flex:1;min-width:0;}
+    .ps-item-name{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .ps-item-brand{font-size:11px;color:var(--muted);}
+    .ps-hint{font-size:11px;color:var(--accent);background:rgba(62,139,123,.12);border-radius:5px;padding:2px 7px;white-space:nowrap;flex-shrink:0;cursor:pointer;border:1px solid transparent;transition:border-color .1s;}
+    .ps-hint:hover{border-color:var(--accent);}
+    .ps-price-wrap{display:flex;align-items:center;gap:4px;flex-shrink:0;}
+    .ps-cur{font-size:14px;color:var(--muted);font-weight:600;}
+    .ps-input{width:76px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 8px;color:var(--text);font-size:14px;text-align:right;outline:none;transition:border-color .15s;}
+    .ps-input:focus{border-color:var(--accent);}
+    .ps-input.ps-ok{border-color:var(--green);}
+    .ps-status{font-size:13px;width:18px;text-align:center;flex-shrink:0;}
+    .ps-links{display:flex;gap:4px;flex-shrink:0;}
+    .ps-link{font-size:11px;padding:4px 8px;border-radius:6px;background:var(--bg);border:1px solid var(--border);color:var(--muted);text-decoration:none;cursor:pointer;transition:border-color .1s,color .1s;}
+    .ps-link:hover{border-color:var(--accent);color:var(--accent);}
+    @media(max-width:500px){.ps-links{display:none;}.ps-hint{display:none;}}
+  </style>
+</head>
+<body>
+<div id="app-screen" style="display:none;flex-direction:column;min-height:100vh">
+  <header class="app-header">
+    <a href="home.html" class="back-btn">← Home</a>
+    <div class="app-title">💰 Price Seeder</div>
+    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">🌙</button>
+  </header>
+
+  <div class="ps-wrap">
+    <p class="ps-intro">Set a reference price for each pantry item. Used in reports to estimate monthly spend and value in stock. Prices don't need to be exact — ballpark is fine.<br><br>
+    🟢 <strong>Suggested prices</strong> (green badges) are approximate SA retail prices from June 2026 — tap one to use it instantly. Use the <strong>PnP / Checkers</strong> links to check live prices. Prices save automatically when you leave each field.</p>
+
+    <div class="ps-actions">
+      <span class="ps-count" id="price-count">Loading…</span>
+      <button class="btn btn-secondary" style="font-size:13px;margin-top:0" onclick="applyAllHints()">Apply all suggestions</button>
+    </div>
+
+    <div id="items-list"><div class="loading-screen"><span class="spinner"></span></div></div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="assets/js/familypal-core.js"></script>
+<script src="assets/js/familypal-theme.js"></script>
+<script>
+// ── Price reference table (approx SA retail, Jun 2026) ─────
+var HINTS=[
+  {keys:['milk'],price:33,note:'2L full cream'},
+  {keys:['bread','loaf'],price:17,note:'700g loaf'},
+  {keys:['egg'],price:80,note:'30 pack'},
+  {keys:['butter'],price:70,note:'250g'},
+  {keys:['stork','spread','margarine'],price:48,note:'1kg'},
+  {keys:['rice','tastic'],price:30,note:'2kg'},
+  {keys:['pasta','macaroni','spaghetti','penne','fettuc','linguine'],price:17,note:'500g'},
+  {keys:['sugar'],price:63,note:'2.5kg'},
+  {keys:['flour','cake flour'],price:45,note:'2.5kg'},
+  {keys:['tea','joko','rooibos','five roses'],price:55,note:'box'},
+  {keys:['coffee','nescafe','ricoffy','jacobs','douwe'],price:170,note:'200g'},
+  {keys:['oil','sunflower','canola','olive oil','cook'],price:40,note:'750ml'},
+  {keys:['baked bean'],price:16,note:'410g tin'},
+  {keys:['tuna'],price:38,note:'tin'},
+  {keys:['sardine','pilchard'],price:30,note:'tin'},
+  {keys:['tomato paste','tomato puree'],price:18,note:'tin'},
+  {keys:['canned tomato','tinned tomato','chopped tomato'],price:22,note:'tin'},
+  {keys:['washing powder','laundry powder','omo','surf','maq','skip'],price:60,note:'box'},
+  {keys:['fabric softener','comfort','sunsoft'],price:55,note:'litre'},
+  {keys:['dishwash','dishwashing liquid','sunlight','finish'],price:40,note:'750ml'},
+  {keys:['toilet paper','toilet roll','loo roll','bathroom tissue'],price:75,note:'9 pack'},
+  {keys:['napp','diaper','pampers size','huggies size','lovie'],price:120,note:'pack ~80ct'},
+  {keys:['wipe','wet wipe','baby wipe','pampers wipe','huggies wipe'],price:50,note:'pack 80ct'},
+  {keys:['formula','nan ','nan optipro','similac','nativa','infacare','s-26'],price:300,note:'900g tin'},
+  {keys:['shampoo','head & shoulders','pantene','tresemme','dove hair'],price:60,note:'bottle'},
+  {keys:['conditioner'],price:60,note:'bottle'},
+  {keys:['body wash','shower gel','shower cream','dove body'],price:55,note:'bottle'},
+  {keys:['soap','bar soap','lux','lifebuoy','protex'],price:30,note:'4-bar pack'},
+  {keys:['yoghurt','yogurt','activia'],price:30,note:'small tub'},
+  {keys:['cheese','cheddar'],price:85,note:'400g block'},
+  {keys:['cream cheese','philadelphia','lancewood'],price:55,note:'230g'},
+  {keys:['chicken breast','chicken fillet'],price:110,note:'per kg'},
+  {keys:['chicken pieces','chicken thigh','chicken drum'],price:75,note:'per kg'},
+  {keys:['beef mince','mince'],price:90,note:'per kg'},
+  {keys:['bacon'],price:70,note:'200g pack'},
+  {keys:['boerewors','wors','sausage'],price:80,note:'per kg'},
+  {keys:['juice','orange juice','apple juice'],price:50,note:'1L'},
+  {keys:['coke','coca-cola','sprite','fanta','pepsi','cooldrink','cold drink'],price:25,note:'2L'},
+  {keys:['water','still water'],price:15,note:'5L'},
+  {keys:['sparkling water','soda water'],price:22,note:'2L'},
+  {keys:['cereal','cornflakes','future life','weet-bix','weetabix'],price:50,note:'box'},
+  {keys:['oat','oatmeal'],price:35,note:'500g'},
+  {keys:['peanut butter'],price:45,note:'400g'},
+  {keys:['jam','marmalade','strawberry jam'],price:40,note:'jar'},
+  {keys:['salt'],price:12,note:'table salt'},
+  {keys:['black pepper','pepper'],price:25,note:'spice'},
+  {keys:['tomato sauce','ketchup','heinz'],price:35,note:'bottle'},
+  {keys:['mayonnaise','mayo','hellmanns','nola'],price:50,note:'jar'},
+  {keys:['mustard'],price:30,note:'jar'},
+  {keys:['soup','cup-a-soup'],price:15,note:'packet'},
+  {keys:['stock','bovril','knorr stock','stock cube'],price:20,note:'box'},
+  {keys:['vinegar'],price:18,note:'bottle'},
+  {keys:['soy sauce'],price:30,note:'bottle'},
+  {keys:['bleach','jik','domestos'],price:30,note:'bottle'},
+  {keys:['handy andy','mr muscle','all purpose cleaner'],price:40,note:'bottle'},
+  {keys:['bin bag','garbage bag','refuse bag'],price:35,note:'roll'},
+  {keys:['cling wrap','glad wrap','plastic wrap'],price:28,note:'roll'},
+  {keys:['foil','aluminium foil','tin foil'],price:30,note:'roll'},
+  {keys:['toothpaste','colgate','aquafresh','oral-b'],price:40,note:'tube'},
+  {keys:['toothbrush'],price:35,note:'pack'},
+  {keys:['deodorant','deo','axe','sure','dove deo','rexona'],price:55,note:'stick/spray'},
+  {keys:['sanitary','pad','always','kotex','tampon'],price:55,note:'pack'},
+  {keys:['ice cream','magnum'],price:70,note:'2L tub'},
+  {keys:['cream','fresh cream','whipping cream'],price:30,note:'250ml'},
+  {keys:['condensed milk','nestlé milk'],price:28,note:'tin'},
+  {keys:['coconut milk','coconut cream'],price:22,note:'tin'},
+  {keys:['vegetable','frozen veg','mixed veg'],price:40,note:'bag'},
+  {keys:['potato','chips','crisps'],price:35,note:'bag'},
+  {keys:['apple','orange','banana'],price:30,note:'bag/bunch'},
+  {keys:['baby food','purity','heinz baby'],price:25,note:'jar'},
+  {keys:['nappy rash','cream','bepanthene','petroleum jelly','vaseline'],price:50,note:'tube/jar'},
+];
+
+function getHint(name,brand){
+  var lower=((name||'')+' '+(brand||'')).toLowerCase();
+  for(var i=0;i<HINTS.length;i++){
+    var h=HINTS[i];
+    for(var j=0;j<h.keys.length;j++){
+      if(lower.indexOf(h.keys[j])!==-1)return h;
+    }
+  }
+  return null;
+}
+
+function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
+
+var items=[],categories=[];
+
+async function load(){
+  try{
+    var res=await Promise.all([
+      sbFetch('/rest/v1/items?order=name.asc&select=id,name,brand,category_id,emoji,unit_price'),
+      sbFetch('/rest/v1/categories?order=name.asc&select=id,name,emoji')
+    ]);
+    items=res[0];categories=res[1];
+    render();
+  }catch(e){toast('Error loading: '+e.message);}
+}
+
+function render(){
+  updateCount();
+  var catMap={};categories.forEach(function(c){catMap[c.id]=c;});
+  var grouped={};
+  items.forEach(function(item){
+    var cat=item.category_id?catMap[item.category_id]:null;
+    var key=cat?((cat.emoji||'')+(cat.emoji?' ':'')+cat.name):'Other';
+    if(!grouped[key])grouped[key]=[];
+    grouped[key].push(item);
+  });
+  var html='';
+  Object.keys(grouped).sort().forEach(function(catName){
+    html+='<div class="ps-cat-label">'+esc(catName)+'</div>';
+    grouped[catName].forEach(function(item){
+      var hint=getHint(item.name,item.brand);
+      var cur=item.unit_price!==null&&item.unit_price!==undefined?item.unit_price:'';
+      var q=encodeURIComponent((item.name||'')+' '+(item.brand||''));
+      html+='<div class="ps-row" id="row-'+item.id+'">'+
+        '<div class="ps-name">'+
+          '<div class="ps-item-name">'+esc((item.emoji||'📦')+' '+item.name)+'</div>'+
+          (item.brand?'<div class="ps-item-brand">'+esc(item.brand)+'</div>':'')+
+        '</div>'+
+        (hint&&cur===''?'<span class="ps-hint" id="hint-'+item.id+'" title="Tap to apply this suggested price" onclick="applyHint(\''+item.id+'\','+hint.price+')">~R'+hint.price+'<br><span style="font-size:9px;opacity:.7">'+esc(hint.note)+'</span></span>':'<span id="hint-'+item.id+'"></span>')+
+        '<div class="ps-price-wrap">'+
+          '<span class="ps-cur">R</span>'+
+          '<input class="ps-input" id="price-'+item.id+'" type="number" min="0" step="0.50" value="'+esc(String(cur))+'" placeholder="—" onblur="savePrice(\''+item.id+'\')">'+
+          '<span class="ps-status" id="status-'+item.id+'"></span>'+
+        '</div>'+
+        '<div class="ps-links">'+
+          '<a class="ps-link" href="https://www.pnp.co.za/search?q='+q+'" target="_blank" rel="noopener">PnP ↗</a>'+
+          '<a class="ps-link" href="https://www.checkers.co.za/search?q='+q+'" target="_blank" rel="noopener">Checkers ↗</a>'+
+        '</div>'+
+      '</div>';
+    });
+  });
+  document.getElementById('items-list').innerHTML=html;
+}
+
+function updateCount(){
+  var priced=items.filter(function(i){return i.unit_price!==null&&i.unit_price!==undefined;}).length;
+  document.getElementById('price-count').textContent=priced+' of '+items.length+' items priced';
+}
+
+function applyHint(itemId,price){
+  var inp=document.getElementById('price-'+itemId);
+  if(inp){inp.value=price;savePrice(itemId);}
+}
+
+async function applyAllHints(){
+  var unpriced=items.filter(function(i){return i.unit_price===null||i.unit_price===undefined;});
+  var applied=0;
+  for(var i=0;i<unpriced.length;i++){
+    var item=unpriced[i];
+    var hint=getHint(item.name,item.brand);
+    if(hint){
+      var inp=document.getElementById('price-'+item.id);
+      if(inp&&!inp.value){inp.value=hint.price;await savePrice(item.id);applied++;}
+    }
+  }
+  toast(applied?'Applied '+applied+' suggested prices':'No new suggestions to apply');
+}
+
+async function savePrice(itemId){
+  var inp=document.getElementById('price-'+itemId);
+  var statusEl=document.getElementById('status-'+itemId);
+  if(!inp)return;
+  var raw=inp.value.trim();
+  var val=raw===''?null:parseFloat(raw);
+  if(val!==null&&isNaN(val))return;
+
+  statusEl.textContent='…';
+  try{
+    await sbFetch('/rest/v1/items?id=eq.'+itemId,{
+      method:'PATCH',
+      headers:{'Prefer':'return=minimal'},
+      body:JSON.stringify({unit_price:val})
+    });
+    var item=items.find(function(i){return i.id===itemId;});
+    if(item)item.unit_price=val;
+    statusEl.textContent='✓';
+    inp.classList.add('ps-ok');
+    var hintEl=document.getElementById('hint-'+itemId);
+    if(hintEl&&val!==null)hintEl.style.display='none';
+    setTimeout(function(){statusEl.textContent='';inp.classList.remove('ps-ok');},2000);
+    updateCount();
+  }catch(e){
+    statusEl.textContent='✗';
+    toast('Save failed: '+e.message);
+  }
+}
+
+var toastTimer;
+function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.classList.remove('show');},2500);}
+
+window.onload=async function(){
+  if(!await FamilyPal.requireSession())return;
+  FamilyPal.startTokenRefresh();
+  document.getElementById('app-screen').style.display='flex';
+  load();
+};
+</script>
+</body>
+</html>
