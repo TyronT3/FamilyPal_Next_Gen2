@@ -255,8 +255,10 @@ async function mergeCategory(fromId){
 }
 
 let lastReportRows=[];
-function openReportModal(){document.getElementById('report-modal').style.display='flex';renderPantryReport(30);}
-async function renderPantryReport(days){
+function openReportModal(){document.getElementById('report-modal').style.display='flex';renderPantryReport(30,document.querySelector('.rp-btn'));}
+async function renderPantryReport(days,btn){
+  document.querySelectorAll('.rp-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
   const since=new Date();since.setDate(since.getDate()-days);
   const el=document.getElementById('report-content');
   el.innerHTML='<div class="loading-screen"><span class="spinner"></span></div>';
@@ -288,7 +290,6 @@ async function renderPantryReport(days){
     const catSpend=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
 
     // ── Stock forecast (days until low) ───────────────
-    // For each item with min_stock > 0, compute avg daily use from history
     const useRows=rows.filter(r=>/finished|used|opened/i.test(r.action)&&r.item);
     const useByItem={};
     useRows.forEach(r=>{const id=r.item.id;if(!useByItem[id])useByItem[id]=0;useByItem[id]++;});
@@ -299,9 +300,9 @@ async function renderPantryReport(days){
         const ratePerDay=uses/days;
         const current=i.qty_stocked+(i.qty_open?1:0);
         const daysLeft=ratePerDay>0?Math.floor((current-i.min_stock)/ratePerDay):null;
-        return{item:i,ratePerDay,daysLeft,current};
+        return{item:i,ratePerDay,daysLeft,current,uses};
       })
-      .filter(f=>f.ratePerDay>0)
+      .filter(f=>f.uses>=2&&f.ratePerDay>0&&(f.daysLeft===null||f.daysLeft<=90))
       .sort((a,b)=>(a.daysLeft??9999)-(b.daysLeft??9999))
       .slice(0,10);
 
@@ -326,7 +327,7 @@ async function renderPantryReport(days){
       <div class="section-label">Most active items</div>
       ${top.length?top.map(([name,v])=>`<div class="history-item"><div style="flex:1">${esc(name)}</div><div class="history-time">${v.count} changes${v.spend?` · R${v.spend.toFixed(2)}`:''}</div></div>`).join(''):'<div class="empty-state" style="padding:16px">No history yet</div>'}
       ${catSpend.length?`<div class="section-label">Spend by category</div>${catSpend.map(([cat,amt])=>`<div class="history-item"><div style="flex:1">${esc(cat)}</div><div class="history-time" style="font-weight:700">R${amt.toFixed(2)}</div></div>`).join('')}`:''}
-      ${forecastItems.length?`<div class="section-label">Stock forecast</div><div style="font-size:11px;color:var(--muted);margin-bottom:8px">Based on usage rate over the last ${days} days</div>${forecastItems.map(f=>{const urgStyle=f.daysLeft!==null&&f.daysLeft<=3?'color:var(--red);font-weight:700':f.daysLeft<=7?'color:var(--orange)':'';return`<div class="history-item"><div style="flex:1"><div>${esc(f.item.name)}</div><div class="history-time">${f.ratePerDay.toFixed(2)}/day · ${f.current} in stock</div></div><div class="history-time" style="${urgStyle}">${f.daysLeft!==null?f.daysLeft+'d left':'—'}</div></div>`;}).join('')}`:''}
+      ${forecastItems.length?`<div class="section-label">Stock forecast</div><div style="font-size:11px;color:var(--muted);margin-bottom:8px">Items used 2+ times in this period — capped at 90 days. Items with too little data or very slow use are excluded.</div>${forecastItems.map(f=>{const urgStyle=f.daysLeft!==null&&f.daysLeft<=3?'color:var(--red);font-weight:700':f.daysLeft<=7?'color:var(--orange)':'';return`<div class="history-item"><div style="flex:1"><div>${esc(f.item.name)}</div><div class="history-time">${f.uses} uses · ${f.current} in stock</div></div><div class="history-time" style="${urgStyle}">${f.daysLeft!==null?f.daysLeft+'d left':'—'}</div></div>`;}).join('')}`:''}
       ${expiryItems.length?`<div class="section-label">Expiry tracker</div>${expiryItems.map(f=>{const style=f.daysLeft<0?'color:var(--red);font-weight:700':f.daysLeft<=7?'color:var(--orange)':'';return`<div class="history-item"><div style="flex:1">${esc(f.item.name)}</div><div class="history-time" style="${style}">${f.daysLeft<0?'Expired '+Math.abs(f.daysLeft)+'d ago':f.daysLeft===0?'Expires today':'In '+f.daysLeft+'d'}</div></div>`;}).join('')}`:''}
       <div class="section-label">Recent history</div>
       ${rows.length?rows.slice(0,80).map(r=>`<div class="history-item"><div class="history-dot" style="background:var(--accent)"></div><div style="flex:1"><div>${esc(r.item?r.item.name:'Unknown item')} · ${esc(r.action)}</div><div class="history-time">${new Date(r.date).toLocaleString()}${r.price?` · R${r.price.toFixed(2)}`:''}</div></div></div>`).join(''):'<div class="empty-state" style="padding:16px">No report data for this period</div>'}`;

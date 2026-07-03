@@ -288,11 +288,21 @@ async function loadTrends(days){
     var feeds=results[0],diapers=results[1],sleeps=results[2];
     var dayArr=[];for(var i=d-1;i>=0;i--){var dd=new Date();dd.setDate(dd.getDate()-i);dayArr.push(dd);}
     function dk(day){return day.toISOString().slice(0,10);}
-    function dl(day){return d>14?day.toLocaleDateString([],{month:'short',day:'numeric'}):day.toLocaleDateString([],{weekday:'short'});}
+    function dl(day){return d>14?day.toLocaleDateString([],{month:'short',day:'numeric'}):day.toLocaleDateString([],{weekday:'short'});} // label per bar; bar() skips most when n is large
     var mlPerDay=dayArr.map(function(day){return{lbl:dl(day),val:feeds.filter(function(f){return f.feed_type==='bottle'&&f.logged_at.startsWith(dk(day));}).reduce(function(s,f){return s+(f.amount_ml||0);},0)};});
     var diapersPerDay=dayArr.map(function(day){return{lbl:dl(day),val:diapers.filter(function(dia){return dia.logged_at.startsWith(dk(day));}).length};});
     var sleepPerDay=dayArr.map(function(day){return{lbl:dl(day),val:Math.round(sleeps.filter(function(s){return s.sleep_start&&s.sleep_end&&s.logged_at.startsWith(dk(day));}).reduce(function(s,sl){return s+(new Date(sl.sleep_end)-new Date(sl.sleep_start))/60000;},0))};});
-    function bar(data,color,unit){var max=Math.max.apply(null,data.map(function(x){return x.val;}).concat([1]));return'<div class="bar-chart">'+data.map(function(x){return'<div class="bar-col"><div class="bar-val">'+(x.val>0?x.val+unit:'')+'</div><div class="bar" style="height:'+Math.max(4,x.val/max*70)+'px;background:'+color+'"></div><div class="bar-lbl">'+x.lbl+'</div></div>';}).join('')+'</div>';}
+    function bar(data,color,unit){
+      var n=data.length,max=Math.max.apply(null,data.map(function(x){return x.val;}).concat([1]));
+      var every=n<=7?1:n<=14?2:n<=30?5:7;
+      var minW=Math.max(16,Math.min(32,Math.floor(320/n)));
+      var inner=data.map(function(x,i){
+        var h=Math.max(3,Math.round(x.val/max*54));
+        var lbl=(i%every===0||i===n-1)?x.lbl:'';
+        return'<div class="bar-col" style="min-width:'+minW+'px"><div class="bar-val">'+(x.val>0?x.val+unit:'')+'</div><div class="bar" style="height:'+h+'px;background:'+color+'"></div><div class="bar-lbl">'+lbl+'</div></div>';
+      }).join('');
+      return'<div class="bar-chart-wrap"><div class="bar-chart" style="min-width:'+(n*minW+n*3)+'px">'+inner+'</div></div>';
+    }
     // Sleep insights
     var completedSleeps=sleeps.filter(function(s){return s.sleep_start&&s.sleep_end;});
     var durations=completedSleeps.map(function(s){return Math.round((new Date(s.sleep_end)-new Date(s.sleep_start))/60000);});
@@ -334,7 +344,7 @@ async function loadTrends(days){
     }catch(e){}
     el.innerHTML=
       '<div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">'+
-        [7,14,30].map(function(n){return'<button class="chip'+(n===d?' chip-active':'')+'" onclick="loadTrends('+n+')">'+n+' days</button>';}).join('')+
+        [7,14,30,90].map(function(n){return'<button class="chip'+(n===d?' chip-active':'')+'" onclick="loadTrends('+n+')">'+n+' days</button>';}).join('')+
       '</div>'+
       forecastHtml+
       '<div class="chart-card"><h3>🍼 Bottle milk (ml/day)</h3>'+bar(mlPerDay,'var(--pink)','')+'</div>'+
