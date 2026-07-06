@@ -94,9 +94,8 @@ async function checkGoalExpiry(){
   var today = new Date();
   for (var i=0; i<goals.length; i++){
     var goal = goals[i];
-    if (new Date(goal.end_date)<today && goal.active && !goal.winner){
-      var start = goal.period==='weekly' ? getWeekStart() : getMonthStart();
-      var logs = await sbFetch('/rest/v1/chore_logs?completed_at=gte.'+start.toISOString()+'&select=*');
+    if (goal.end_date < dateStr(today) && goal.active && !goal.winner){
+      var logs = await sbFetch('/rest/v1/chore_logs?completed_at=gte.'+new Date(goal.start_date+'T00:00:00').toISOString()+'&select=*');
       var scores = calcScores(logs);
       var winner = scores.tyron>scores.ansonette ? 'Tyron' : scores.ansonette>scores.tyron ? 'Ansonette' : 'tie';
       await sbFetch('/rest/v1/chore_goals?id=eq.'+goal.id, {method:'PATCH', body:JSON.stringify({winner:winner, active:false})});
@@ -228,9 +227,9 @@ function renderGoalStrip(){
   var mg = goals.find(function(g){ return g.period==='monthly'; });
   function card(goal, type){
     if (!goal) return '<div class="goal-empty"><span class="goal-empty-txt">'+(type==='weekly'?'📅 No weekly goal':'🗓️ No monthly goal')+'</span><button class="goal-add-btn" onclick="openGoalModal(\''+type+'\')">+ Set Goal</button></div>';
-    var start = goal.period==='weekly' ? getWeekStart() : getMonthStart();
     var sourceLogs = goal.period==='weekly' ? weekLogs : monthLogs;
-    var periodLogs = sourceLogs.filter(function(l){ return new Date(l.completed_at)>=start; });
+    var goalStart = new Date(goal.start_date+'T00:00:00');
+    var periodLogs = sourceLogs.filter(function(l){ return new Date(l.completed_at)>=goalStart; });
     var s = calcScores(periodLogs);
     var total = s.tyron+s.ansonette||1;
     var tPct = Math.round(s.tyron/total*100);
@@ -339,6 +338,8 @@ async function saveGoal(){
   if(existing){ if(!confirm('Replace existing '+period+' goal?'))return; await sbFetch('/rest/v1/chore_goals?id=eq.'+existing.id,{method:'PATCH',body:JSON.stringify({active:false})}); goals=goals.filter(function(g){ return g.id!==existing.id; }); }
   var start=period==='weekly'?getWeekStart():getMonthStart();
   var end=period==='weekly'?getWeekEnd():getMonthEnd();
+  // Sunday is the last day of the week — advance to next week so the goal starts fresh
+  if (period==='weekly' && new Date().getDay()===0) { start.setDate(start.getDate()+7); end.setDate(end.getDate()+7); }
   try{
     var res=await sbFetch('/rest/v1/chore_goals',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({period:period,prize:prize,points_target:target,created_by:'shared',start_date:dateStr(start),end_date:dateStr(end),confirmed:true,active:true})});
     var ng=Array.isArray(res)?res[0]:res; goals.push(ng);
