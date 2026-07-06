@@ -283,9 +283,10 @@ async function loadTrends(days){
     var results=await Promise.all([
       sbFetch('/rest/v1/baby_feeds?logged_at=gte.'+since.toISOString()+'&select=*'),
       sbFetch('/rest/v1/baby_diapers?logged_at=gte.'+since.toISOString()+'&select=*'),
-      sbFetch('/rest/v1/baby_sleep?logged_at=gte.'+since.toISOString()+'&select=*')
+      sbFetch('/rest/v1/baby_sleep?logged_at=gte.'+since.toISOString()+'&select=*'),
+      sbFetch('/rest/v1/chore_logs?completed_at=gte.'+since.toISOString()+'&select=completed_by,shared,notes')
     ]);
-    var feeds=results[0],diapers=results[1],sleeps=results[2];
+    var feeds=results[0],diapers=results[1],sleeps=results[2],choreLogs=results[3];
     var dayArr=[];for(var i=d-1;i>=0;i--){var dd=new Date();dd.setDate(dd.getDate()-i);dayArr.push(dd);}
     function dk(day){return day.toISOString().slice(0,10);}
     function dl(day){return d>14?day.toLocaleDateString([],{month:'short',day:'numeric'}):day.toLocaleDateString([],{weekday:'short'});} // label per bar; bar() skips most when n is large
@@ -319,15 +320,28 @@ async function loadTrends(days){
     var totalFeeds=bottleFeeds.length+breastFeedsArr.length;
     var bPct=totalFeeds?Math.round(bottleFeeds.length/totalFeeds*100):0;
     var avgDiapersPerDay=diapers.length/d;
-    // 24-hour feed heatmap
+    // Feed times grid heatmap (AM/PM × 12-hour grid)
     var hourCounts=Array(24).fill(0);
     feeds.forEach(function(f){hourCounts[new Date(f.logged_at).getHours()]++;});
     var maxHr=Math.max.apply(null,hourCounts.concat([1]));
-    var heatmapHtml='<div class="heatmap">'+hourCounts.map(function(v,h){
-      var pct=v/maxHr;var alpha=pct>0?0.15+pct*0.75:0;
-      var lbl=h===0?'12a':h<12?(h+'a'):h===12?'12p':((h-12)+'p');
-      return'<div class="hm-cell" title="'+h+':00 — '+v+' feeds"><div class="hm-bar" style="height:'+Math.max(2,pct*40)+'px;background:rgba(220,100,170,'+alpha.toFixed(2)+')"></div><div class="hm-lbl">'+(h%4===0?lbl:'')+'</div></div>';
-    }).join('')+'</div>';
+    function fmtHr(h){return h===0?'12a':h<12?(h+'a'):h===12?'12p':((h-12)+'p');}
+    function hmCell(v,h){
+      var alpha=v>0?Math.min(1,0.2+v/maxHr*0.8):0;
+      var bg='rgba(233,30,140,'+alpha.toFixed(2)+')';
+      return'<div class="fh-cell" title="'+fmtHr(h)+': '+v+' feeds" style="background:'+bg+'">'+(v>0?v:'')+'</div>';
+    }
+    var heatmapHtml=
+      '<div class="feed-heatmap">'+
+        '<div class="fh-row"><span class="fh-period">AM</span><div class="fh-cells">'+
+          hourCounts.slice(0,12).map(function(v,h){return hmCell(v,h);}).join('')+
+        '</div></div>'+
+        '<div class="fh-row"><span class="fh-period">PM</span><div class="fh-cells">'+
+          hourCounts.slice(12).map(function(v,h){return hmCell(v,h+12);}).join('')+
+        '</div></div>'+
+        '<div class="fh-row"><span class="fh-period"></span><div class="fh-lbl-row">'+
+          Array.from({length:12},function(_,i){return'<div class="fh-hr">'+fmtHr(i)+'</div>';}).join('')+
+        '</div></div>'+
+      '</div>';
     // Diaper forecast (cross-app)
     var forecastHtml='';
     try{
@@ -342,6 +356,24 @@ async function loadTrends(days){
         }
       }
     }catch(e){}
+    // Family effort from chore logs
+    var tLogs=0,aLogs=0,tDiaper=0,aDiaper=0;
+    choreLogs.forEach(function(l){
+      var isBaby=l.notes&&['light','wet','soiled','blowout'].indexOf(l.notes)>=0;
+      if(l.shared){tLogs+=0.5;aLogs+=0.5;if(isBaby){tDiaper+=0.5;aDiaper+=0.5;}}
+      else if(l.completed_by==='Tyron'){tLogs++;if(isBaby)tDiaper++;}
+      else if(l.completed_by==='Ansonette'){aLogs++;if(isBaby)aDiaper++;}
+    });
+    var tR=Math.round(tLogs),aR=Math.round(aLogs),tDR=Math.round(tDiaper),aDR=Math.round(aDiaper);
+    var familyHtml=tR+aR>0?'<div class="chart-card" style="margin-top:12px">'+
+      '<h3>🏠 Family effort — last '+d+' days</h3>'+
+      '<div class="insight-row-wrap" style="grid-template-columns:repeat(2,1fr);margin:0 0 10px">'+
+        '<div class="insight-stat"><div class="is-val" style="color:#4370a6">'+tR+'</div><div class="is-lbl">Tyron tasks</div></div>'+
+        '<div class="insight-stat"><div class="is-val" style="color:#c85f72">'+aR+'</div><div class="is-lbl">Ansonette tasks</div></div>'+
+      '</div>'+
+      '<div style="font-size:12px;color:var(--muted);padding:4px 0;border-top:1px solid var(--border)">👨 Tyron: 🍼 '+tDR+' diapers · 🧹 '+(tR-tDR)+' household</div>'+
+      '<div style="font-size:12px;color:var(--muted);padding:4px 0">👩 Ansonette: 🍼 '+aDR+' diapers · 🧹 '+(aR-aDR)+' household</div>'+
+    '</div>':'';
     el.innerHTML=
       '<div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">'+
         [7,14,30,90].map(function(n){return'<button class="chip'+(n===d?' chip-active':'')+'" onclick="loadTrends('+n+')">'+n+' days</button>';}).join('')+
@@ -358,6 +390,7 @@ async function loadTrends(days){
         '<div class="insight-stat"><div class="is-val">'+avgStartStr+'</div><div class="is-lbl">Avg sleep start</div></div>'+
         '<div class="insight-stat"><div class="is-val">'+avgDiapersPerDay.toFixed(1)+'</div><div class="is-lbl">Diapers/day</div></div>'+
       '</div>'+
+      familyHtml+
       '<div class="chart-card" style="margin-top:12px">'+
         '<h3>🕐 Feed times (24hr)</h3>'+
         '<div style="font-size:11px;color:var(--muted);margin-bottom:4px">When feeds typically happen</div>'+

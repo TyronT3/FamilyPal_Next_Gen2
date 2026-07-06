@@ -490,17 +490,28 @@ async function loadAnalytics(){
     var mLogs=logs8w.filter(function(l){return new Date(l.completed_at)>=mStart;});
     var mSc=calcScores(mLogs);
     var mTotal=mSc.tyron+mSc.ansonette||1;
-    var mDiaperPts=0,mOtherPts=0;
+    var tDiaper=0,aDiaper=0,tHouse=0,aHouse=0;
     mLogs.forEach(function(l){
       var pts=getLogPts(l);
       var c=chores.find(function(c){return c.id===l.chore_id;});
-      if(c&&c.babypal_link)mDiaperPts+=pts;else mOtherPts+=pts;
+      var isBaby=c&&c.babypal_link;
+      if(l.shared){var h=Math.ceil(pts/2);if(isBaby){tDiaper+=h;aDiaper+=h;}else{tHouse+=h;aHouse+=h;}}
+      else if(l.completed_by==='Tyron'){if(isBaby)tDiaper+=pts;else tHouse+=pts;}
+      else if(l.completed_by==='Ansonette'){if(isBaby)aDiaper+=pts;else aHouse+=pts;}
     });
+    function splitBar(baby,house,cBaby,cHouse){
+      var tot=baby+house;if(tot===0)return'';
+      var bPct=Math.round(baby/tot*100);
+      return'<div style="display:flex;gap:2px;border-radius:4px;overflow:hidden;height:8px;margin:3px 0 2px">'+
+        (bPct>0?'<div style="flex:'+bPct+';background:'+cBaby+'"></div>':'')+
+        (bPct<100?'<div style="flex:'+(100-bPct)+';background:'+cHouse+'"></div>':'')+
+      '</div><div style="font-size:10px;color:var(--muted);margin-bottom:2px">🍼 '+baby+'pts baby care · 🧹 '+house+'pts household</div>';
+    }
     var splitHtml=
       '<div class="an-row"><span class="lbl">👨 Tyron</span><span class="val an-chip an-chip-t">'+mSc.tyron+' pts</span></div>'+
-      '<div class="an-row"><span class="lbl">👩 Ansonette</span><span class="val an-chip an-chip-a">'+mSc.ansonette+' pts</span></div>'+
-      '<div class="an-row"><span class="lbl">🍼 Diaper chore pts</span><span class="val">'+mDiaperPts+'</span></div>'+
-      '<div class="an-row"><span class="lbl">🧹 Household chore pts</span><span class="val">'+mOtherPts+'</span></div>';
+      splitBar(tDiaper,tHouse,'#9c27b0','#4370A6')+
+      '<div class="an-row" style="margin-top:8px"><span class="lbl">👩 Ansonette</span><span class="val an-chip an-chip-a">'+mSc.ansonette+' pts</span></div>'+
+      splitBar(aDiaper,aHouse,'#9c27b0','#C85F72');
 
     // ── Most done chores (last 30d) ──────────────────
     var choreCounts={};

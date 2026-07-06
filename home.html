@@ -8,8 +8,16 @@
 <link rel="stylesheet" href="assets/css/familypal.css">
 <style>
   :root{--radius:16px;}
-  body{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
+  body{display:flex;flex-direction:column;align-items:center;padding:24px 24px 40px;}
   .apps{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;}
+  .glance-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:14px 16px;width:100%;max-width:380px;box-sizing:border-box;margin-bottom:14px;}
+  .glance-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
+  .glance-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+  .glance-tile{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:10px 12px;text-align:center;}
+  .gt-icon{font-size:18px;margin-bottom:2px;}
+  .gt-val{font-size:16px;font-weight:800;color:var(--text);}
+  .gt-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:2px;}
+  .gt-sub{font-size:10px;color:var(--muted);margin-top:1px;}
   .app-card{border-radius:20px;padding:24px;text-align:center;cursor:pointer;transition:transform .15s;border:1px solid var(--border);}
   .app-card:active{transform:scale(.97);}
   .app-card.pantry{background:linear-gradient(135deg,#1a1d27,#22263a);border-color:#2e3250;}
@@ -32,6 +40,10 @@
 <div class="logo">🌟</div>
 <div class="app-title">FamilyPal</div>
 <div class="app-sub">What would you like to do?</div>
+<div class="glance-card">
+  <div class="glance-lbl">Today at a glance</div>
+  <div id="glance-stats"><div style="color:var(--muted);font-size:13px;text-align:center;padding:8px 0">Loading…</div></div>
+</div>
 <div class="apps">
   <div class="app-card pantry" onclick="go('pantrypal.html')">
     <div class="app-card-icon">🥫</div>
@@ -58,11 +70,39 @@
 <div class="signout" onclick="signOut()">Sign out</div>
 <script src="assets/js/familypal-core.js"></script>
 <script>
+  function todayRange(){var s=new Date();s.setHours(0,0,0,0);var e=new Date();e.setHours(23,59,59,999);return{start:s.toISOString(),end:e.toISOString()};}
+  function timeAgo(ts){var m=Math.floor((Date.now()-new Date(ts))/60000);if(m<1)return'just now';if(m<60)return m+'m ago';var h=Math.floor(m/60);return h+'h '+(m%60)+'m ago';}
+  async function loadGlance(){
+    var r=todayRange();
+    try{
+      var results=await Promise.all([
+        sbFetch('/rest/v1/baby_feeds?logged_at=gte.'+r.start+'&logged_at=lte.'+r.end+'&order=logged_at.desc&select=logged_at,feed_type,amount_ml,duration_mins&limit=20'),
+        sbFetch('/rest/v1/baby_diapers?logged_at=gte.'+r.start+'&logged_at=lte.'+r.end+'&select=id&limit=30'),
+        sbFetch('/rest/v1/chore_logs?completed_at=gte.'+r.start+'&completed_at=lte.'+r.end+'&select=completed_by,shared&limit=50'),
+        sbFetch('/rest/v1/items?min_stock=gt.0&select=qty_stocked,min_stock')
+      ]);
+      var feeds=results[0],diapers=results[1],choreLogs=results[2],items=results[3];
+      var lastFeed=feeds[0];
+      var lastFeedStr=lastFeed?timeAgo(lastFeed.logged_at):'None yet';
+      var lastFeedSub=lastFeed?(lastFeed.feed_type==='bottle'?(lastFeed.amount_ml+'ml bottle'):(lastFeed.duration_mins+'min breast')):'—';
+      var tPts=0,aPts=0;
+      choreLogs.forEach(function(l){if(l.shared){tPts++;aPts++;}else if(l.completed_by==='Tyron')tPts++;else aPts++;});
+      var lowCount=items.filter(function(i){return(i.qty_stocked||0)<=(i.min_stock||0);}).length;
+      document.getElementById('glance-stats').innerHTML=
+        '<div class="glance-grid">'+
+          '<div class="glance-tile"><div class="gt-icon">🍼</div><div class="gt-val">'+lastFeedStr+'</div><div class="gt-lbl">Last feed</div><div class="gt-sub">'+lastFeedSub+'</div></div>'+
+          '<div class="glance-tile"><div class="gt-icon">💩</div><div class="gt-val">'+diapers.length+'</div><div class="gt-lbl">Diapers today</div></div>'+
+          '<div class="glance-tile"><div class="gt-icon">🧹</div><div class="gt-val" style="font-size:13px">👨 '+tPts+' · 👩 '+aPts+'</div><div class="gt-lbl">Chores today</div></div>'+
+          (lowCount>0?'<div class="glance-tile" style="border-color:#e67e22"><div class="gt-icon">⚠️</div><div class="gt-val" style="color:#e67e22">'+lowCount+'</div><div class="gt-lbl">Pantry alerts</div></div>':'<div class="glance-tile"><div class="gt-icon">✅</div><div class="gt-val" style="font-size:13px">All stocked</div><div class="gt-lbl">Pantry</div></div>')+
+        '</div>';
+    }catch(e){document.getElementById('glance-stats').innerHTML='';}
+  }
   window.onload=async()=>{
     if(!await FamilyPal.requireSession())return;
     FamilyPal.startTokenRefresh();
     var el=document.getElementById('user-email');
     if(el)el.textContent=FamilyPal.getEmail()||'';
+    loadGlance();
   };
   function go(url){window.location.href=url;}
   function signOut(){FamilyPal.signOut();}
