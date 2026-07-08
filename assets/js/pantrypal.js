@@ -94,7 +94,7 @@ async function quickAction(id,action){
   let s=item.qty_stocked||0,o=item.qty_open||0,note='';
   if(action==='bought'){s++;note='Bought 1 more';}
   else if(action==='openone'){if(s<1){toast('No sealed stock!');return;}s--;o++;note='Opened one';}
-  else if(action==='finished'){if(o<1){toast('Nothing open!');return;}o--;note='Finished one';}
+  else if(action==='finished'){if(o<1&&s<1){toast('Nothing left!');return;}if(o>0){o--;note='Finished one';}else{s--;note='Opened & finished one';}}
   const update={qty_stocked:s,qty_open:o,updated_at:new Date().toISOString()};
   try{await sbFetch(`/rest/v1/items?id=eq.${id}`,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(update)});await sbFetch('/rest/v1/history',{method:'POST',body:JSON.stringify({item_id:id,action:note})});Object.assign(item,update);renderItems();toast(note);}
   catch(e){toast('Error: '+e.message);}
@@ -191,7 +191,7 @@ async function openDetailModal(id){
       <div class="action-grid">
         <button class="action-btn green" onclick="quickAction('${id}','bought');closeModal('detail-modal')">+1 📦<br><small>Bought more</small></button>
         <button class="action-btn yellow" onclick="quickAction('${id}','openone');closeModal('detail-modal')">🔓 Open one<br><small>Sealed → Open</small></button>
-        <button class="action-btn red" onclick="quickAction('${id}','finished');closeModal('detail-modal')">✅ Finished one<br><small>Remove from open</small></button>
+        <button class="action-btn red" onclick="quickAction('${id}','finished');closeModal('detail-modal')">✅ Finished one<br><small>Open if needed, then use</small></button>
         <button class="action-btn" onclick="openEditModal('${id}')">✏️ Edit<br><small>Adjust / settings</small></button>
       </div>
       <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px">History (${hist.length})</div>
