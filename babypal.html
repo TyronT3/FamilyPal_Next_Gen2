@@ -115,6 +115,17 @@
   .sleep-session-item:active{opacity:.75;}
   #toast{bottom:100px;z-index:300;}
   .empty-log{text-align:center;padding:30px;color:var(--muted);font-size:13px;}
+  .sd-counter-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);}
+  .sd-counter-row:last-child{border-bottom:none;}
+  .sd-counter-label{font-size:14px;font-weight:600;}
+  .sd-counter{display:flex;align-items:center;gap:14px;}
+  .sd-counter button{width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:20px;cursor:pointer;line-height:1;flex-shrink:0;}
+  .sd-counter span{font-size:20px;font-weight:800;min-width:28px;text-align:center;}
+  .sd-entry-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .sd-ml{width:64px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);font-size:14px;text-align:center;outline:none;}
+  .sd-time-in{flex:1;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:14px;outline:none;}
+  .sd-remove{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);padding:7px 10px;font-size:12px;cursor:pointer;flex-shrink:0;}
+  .sd-empty{font-size:13px;color:var(--muted);padding:6px 0;}
 </style>
 </head>
 <body>
@@ -162,6 +173,7 @@
       <div class="ql-btn teal" onclick="openModal('pump-modal')"><div class="ql-icon">🥛</div><div class="ql-label">Pump</div><div class="ql-sub">Log session</div></div>
       <div class="ql-btn purple" onclick="openHealthModal('temperature')"><div class="ql-icon">🌡️</div><div class="ql-label">Health</div><div class="ql-sub">Temp, meds, notes</div></div>
       <div class="ql-btn teal" onclick="openSleepListModal()"><div class="ql-icon">✏️</div><div class="ql-label">Edit Sleep</div><div class="ql-sub">View & edit sessions</div></div>
+      <div class="ql-btn" style="grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:12px;padding:14px 20px;border-color:#7b52ab;background:rgba(123,82,171,.1)" onclick="openSchoolDayModal()"><div class="ql-icon" style="font-size:26px;margin:0">🏫</div><div style="text-align:left"><div class="ql-label">Geomé's School Day</div><div class="ql-sub">Batch: diapers · bottles · sleep</div></div></div>
     </div>
   </div>
   <div id="tab-history" style="display:none"><div id="history-content"><div class="loading"><span class="spinner"></span></div></div></div>
@@ -169,6 +181,37 @@
   <div id="tab-health" style="display:none"><div id="health-content"><div class="loading"><span class="spinner"></span></div></div></div>
 
   <button class="log-fab" onclick="openModal('log-picker-modal')">➕ Log Something</button>
+</div>
+
+<!-- School Day Modal -->
+<div class="modal-overlay" id="school-day-modal" style="display:none" onclick="closeModalClick(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeModal('school-day-modal')">✕</button>
+    <h2>🏫 Geomé's School Day</h2>
+
+    <div class="time-row" style="margin-bottom:16px">
+      <label>Day</label>
+      <input type="date" id="sd-date">
+    </div>
+
+    <div class="section-label">💩 Diapers</div>
+    <div id="sd-diapers"></div>
+    <div class="time-row" style="margin-top:10px">
+      <label>Approx time</label>
+      <input type="time" id="sd-diaper-time" value="12:00" class="sd-time-in" style="flex:unset;width:130px">
+    </div>
+
+    <div class="section-label" style="margin-top:18px">🍼 Bottles</div>
+    <div id="sd-bottles"></div>
+    <button class="btn btn-secondary" style="margin-top:6px;font-size:13px;padding:10px 16px" onclick="sdAddBottle()">+ Add bottle</button>
+
+    <div class="section-label" style="margin-top:18px">😴 Sleep sessions</div>
+    <div id="sd-sleeps"></div>
+    <button class="btn btn-secondary" style="margin-top:6px;font-size:13px;padding:10px 16px" onclick="sdAddSleep()">+ Add sleep</button>
+
+    <button class="btn btn-primary" style="margin-top:24px" onclick="saveSchoolDay()">✅ Log School Day</button>
+  </div>
 </div>
 
 <!-- Log Picker -->
@@ -186,6 +229,7 @@
       <div class="lp-btn" onclick="closeModal('log-picker-modal');openModal('pump-modal')"><div class="lp-icon">🥛</div><div class="lp-label">Pump</div></div>
       <div class="lp-btn" onclick="closeModal('log-picker-modal');openHealthModal('temperature')"><div class="lp-icon">🌡️</div><div class="lp-label">Health</div></div>
       <div class="lp-btn" onclick="closeModal('log-picker-modal');openSleepListModal()"><div class="lp-icon">✏️</div><div class="lp-label">Edit Sleep</div></div>
+      <div class="lp-btn" style="grid-column:1/-1;flex-direction:row;justify-content:center;gap:10px;border-color:#7b52ab;background:rgba(123,82,171,.1)" onclick="closeModal('log-picker-modal');openSchoolDayModal()"><div class="lp-icon" style="margin:0">🏫</div><div class="lp-label">School Day</div></div>
     </div>
   </div>
 </div>

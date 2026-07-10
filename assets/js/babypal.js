@@ -561,6 +561,127 @@ async function loadHistory(){
   }catch(e){document.getElementById('history-content').innerHTML='<div class="loading" style="color:var(--red)">Error: '+e.message+'</div>';}
 }
 
+// ── School Day batch log ──────────────────────────────────
+var schoolDiapers={wet:0,soiled:0,light:0,blowout:0};
+var schoolBottles=[];
+var schoolSleeps=[];
+
+function openSchoolDayModal(){
+  schoolDiapers={wet:0,soiled:0,light:0,blowout:0};
+  schoolBottles=[];
+  schoolSleeps=[];
+  var today=new Date();
+  document.getElementById('sd-date').value=today.toISOString().slice(0,10);
+  document.getElementById('sd-diaper-time').value='12:00';
+  renderSdDiapers();renderSdBottles();renderSdSleeps();
+  document.getElementById('school-day-modal').style.display='flex';
+}
+
+function renderSdDiapers(){
+  var types=[{key:'wet',label:'💧 Wet'},{key:'soiled',label:'💩 Soiled'},{key:'light',label:'💛 Light'},{key:'blowout',label:'💥 Blowout'}];
+  document.getElementById('sd-diapers').innerHTML=types.map(function(t){
+    return'<div class="sd-counter-row"><span class="sd-counter-label">'+t.label+'</span>'+
+      '<div class="sd-counter">'+
+        '<button onclick="sdAdjDiaper(\''+t.key+'\',-1)">−</button>'+
+        '<span id="sd-d-'+t.key+'">'+schoolDiapers[t.key]+'</span>'+
+        '<button onclick="sdAdjDiaper(\''+t.key+'\',1)">+</button>'+
+      '</div></div>';
+  }).join('');
+}
+
+function sdAdjDiaper(type,delta){
+  schoolDiapers[type]=Math.max(0,(schoolDiapers[type]||0)+delta);
+  var el=document.getElementById('sd-d-'+type);
+  if(el)el.textContent=schoolDiapers[type];
+}
+
+function renderSdBottles(){
+  var el=document.getElementById('sd-bottles');
+  if(!schoolBottles.length){el.innerHTML='<div class="sd-empty">No bottles added yet</div>';return;}
+  el.innerHTML=schoolBottles.map(function(b,i){
+    return'<div class="sd-entry-row">'+
+      '<input type="number" class="sd-ml" placeholder="ml" min="0" max="500" value="'+(b.ml||'')+'" oninput="schoolBottles['+i+'].ml=parseInt(this.value)||0">'+
+      '<span style="color:var(--muted);font-size:13px">ml at</span>'+
+      '<input type="time" class="sd-time-in" value="'+(b.time||'')+'" oninput="schoolBottles['+i+'].time=this.value">'+
+      '<button class="sd-remove" onclick="sdRemoveBottle('+i+')">✕</button>'+
+    '</div>';
+  }).join('');
+}
+
+function sdAddBottle(){
+  var defaultHours=[8,11,14,17];
+  var t=defaultHours[Math.min(schoolBottles.length,defaultHours.length-1)];
+  schoolBottles.push({ml:120,time:String(t).padStart(2,'0')+':00'});
+  renderSdBottles();
+}
+
+function sdRemoveBottle(i){schoolBottles.splice(i,1);renderSdBottles();}
+
+function renderSdSleeps(){
+  var el=document.getElementById('sd-sleeps');
+  if(!schoolSleeps.length){el.innerHTML='<div class="sd-empty">No sleep sessions added yet</div>';return;}
+  el.innerHTML=schoolSleeps.map(function(s,i){
+    return'<div class="sd-entry-row">'+
+      '<input type="time" class="sd-time-in" placeholder="From" value="'+(s.start||'')+'" oninput="schoolSleeps['+i+'].start=this.value">'+
+      '<span style="color:var(--muted);font-size:12px">→</span>'+
+      '<input type="time" class="sd-time-in" placeholder="To" value="'+(s.end||'')+'" oninput="schoolSleeps['+i+'].end=this.value">'+
+      '<button class="sd-remove" onclick="sdRemoveSleep('+i+')">✕</button>'+
+    '</div>';
+  }).join('');
+}
+
+function sdAddSleep(){
+  var starts=['09:30','13:00'];
+  var ends=['10:30','14:30'];
+  var i=Math.min(schoolSleeps.length,starts.length-1);
+  schoolSleeps.push({start:starts[i],end:ends[i]});
+  renderSdSleeps();
+}
+
+function sdRemoveSleep(i){schoolSleeps.splice(i,1);renderSdSleeps();}
+
+async function saveSchoolDay(){
+  var date=document.getElementById('sd-date').value;
+  if(!date){toast('Pick a date');return;}
+  var diaperTime=document.getElementById('sd-diaper-time').value||'12:00';
+  var totalDiapers=schoolDiapers.wet+schoolDiapers.soiled+schoolDiapers.light+schoolDiapers.blowout;
+  var validBottles=schoolBottles.filter(function(b){return b.ml>0&&b.time;});
+  var validSleeps=schoolSleeps.filter(function(s){return s.start;});
+  if(!totalDiapers&&!validBottles.length&&!validSleeps.length){toast('Nothing to log');return;}
+  try{
+    var promises=[];
+    var offset=0;
+    ['wet','soiled','light','blowout'].forEach(function(type){
+      for(var n=0;n<schoolDiapers[type];n++){
+        var ts=new Date(date+'T'+diaperTime+':00');
+        ts.setMinutes(ts.getMinutes()+offset);offset+=5;
+        promises.push(sbFetch('/rest/v1/baby_diapers',{method:'POST',body:JSON.stringify({diaper_type:type,logged_at:ts.toISOString()})}));
+      }
+    });
+    validBottles.forEach(function(b){
+      promises.push(sbFetch('/rest/v1/baby_feeds',{method:'POST',body:JSON.stringify({feed_type:'bottle',amount_ml:b.ml,logged_at:new Date(date+'T'+b.time+':00').toISOString()})}));
+    });
+    validSleeps.forEach(function(s){
+      var start=new Date(date+'T'+s.start+':00');
+      var end=s.end?new Date(date+'T'+s.end+':00'):null;
+      var diffMins=end?Math.round((end-start)/60000):null;
+      if(diffMins!==null&&diffMins<0)diffMins+=1440; // overnight
+      promises.push(sbFetch('/rest/v1/baby_sleep',{method:'POST',body:JSON.stringify({sleep_start:start.toISOString(),sleep_end:end?end.toISOString():null,duration_mins:diffMins,logged_at:start.toISOString()})}));
+    });
+    await Promise.all(promises);
+    // decrement diaper stock sequentially to avoid race conditions
+    for(var n=0;n<totalDiapers;n++)await consumeDiaperStock('BabyPal school day');
+    closeModal('school-day-modal');
+    var parts=[];
+    if(totalDiapers)parts.push(totalDiapers+' diaper'+(totalDiapers>1?'s':''));
+    if(validBottles.length)parts.push(validBottles.length+' bottle'+(validBottles.length>1?'s':''));
+    if(validSleeps.length)parts.push(validSleeps.length+' sleep session'+(validSleeps.length>1?'s':''));
+    toast('🏫 Logged! '+parts.join(', '));
+    if(activeTab==='today')loadToday();
+    if(activeTab==='history')loadHistory();
+  }catch(e){toast('Error: '+e.message);}
+}
+
 // ── Modal helpers ─────────────────────────────────────────
 var timeFields={'feed-modal':'feed-time','breast-modal':'breast-time','pump-modal':'pump-time'};
 function openModal(id){if(timeFields[id]){var el=document.getElementById(timeFields[id]);if(el)el.value=nowLocal();}document.getElementById(id).style.display='flex';}
