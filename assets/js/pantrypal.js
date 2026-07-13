@@ -19,7 +19,7 @@ let items=[],categories=[],currentFilter='all',groupByCategory=false;
 function applyInitialFilter(){
   const params=new URLSearchParams(window.location.search);
   const f=params.get('filter');
-  if(['all','stocked','low','open','empty','expiring','priority','priority-empty'].includes(f))currentFilter=f;
+  if(['all','stocked','low','open','empty','expiring','priority','priority-empty','urgent-empty'].includes(f))currentFilter=f;
   syncFilterButtons();
 }
 function syncFilterButtons(){
@@ -43,7 +43,7 @@ function renderItems(){
   const q=document.getElementById('search-input').value.toLowerCase();
   const clearBtn=document.getElementById('search-clear');
   if(clearBtn)clearBtn.classList.toggle('visible',!!q);
-  const filtered=items.filter(i=>{const match=!q||i.name.toLowerCase().includes(q)||(i.brand||'').toLowerCase().includes(q);const st=calcStatus(i),es=expiryStatus(i.expiry_date);if(!match)return false;if(currentFilter==='all')return true;if(currentFilter==='expiring')return es==='expiring'||es==='expired';if(currentFilter==='priority')return i.priority;if(currentFilter==='priority-empty')return i.priority&&st==='empty';if(currentFilter==='low')return st==='low';return st===currentFilter;});
+  const filtered=items.filter(i=>{const match=!q||i.name.toLowerCase().includes(q)||(i.brand||'').toLowerCase().includes(q);const st=calcStatus(i),es=expiryStatus(i.expiry_date);if(!match)return false;if(currentFilter==='all')return true;if(currentFilter==='expiring')return es==='expiring'||es==='expired';if(currentFilter==='priority')return i.priority;if(currentFilter==='priority-empty'||currentFilter==='urgent-empty')return (i.priority||i.rating==='love')&&st==='empty';if(currentFilter==='low')return st==='low';return st===currentFilter;});
   document.getElementById('stat-stocked').textContent=items.filter(i=>calcStatus(i)==='stocked').length;
   document.getElementById('stat-low').textContent=items.filter(i=>calcStatus(i)==='low').length;
   document.getElementById('stat-open').textContent=items.filter(i=>calcStatus(i)==='open').length;
