@@ -79,6 +79,7 @@
 <script>
   function todayRange(){var s=new Date();s.setHours(0,0,0,0);var e=new Date();e.setHours(23,59,59,999);return{start:s.toISOString(),end:e.toISOString()};}
   function timeAgo(ts){var m=Math.floor((Date.now()-new Date(ts))/60000);if(m<1)return'just now';if(m<60)return m+'m ago';var h=Math.floor(m/60);return h+'h '+(m%60)+'m ago';}
+  function isPantryLow(item){var s=item.qty_stocked||0,o=item.qty_open||0,m=item.min_stock||0;if(m>0)return s<m;return s===1&&o===0;}
   async function loadGlance(){
     var r=todayRange();
     try{
@@ -86,7 +87,7 @@
         sbFetch('/rest/v1/baby_feeds?logged_at=gte.'+r.start+'&logged_at=lte.'+r.end+'&order=logged_at.desc&select=logged_at,feed_type,amount_ml,duration_mins&limit=20'),
         sbFetch('/rest/v1/baby_diapers?logged_at=gte.'+r.start+'&logged_at=lte.'+r.end+'&select=id&limit=30'),
         sbFetch('/rest/v1/chore_logs?completed_at=gte.'+r.start+'&completed_at=lte.'+r.end+'&select=completed_by,shared&limit=50'),
-        sbFetch('/rest/v1/items?min_stock=gt.0&select=qty_stocked,min_stock')
+        sbFetch('/rest/v1/items?select=qty_stocked,qty_open,min_stock')
       ]);
       var feeds=results[0],diapers=results[1],choreLogs=results[2],items=results[3];
       var lastFeed=feeds[0];
@@ -94,13 +95,13 @@
       var lastFeedSub=lastFeed?(lastFeed.feed_type==='bottle'?(lastFeed.amount_ml+'ml bottle'):(lastFeed.duration_mins+'min breast')):'—';
       var tPts=0,aPts=0;
       choreLogs.forEach(function(l){if(l.shared){tPts++;aPts++;}else if(l.completed_by==='Tyron')tPts++;else aPts++;});
-      var lowCount=items.filter(function(i){return(i.qty_stocked||0)<=(i.min_stock||0);}).length;
+      var lowCount=items.filter(isPantryLow).length;
       document.getElementById('glance-stats').innerHTML=
         '<div class="glance-grid">'+
           '<div class="glance-tile"><div class="gt-icon">🍼</div><div class="gt-val">'+lastFeedStr+'</div><div class="gt-lbl">Last feed</div><div class="gt-sub">'+lastFeedSub+'</div></div>'+
           '<div class="glance-tile"><div class="gt-icon">💩</div><div class="gt-val">'+diapers.length+'</div><div class="gt-lbl">Diapers today</div></div>'+
           '<div class="glance-tile"><div class="gt-icon">🧹</div><div class="gt-val" style="font-size:13px">👨 '+tPts+' · 👩 '+aPts+'</div><div class="gt-lbl">Chores today</div></div>'+
-          (lowCount>0?'<div class="glance-tile" style="border-color:#e67e22"><div class="gt-icon">⚠️</div><div class="gt-val" style="color:#e67e22">'+lowCount+'</div><div class="gt-lbl">Pantry alerts</div></div>':'<div class="glance-tile"><div class="gt-icon">✅</div><div class="gt-val" style="font-size:13px">All stocked</div><div class="gt-lbl">Pantry</div></div>')+
+          (lowCount>0?'<div class="glance-tile" style="border-color:#e67e22;cursor:pointer" onclick="go(\'pantrypal.html?filter=low\')" title="Open low-stock pantry items"><div class="gt-icon">⚠️</div><div class="gt-val" style="color:#e67e22">'+lowCount+'</div><div class="gt-lbl">Pantry alerts</div><div class="gt-sub">Tap to view</div></div>':'<div class="glance-tile" style="cursor:pointer" onclick="go(\'pantrypal.html\')" title="Open PantryPal"><div class="gt-icon">✅</div><div class="gt-val" style="font-size:13px">All stocked</div><div class="gt-lbl">Pantry</div></div>')+
         '</div>';
     }catch(e){document.getElementById('glance-stats').innerHTML='';}
   }

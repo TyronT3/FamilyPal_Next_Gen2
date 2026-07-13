@@ -4,6 +4,7 @@ window.onload=async()=>{
   document.getElementById('app-screen').style.display='flex';
   var searchTimer;
   document.getElementById('search-input').oninput=function(){clearTimeout(searchTimer);searchTimer=setTimeout(renderItems,200);};
+  applyInitialFilter();
   loadAll();loadOfflineQueue();syncOfflineQueue();
 };
 function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
@@ -15,6 +16,16 @@ function calcStatus(item){const s=item.qty_stocked||0,o=item.qty_open||0;if(s===
 function catName(id){const c=categories.find(c=>c.id===id);return c?c.emoji+' '+c.name:'';}
 
 let items=[],categories=[],currentFilter='all',groupByCategory=false;
+function applyInitialFilter(){
+  const params=new URLSearchParams(window.location.search);
+  const f=params.get('filter');
+  if(['all','stocked','low','open','empty','expiring','priority'].includes(f))currentFilter=f;
+  syncFilterButtons();
+}
+function syncFilterButtons(){
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.toggle('active',b.getAttribute('onclick')&&b.getAttribute('onclick').includes(`'${currentFilter}'`)));
+  document.querySelectorAll('[data-stat-filter]').forEach(b=>b.classList.toggle('active',b.dataset.statFilter===currentFilter));
+}
 async function loadAll(){
   try{[items,categories]=await Promise.all([sbFetch('/rest/v1/items?order=name.asc&select=*'),sbFetch('/rest/v1/categories?order=name.asc&select=*')]);populateCategorySelect();renderItems();}
   catch(e){toast('Error loading: '+e.message);}
@@ -38,7 +49,7 @@ function renderItems(){
   document.getElementById('stat-open').textContent=items.filter(i=>calcStatus(i)==='open').length;
   document.getElementById('stat-empty').textContent=items.filter(i=>calcStatus(i)==='empty').length;
   document.getElementById('stat-total').textContent=items.length;
-  document.querySelectorAll('[data-stat-filter]').forEach(b=>b.classList.toggle('active',b.dataset.statFilter===currentFilter));
+  syncFilterButtons();
   const grid=document.getElementById('items-grid');
   if(!filtered.length){grid.innerHTML=`<div class="empty-state"><div class="big">🥫</div><div>No items found</div><div style="font-size:12px;margin-top:6px">${q||currentFilter!=='all'?'Try clearing search or switching filters.':'Tap + to add your first item'}</div></div>`;return;}
 
@@ -85,7 +96,7 @@ function renderItems(){
   }
 }
 
-function setFilter(f,btn){currentFilter=f;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');renderItems();}
+function setFilter(f,btn){currentFilter=f;syncFilterButtons();renderItems();}
 function setFilterByName(f){const btn=[...document.querySelectorAll('.filter-btn')].find(b=>b.getAttribute('onclick')&&b.getAttribute('onclick').includes(`'${f}'`));setFilter(f,btn);}
 function clearSearch(){const input=document.getElementById('search-input');input.value='';input.focus();renderItems();}
 
