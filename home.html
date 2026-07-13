@@ -80,6 +80,7 @@
   function todayRange(){var s=new Date();s.setHours(0,0,0,0);var e=new Date();e.setHours(23,59,59,999);return{start:s.toISOString(),end:e.toISOString()};}
   function timeAgo(ts){var m=Math.floor((Date.now()-new Date(ts))/60000);if(m<1)return'just now';if(m<60)return m+'m ago';var h=Math.floor(m/60);return h+'h '+(m%60)+'m ago';}
   function isPantryLow(item){var s=item.qty_stocked||0,o=item.qty_open||0,m=item.min_stock||0;if(m>0)return s<m;return s===1&&o===0;}
+  function calcPantryStatus(item){var s=item.qty_stocked||0,o=item.qty_open||0;if(s===0&&o===0)return'empty';if(isPantryLow(item))return'low';if(s>0)return'stocked';return'open';}
   async function loadGlance(){
     var r=todayRange();
     try{
@@ -95,7 +96,7 @@
       var lastFeedSub=lastFeed?(lastFeed.feed_type==='bottle'?(lastFeed.amount_ml+'ml bottle'):(lastFeed.duration_mins+'min breast')):'—';
       var tPts=0,aPts=0;
       choreLogs.forEach(function(l){if(l.shared){tPts++;aPts++;}else if(l.completed_by==='Tyron')tPts++;else aPts++;});
-      var lowCount=items.filter(isPantryLow).length;
+      var lowCount=items.filter(function(i){return calcPantryStatus(i)==='low';}).length;
       document.getElementById('glance-stats').innerHTML=
         '<div class="glance-grid">'+
           '<div class="glance-tile"><div class="gt-icon">🍼</div><div class="gt-val">'+lastFeedStr+'</div><div class="gt-lbl">Last feed</div><div class="gt-sub">'+lastFeedSub+'</div></div>'+
