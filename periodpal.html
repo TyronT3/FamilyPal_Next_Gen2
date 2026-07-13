@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>PeriodPal</title>
+<script src="assets/js/familypal-theme.js"></script>
+<link rel="stylesheet" href="assets/css/familypal.css">
+<style>
+  :root{
+    --bg:#111217;--surface:#1b1d26;--card:#242634;--accent:#d9468f;--accent2:#f9737b;
+    --rose:#d9468f;--coral:#f9737b;--blue:#4f9cf9;--green:#2ecc71;--yellow:#f39c12;--red:#e74c3c;--purple:#9c6cff;
+    --text:#f2edf3;--muted:#9a91a3;--border:#343244;--radius:16px;
+  }
+  #period-screen{display:flex;padding-bottom:96px;}
+  .hero-strip{padding:14px 16px;background:var(--surface);border-bottom:1px solid var(--border);}
+  .forecast-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+  .forecast-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:13px 12px;min-height:96px;}
+  .forecast-card .fc-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+  .forecast-card .fc-val{font-size:22px;font-weight:800;line-height:1.05;}
+  .forecast-card .fc-sub{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.35;}
+  .fc-rose .fc-val{color:var(--rose);}
+  .fc-coral .fc-val{color:var(--coral);}
+  .fc-blue .fc-val{color:var(--blue);}
+  .fc-yellow .fc-val{color:var(--yellow);}
+  .trust-note{margin-top:10px;font-size:12px;color:var(--muted);line-height:1.4;background:rgba(243,156,18,.08);border:1px solid rgba(243,156,18,.28);border-radius:12px;padding:10px 12px;}
+  .quicklog-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:12px 16px;}
+  .ql-btn{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 12px;text-align:center;cursor:pointer;transition:transform .15s;}
+  .ql-btn:active{transform:scale(.96);}
+  .ql-icon{font-size:30px;margin-bottom:6px;}
+  .ql-label{font-size:13px;font-weight:800;}
+  .ql-sub{font-size:11px;color:var(--muted);margin-top:3px;}
+  .ql-btn.rose{border-color:var(--rose);background:rgba(217,70,143,.1);}
+  .ql-btn.coral{border-color:var(--coral);background:rgba(249,115,123,.1);}
+  .ql-btn.blue{border-color:var(--blue);background:rgba(79,156,249,.1);}
+  .ql-btn.yellow{border-color:var(--yellow);background:rgba(243,156,18,.1);}
+  .calendar-shell{padding:12px 16px 18px;}
+  .calendar-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;}
+  .month-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;}
+  .month-title{font-size:17px;font-weight:800;}
+  .nav-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:18px;cursor:pointer;}
+  .weekdays,.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;}
+  .weekday{text-align:center;font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding-bottom:3px;}
+  .day{aspect-ratio:1;border-radius:10px;border:1px solid var(--border);background:var(--surface);padding:5px;position:relative;cursor:pointer;overflow:hidden;min-width:0;}
+  .day.out{opacity:.38;}
+  .day.today{border-color:var(--accent);box-shadow:0 0 0 2px rgba(217,70,143,.16);}
+  .day-num{font-size:12px;font-weight:800;position:relative;z-index:2;}
+  .day-tags{position:absolute;left:4px;right:4px;bottom:4px;display:flex;gap:2px;justify-content:center;z-index:2;}
+  .tag-dot{width:6px;height:6px;border-radius:50%;}
+  .tag-period{background:var(--rose);}
+  .tag-predicted{background:var(--coral);}
+  .tag-fertile{background:var(--blue);}
+  .tag-ovulation{background:var(--yellow);}
+  .tag-intimacy{background:var(--purple);}
+  .day.period{background:rgba(217,70,143,.18);border-color:rgba(217,70,143,.45);}
+  .day.predicted{background:rgba(249,115,123,.12);border-color:rgba(249,115,123,.35);}
+  .day.fertile{background:rgba(79,156,249,.12);border-color:rgba(79,156,249,.35);}
+  .day.ovulation{background:rgba(243,156,18,.16);border-color:rgba(243,156,18,.45);}
+  .legend{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--muted);}
+  .legend span{display:flex;align-items:center;gap:5px;}
+  .history-section{padding:12px 16px;}
+  .history-section h3{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
+  .log-item{border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px;}
+  .log-icon{font-size:22px;flex-shrink:0;}
+  .log-info{flex:1;min-width:0;}
+  .log-title{font-size:14px;font-weight:700;margin-bottom:2px;}
+  .log-detail{font-size:12px;color:var(--muted);line-height:1.35;}
+  .log-actions{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+  .log-time{font-size:11px;color:var(--muted);text-align:right;}
+  .undo-btn{background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);padding:5px 8px;font-size:11px;cursor:pointer;}
+  .risk-pill{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;margin-top:4px;}
+  .risk-low{background:rgba(46,204,113,.14);color:var(--green);}
+  .risk-medium{background:rgba(243,156,18,.16);color:var(--yellow);}
+  .risk-high{background:rgba(231,76,60,.16);color:var(--red);}
+  .risk-unknown{background:rgba(154,145,163,.16);color:var(--muted);}
+  .log-fab{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:30px;padding:15px 34px;font-size:16px;font-weight:800;color:#fff;cursor:pointer;box-shadow:0 4px 24px rgba(217,70,143,.45);z-index:50;white-space:nowrap;}
+  .type-toggle{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+  .type-opt{flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;cursor:pointer;text-align:center;font-weight:700;min-width:86px;}
+  .type-opt.selected{border-color:var(--accent);background:rgba(217,70,143,.16);color:var(--accent);}
+  .section-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;margin-top:14px;}
+  .symptom-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px;}
+  .symptom-grid label{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;font-size:13px;display:flex;gap:8px;align-items:center;}
+  .date-row{display:flex;gap:8px;align-items:center;margin-bottom:14px;}
+  .date-row label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;min-width:78px;}
+  .date-row input,.date-row select{flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:14px;outline:none;}
+  .empty-log{text-align:center;padding:28px;color:var(--muted);font-size:13px;}
+  #toast{bottom:100px;z-index:300;}
+  @media (max-width:420px){
+    .forecast-grid{grid-template-columns:1fr 1fr;}
+    .forecast-card{min-height:92px;padding:12px 10px;}
+    .forecast-card .fc-val{font-size:19px;}
+    .day{border-radius:8px;padding:4px;}
+    .day-num{font-size:11px;}
+    .tag-dot{width:5px;height:5px;}
+  }
+</style>
+</head>
+<body>
+<div id="period-screen" class="app-screen">
+  <header>
+    <div class="header-left">
+      <span class="header-icon">🌙</span>
+      <div class="header-title"><span>Period</span>Pal</div>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn theme-toggle" data-theme-toggle onclick="FamilyPalTheme.toggleTheme()" type="button">☀️</button>
+      <button class="icon-btn" title="Home" aria-label="Home" onclick="window.location.href='home.html'">🏠</button>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('calendar',this)">Calendar</div>
+    <div class="tab" onclick="switchTab('log',this)">Log</div>
+    <div class="tab" onclick="switchTab('history',this)">History</div>
+  </div>
+
+  <div class="hero-strip">
+    <div id="forecast-content"><div class="loading"><span class="spinner"></span></div></div>
+  </div>
+
+  <div id="tab-calendar">
+    <div class="calendar-shell">
+      <div class="calendar-card">
+        <div class="month-nav">
+          <button class="nav-btn" onclick="moveMonth(-1)" aria-label="Previous month">‹</button>
+          <div class="month-title" id="month-title"></div>
+          <button class="nav-btn" onclick="moveMonth(1)" aria-label="Next month">›</button>
+        </div>
+        <div class="weekdays">
+          <div class="weekday">Sun</div><div class="weekday">Mon</div><div class="weekday">Tue</div><div class="weekday">Wed</div><div class="weekday">Thu</div><div class="weekday">Fri</div><div class="weekday">Sat</div>
+        </div>
+        <div class="calendar-grid" id="calendar-grid"></div>
+        <div class="legend">
+          <span><i class="tag-dot tag-period"></i>Logged</span>
+          <span><i class="tag-dot tag-predicted"></i>Predicted</span>
+          <span><i class="tag-dot tag-fertile"></i>Fertile</span>
+          <span><i class="tag-dot tag-ovulation"></i>Ovulation</span>
+          <span><i class="tag-dot tag-intimacy"></i>Intimacy</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-log" style="display:none">
+    <div class="quicklog-grid">
+      <div class="ql-btn rose" onclick="quickStartPeriod()"><div class="ql-icon">🩸</div><div class="ql-label">Started Today</div><div class="ql-sub">One tap period start</div></div>
+      <div class="ql-btn coral" onclick="quickEndPeriod()"><div class="ql-icon">✅</div><div class="ql-label">Ended Today</div><div class="ql-sub">Close current period</div></div>
+      <div class="ql-btn blue" onclick="openCycleModal()"><div class="ql-icon">✏️</div><div class="ql-label">Add / Edit Period</div><div class="ql-sub">Dates, flow, symptoms</div></div>
+      <div class="ql-btn yellow" onclick="openIntimacyModal()"><div class="ql-icon">🛡️</div><div class="ql-label">Pregnancy Risk</div><div class="ql-sub">Log intimacy privately</div></div>
+    </div>
+  </div>
+
+  <div id="tab-history" style="display:none"><div id="history-content"><div class="loading"><span class="spinner"></span></div></div></div>
+
+  <button class="log-fab" onclick="openLogPicker()">+ Log</button>
+</div>
+
+<div class="modal-overlay" id="log-picker-modal" style="display:none" onclick="closeModalClick(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeModal('log-picker-modal')">✕</button>
+    <h2>What are you logging?</h2>
+    <div class="quicklog-grid" style="padding:0">
+      <div class="ql-btn rose" onclick="closeModal('log-picker-modal');quickStartPeriod()"><div class="ql-icon">🩸</div><div class="ql-label">Period Start</div></div>
+      <div class="ql-btn coral" onclick="closeModal('log-picker-modal');quickEndPeriod()"><div class="ql-icon">✅</div><div class="ql-label">Period End</div></div>
+      <div class="ql-btn blue" onclick="closeModal('log-picker-modal');openCycleModal()"><div class="ql-icon">✏️</div><div class="ql-label">Period Details</div></div>
+      <div class="ql-btn yellow" onclick="closeModal('log-picker-modal');openIntimacyModal()"><div class="ql-icon">🛡️</div><div class="ql-label">Intimacy</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="cycle-modal" style="display:none" onclick="closeModalClick(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeModal('cycle-modal')">✕</button>
+    <h2 id="cycle-modal-title">Period Details</h2>
+    <input type="hidden" id="cycle-id">
+    <div class="date-row"><label>Started</label><input type="date" id="cycle-start"></div>
+    <div class="date-row"><label>Ended</label><input type="date" id="cycle-end"></div>
+    <div style="font-size:12px;color:var(--muted);margin:-6px 0 14px 86px">Leave end blank while the period is still active.</div>
+    <div class="section-label">Flow</div>
+    <div class="type-toggle">
+      <button class="type-opt" data-flow="spotting" onclick="selectFlow('spotting',this)">Spotting</button>
+      <button class="type-opt" data-flow="light" onclick="selectFlow('light',this)">Light</button>
+      <button class="type-opt selected" data-flow="medium" onclick="selectFlow('medium',this)">Medium</button>
+      <button class="type-opt" data-flow="heavy" onclick="selectFlow('heavy',this)">Heavy</button>
+    </div>
+    <input type="hidden" id="cycle-flow" value="medium">
+    <div class="section-label">Symptoms</div>
+    <div class="symptom-grid">
+      <label><input type="checkbox" value="cramps" name="symptom"> Cramps</label>
+      <label><input type="checkbox" value="headache" name="symptom"> Headache</label>
+      <label><input type="checkbox" value="mood" name="symptom"> Mood</label>
+      <label><input type="checkbox" value="bloating" name="symptom"> Bloating</label>
+      <label><input type="checkbox" value="fatigue" name="symptom"> Fatigue</label>
+      <label><input type="checkbox" value="tender breasts" name="symptom"> Tender breasts</label>
+    </div>
+    <div class="field"><label>Notes</label><textarea id="cycle-notes" placeholder="Optional notes"></textarea></div>
+    <button class="btn btn-primary" onclick="saveCycle()">Save Period</button>
+    <button class="btn btn-secondary" id="cycle-delete-btn" style="display:none;color:var(--red)" onclick="deleteCycle()">Delete Period</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="intimacy-modal" style="display:none" onclick="closeModalClick(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeModal('intimacy-modal')">✕</button>
+    <h2 id="intimacy-modal-title">Pregnancy Risk Note</h2>
+    <input type="hidden" id="intimacy-id">
+    <div class="date-row"><label>Date</label><input type="date" id="intimacy-date"></div>
+    <div class="field"><label>Protection</label>
+      <select id="intimacy-protection">
+        <option value="none">None / unknown</option>
+        <option value="condom">Condom</option>
+        <option value="withdrawal">Withdrawal</option>
+        <option value="pill">Hormonal pill</option>
+        <option value="iud">IUD</option>
+        <option value="implant">Implant</option>
+        <option value="injection">Injection</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <label style="display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px;font-size:14px"><input type="checkbox" id="intimacy-ec"> Emergency contraception used</label>
+    <div class="field"><label>Notes</label><textarea id="intimacy-notes" placeholder="Optional private note"></textarea></div>
+    <div id="risk-preview" class="trust-note" style="margin:0 0 14px"></div>
+    <button class="btn btn-primary" onclick="saveIntimacy()">Save Risk Note</button>
+    <button class="btn btn-secondary" id="intimacy-delete-btn" style="display:none;color:var(--red)" onclick="deleteIntimacy()">Delete Note</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="day-modal" style="display:none" onclick="closeModalClick(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeModal('day-modal')">✕</button>
+    <h2 id="day-title"></h2>
+    <div id="day-content"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="assets/js/familypal-core.js"></script>
+<script src="assets/js/periodpal.js"></script>
+</body>
+</html>
