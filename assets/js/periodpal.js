@@ -128,7 +128,7 @@ function renderCalendar(){
     if(key===model.ovulation){cls.push('ovulation');dots.push('tag-ovulation');}
     if(intimacy.some(function(x){return x.logged_date===key;}))dots.push('tag-intimacy');
     if(periodNotes.some(function(x){return x.note_date===key;}))dots.push('tag-note');
-    if(periodEvents.some(function(x){return x.event_date===key;}))dots.push('tag-event');
+    if(visibleEvents().some(function(x){return x.event_date===key;}))dots.push('tag-event');
     html+='<div class="'+cls.join(' ')+'" onclick="openDay(\''+key+'\')"><div class="day-num">'+d.getDate()+'</div><div class="day-tags">'+dots.slice(0,4).map(function(c){return'<i class="tag-dot '+c+'"></i>';}).join('')+'</div></div>';
   }
   document.getElementById('calendar-grid').innerHTML=html;
@@ -160,7 +160,7 @@ function openDay(key){
   var dayCycles=cycles.filter(function(c){return key>=c.start_date&&key<=(c.end_date||todayKey());});
   var dayInt=intimacy.filter(function(x){return x.logged_date===key;});
   var dayNotes=periodNotes.filter(function(x){return x.note_date===key;});
-  var dayEvents=periodEvents.filter(function(x){return x.event_date===key;});
+  var dayEvents=visibleEvents().filter(function(x){return x.event_date===key;});
   var dayMeasurements=periodMeasurements.filter(function(x){return x.measurement_date===key;});
   var dayMeds=periodMedLogs.filter(function(x){return x.log_date===key;});
   var dayExclusions=exclusions.filter(function(x){return key>=x.start_date&&key<=x.end_date;});
@@ -589,6 +589,18 @@ async function deleteIntimacy(){
   try{await sbFetch('/rest/v1/period_intimacy?id=eq.'+id,{method:'DELETE'});closeModal('intimacy-modal');toast('Risk note deleted');loadData();}catch(e){toast('Error: '+e.message);}
 }
 
+function hasMeaningfulEventName(e){
+  if(!e)return false;
+  if(e.category==='sex')return true;
+  if(e.label&&String(e.label).trim())return true;
+  if(e.category!=='symptom'&&e.category!=='mood'&&(e.value_text||e.value_number!=null||e.unit))return true;
+  return false;
+}
+
+function visibleEvents(){
+  return periodEvents.filter(hasMeaningfulEventName);
+}
+
 function eventTitle(e){
   return (e.label||e.category||'Event')+(e.code&&!e.label?' code '+e.code:'');
 }
@@ -802,7 +814,7 @@ function renderHistory(){
   cycles.forEach(function(c){rows.push({type:'cycle',date:c.start_date,row:c});});
   intimacy.forEach(function(x){rows.push({type:'intimacy',date:x.logged_date,row:x});});
   periodNotes.forEach(function(n){rows.push({type:'note',date:n.note_date,row:n});});
-  periodEvents.forEach(function(e){rows.push({type:'event',date:e.event_date,row:e});});
+  visibleEvents().forEach(function(e){rows.push({type:'event',date:e.event_date,row:e});});
   periodMeasurements.forEach(function(m){rows.push({type:'measurement',date:m.measurement_date,row:m});});
   periodMedLogs.forEach(function(m){rows.push({type:'medication',date:m.log_date,row:m});});
   rows.sort(function(a,b){return b.date.localeCompare(a.date);});
@@ -901,6 +913,7 @@ function renderReports(){
   var el=document.getElementById('reports-content');
   if(!cycles.length&&!periodEvents.length&&!intimacy.length){el.innerHTML='<div class="empty-log">No period logs to report yet</div>';return;}
   var usable=usableCycles();
+  var displayEvents=visibleEvents();
   var sorted=usable.slice().sort(function(a,b){return b.start_date.localeCompare(a.start_date);});
   var completed=usable.filter(function(c){return c.end_date;});
   var range=avgCycleRange();
@@ -910,9 +923,9 @@ function renderReports(){
     flowCounts[c.flow||'medium']=(flowCounts[c.flow||'medium']||0)+1;
     (c.symptoms||[]).forEach(function(s){symptomCounts[s]=(symptomCounts[s]||0)+1;});
   });
-  periodEvents.forEach(function(e){
+  visibleEvents().forEach(function(e){
     eventCatCounts[e.category]=(eventCatCounts[e.category]||0)+1;
-    if(e.category==='symptom')symptomCounts[e.label||('code '+e.code)]=(symptomCounts[e.label||('code '+e.code)]||0)+1;
+    if(e.category==='symptom'&&e.label)symptomCounts[e.label]=(symptomCounts[e.label]||0)+1;
   });
   periodMeasurements.forEach(function(m){measurementTypeCounts[m.measurement_type]=(measurementTypeCounts[m.measurement_type]||0)+1;});
   periodMedLogs.forEach(function(m){medCounts[m.name||'Medication']=(medCounts[m.name||'Medication']||0)+1;});
@@ -934,6 +947,7 @@ function renderReports(){
       '<div class="report-card"><div class="r-val">'+model.avgCycle+'d</div><div class="r-lbl">Avg cycle</div></div>'+
       '<div class="report-card"><div class="r-val">'+avgPeriod+'d</div><div class="r-lbl">Avg period</div></div>'+
       '<div class="report-card"><div class="r-val">'+periodEvents.length+'</div><div class="r-lbl">Daily events</div></div>'+
+      '<div class="report-card"><div class="r-val">'+displayEvents.length+'</div><div class="r-lbl">Named events</div></div>'+
       '<div class="report-card"><div class="r-val">'+periodNotes.length+'</div><div class="r-lbl">Notes</div></div>'+
       '<div class="report-card"><div class="r-val">'+sexRows.length+'</div><div class="r-lbl">Sex events</div></div>'+
       '<div class="report-card"><div class="r-val">'+sexProtected+'</div><div class="r-lbl">Protected</div></div>'+
