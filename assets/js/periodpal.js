@@ -4,8 +4,8 @@ function dateKey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2
 function parseDay(s){var p=(s||'').split('-').map(Number);return new Date(p[0],p[1]-1,p[2]);}
 function addDays(s,n){var d=typeof s==='string'?parseDay(s):new Date(s);d.setDate(d.getDate()+n);return dateKey(d);}
 function daysBetween(a,b){return Math.round((parseDay(b)-parseDay(a))/86400000);}
-function fmtDate(s){return parseDay(s).toLocaleDateString([],{month:'short',day:'numeric'});}
-function fmtFullDate(s){return parseDay(s).toLocaleDateString([],{weekday:'long',month:'long',day:'numeric'});}
+function fmtDate(s){return parseDay(s).toLocaleDateString([],{year:'numeric',month:'short',day:'numeric'});}
+function fmtFullDate(s){return parseDay(s).toLocaleDateString([],{weekday:'long',year:'numeric',month:'long',day:'numeric'});}
 function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
 
 var cycles=[],intimacy=[],exclusions=[],periodEvents=[],periodNotes=[],periodMeasurements=[],periodMedLogs=[],viewMonth=new Date(),activeTab='calendar';
