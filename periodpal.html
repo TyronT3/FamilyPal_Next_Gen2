@@ -60,6 +60,23 @@
   .legend span{display:flex;align-items:center;gap:5px;}
   .history-section{padding:12px 16px;}
   .history-section h3{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
+  .report-wrap{padding:12px 16px 18px;}
+  .report-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px;}
+  .report-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:13px 12px;}
+  .report-card .r-val{font-size:21px;font-weight:800;color:var(--accent);line-height:1.1;}
+  .report-card .r-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:4px;}
+  .report-list{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:12px;}
+  .report-list h3{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
+  .report-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--border);padding:8px 0;font-size:13px;}
+  .report-row:last-child{border-bottom:none;}
+  .report-bar{height:8px;background:var(--surface);border-radius:999px;overflow:hidden;margin-top:5px;}
+  .report-bar span{display:block;height:100%;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:999px;}
+  .note-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;}
+  .note-date{font-size:12px;font-weight:800;margin-bottom:3px;}
+  .note-meta{font-size:11px;color:var(--muted);margin-bottom:5px;}
+  .import-box{width:100%;min-height:180px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-size:13px;outline:none;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;resize:vertical;}
+  .import-help{font-size:12px;color:var(--muted);line-height:1.45;margin:8px 0 14px;}
+  .import-preview{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin:12px 0;max-height:220px;overflow:auto;font-size:12px;}
   .log-item{border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px;}
   .log-icon{font-size:22px;flex-shrink:0;}
   .log-info{flex:1;min-width:0;}
@@ -112,6 +129,7 @@
     <div class="tab active" onclick="switchTab('calendar',this)">Calendar</div>
     <div class="tab" onclick="switchTab('log',this)">Log</div>
     <div class="tab" onclick="switchTab('history',this)">History</div>
+    <div class="tab" onclick="switchTab('reports',this)">Reports</div>
   </div>
 
   <div class="hero-strip">
@@ -147,10 +165,12 @@
       <div class="ql-btn coral" onclick="quickEndPeriod()"><div class="ql-icon">✅</div><div class="ql-label">Ended Today</div><div class="ql-sub">Close current period</div></div>
       <div class="ql-btn blue" onclick="openCycleModal()"><div class="ql-icon">✏️</div><div class="ql-label">Add / Edit Period</div><div class="ql-sub">Dates, flow, symptoms</div></div>
       <div class="ql-btn yellow" onclick="openIntimacyModal()"><div class="ql-icon">🛡️</div><div class="ql-label">Pregnancy Risk</div><div class="ql-sub">Log intimacy privately</div></div>
+      <div class="ql-btn blue" style="grid-column:1/-1" onclick="openImportModal()"><div class="ql-icon">📥</div><div class="ql-label">Import Old Data</div><div class="ql-sub">Paste past period dates for better predictions</div></div>
     </div>
   </div>
 
   <div id="tab-history" style="display:none"><div id="history-content"><div class="loading"><span class="spinner"></span></div></div></div>
+  <div id="tab-reports" style="display:none"><div id="reports-content"><div class="loading"><span class="spinner"></span></div></div></div>
 
   <button class="log-fab" onclick="openLogPicker()">+ Log</button>
 </div>
@@ -165,7 +185,26 @@
       <div class="ql-btn coral" onclick="closeModal('log-picker-modal');quickEndPeriod()"><div class="ql-icon">✅</div><div class="ql-label">Period End</div></div>
       <div class="ql-btn blue" onclick="closeModal('log-picker-modal');openCycleModal()"><div class="ql-icon">✏️</div><div class="ql-label">Period Details</div></div>
       <div class="ql-btn yellow" onclick="closeModal('log-picker-modal');openIntimacyModal()"><div class="ql-icon">🛡️</div><div class="ql-label">Intimacy</div></div>
+      <div class="ql-btn blue" style="grid-column:1/-1" onclick="closeModal('log-picker-modal');openImportModal()"><div class="ql-icon">📥</div><div class="ql-label">Import Old Data</div></div>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="import-modal" style="display:none" onclick="closeModalClick(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeModal('import-modal')">✕</button>
+    <h2>Import Period History</h2>
+    <div class="import-help">
+      Paste one period per line. Format:<br>
+      <strong>start date, end date, flow, symptoms, notes</strong><br>
+      Example: <span style="color:var(--text)">2026-01-03,2026-01-07,medium,cramps|fatigue,rough cramps day 1</span><br>
+      End date, symptoms, and notes can be blank.
+    </div>
+    <textarea id="import-text" class="import-box" placeholder="2026-01-03,2026-01-07,medium,cramps|fatigue,rough cramps day 1&#10;2026-02-01,2026-02-05,light,headache,"></textarea>
+    <button class="btn btn-secondary" onclick="previewImport()">Preview Import</button>
+    <div id="import-preview" class="import-preview" style="display:none"></div>
+    <button class="btn btn-primary" id="import-save-btn" style="display:none" onclick="saveImportRows()">Import Rows</button>
   </div>
 </div>
 
