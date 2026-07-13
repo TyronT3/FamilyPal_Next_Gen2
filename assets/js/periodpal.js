@@ -840,9 +840,66 @@ function renderHistory(){
   document.getElementById('history-content').innerHTML=exclusionHtml+'<div class="timeline-group"><h3 style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Timeline</h3>'+timeline+'</div>';
 }
 
+function sexRawDetails(e){
+  var parts=[];
+  try{
+    var raw=JSON.parse(e.raw_value||e.value_text||'{}');
+    if(raw.times!=null)parts.push(raw.times+' time'+(Number(raw.times)===1?'':'s'));
+    if(raw.condom!=null)parts.push(raw.condom?'condom marked':'no condom marked');
+    if(raw.orgasm_code!=null)parts.push('orgasm code '+raw.orgasm_code);
+  }catch(err){}
+  if(!parts.length&&e.value_text)parts.push(e.value_text);
+  if(!parts.length&&e.value_number!=null)parts.push(String(e.value_number)+(e.unit?' '+e.unit:''));
+  return parts.join(' · ')||'Imported sex event';
+}
+
+function protectionFromSexEvent(e,match){
+  if(match&&match.protection)return match.protection;
+  try{
+    var raw=JSON.parse(e.raw_value||e.value_text||'{}');
+    if(raw.condom===true)return 'condom';
+    if(raw.condom===false)return 'none';
+  }catch(err){}
+  return 'none';
+}
+
+function sexReportRows(){
+  var rows=[],byImport={},sexEventIds={};
+  intimacy.forEach(function(x){if(x.import_event_id)byImport[x.import_event_id]=x;});
+  periodEvents.filter(function(e){return e.category==='sex';}).forEach(function(e){
+    sexEventIds[e.event_id]=true;
+    var match=byImport[e.event_id]||null;
+    var protection=protectionFromSexEvent(e,match);
+    var risk=match?riskForDate(match.logged_date,match.protection,match.emergency_contraception):riskForDate(e.event_date,protection,false);
+    rows.push({
+      date:e.event_date,
+      kind:'imported',
+      title:'Imported sex event',
+      detail:sexRawDetails(e)+(match&&match.notes?' · '+match.notes:''),
+      protection:protection,
+      ec:!!(match&&match.emergency_contraception),
+      risk:risk,
+      onclick:'openEventModal(\''+e.event_id+'\')'
+    });
+  });
+  intimacy.filter(function(x){return !x.import_event_id||!sexEventIds[x.import_event_id];}).forEach(function(x){
+    rows.push({
+      date:x.logged_date,
+      kind:'risk',
+      title:'Pregnancy risk note',
+      detail:protectionLabel(x.protection)+(x.notes?' · '+x.notes:''),
+      protection:x.protection,
+      ec:!!x.emergency_contraception,
+      risk:riskForDate(x.logged_date,x.protection,x.emergency_contraception),
+      onclick:'openIntimacyModal(\''+x.id+'\')'
+    });
+  });
+  return rows.sort(function(a,b){return b.date.localeCompare(a.date);});
+}
+
 function renderReports(){
   var el=document.getElementById('reports-content');
-  if(!cycles.length){el.innerHTML='<div class="empty-log">No period logs to report yet</div>';return;}
+  if(!cycles.length&&!periodEvents.length&&!intimacy.length){el.innerHTML='<div class="empty-log">No period logs to report yet</div>';return;}
   var usable=usableCycles();
   var sorted=usable.slice().sort(function(a,b){return b.start_date.localeCompare(a.start_date);});
   var completed=usable.filter(function(c){return c.end_date;});
@@ -866,6 +923,9 @@ function renderReports(){
   var eventRows=Object.keys(eventCatCounts).sort(function(a,b){return eventCatCounts[b]-eventCatCounts[a];});
   var measurementRows=Object.keys(measurementTypeCounts).sort(function(a,b){return measurementTypeCounts[b]-measurementTypeCounts[a];});
   var medRows=Object.keys(medCounts).sort(function(a,b){return medCounts[b]-medCounts[a];});
+  var sexRows=sexReportRows();
+  var sexProtected=sexRows.filter(function(x){return x.protection&&x.protection!=='none';}).length;
+  var sexEc=sexRows.filter(function(x){return x.ec;}).length;
   var avgPeriod=completed.length?Math.round(completed.reduce(function(s,c){return s+daysBetween(c.start_date,c.end_date)+1;},0)/completed.length):model.avgPeriod;
   el.innerHTML='<div class="report-wrap">'+
     '<div class="report-grid">'+
@@ -875,7 +935,16 @@ function renderReports(){
       '<div class="report-card"><div class="r-val">'+avgPeriod+'d</div><div class="r-lbl">Avg period</div></div>'+
       '<div class="report-card"><div class="r-val">'+periodEvents.length+'</div><div class="r-lbl">Daily events</div></div>'+
       '<div class="report-card"><div class="r-val">'+periodNotes.length+'</div><div class="r-lbl">Notes</div></div>'+
+      '<div class="report-card"><div class="r-val">'+sexRows.length+'</div><div class="r-lbl">Sex events</div></div>'+
+      '<div class="report-card"><div class="r-val">'+sexProtected+'</div><div class="r-lbl">Protected</div></div>'+
     '</div>'+
+    (sexRows.length?'<div class="report-list"><h3>Sex and Intimacy Events</h3>'+
+      '<div class="report-row"><span>Emergency contraception marked</span><strong>'+sexEc+'</strong></div>'+
+      sexRows.slice(0,120).map(function(x){
+        return '<div class="note-card" onclick="'+x.onclick+'"><div class="note-date">'+fmtFullDate(x.date)+'</div><div class="note-meta">'+esc(x.kind==='imported'?'Imported sex event':'Risk note')+' · '+esc(protectionLabel(x.protection))+(x.ec?' · emergency contraception':'')+'</div><div class="log-detail">'+esc(x.detail)+'</div><span class="risk-pill risk-'+x.risk.level+'">'+esc(x.risk.label)+'</span></div>';
+      }).join('')+
+      (sexRows.length>120?'<div style="font-size:11px;color:var(--muted);padding-top:6px">Showing newest 120 records.</div>':'')+
+    '</div>':'')+
     (exclusions.length?'<div class="report-list"><h3>Excluded ranges</h3>'+exclusions.map(function(x){return '<div class="report-row"><span>'+fmtDate(x.start_date)+' - '+fmtDate(x.end_date)+'<br><small style="color:var(--muted)">'+esc(x.reason||'excluded')+(x.notes?' · '+esc(x.notes):'')+'</small></span><strong>'+daysBetween(x.start_date,x.end_date)+'d</strong></div>';}).join('')+'</div>':'')+
     '<div class="report-list"><h3>Cycle range</h3><div class="report-row"><span>Shortest - longest estimated cycle</span><strong>'+(range?range.min+'-'+range.max+'d':'-')+'</strong></div></div>'+
     '<div class="report-list"><h3>Symptoms</h3>'+
