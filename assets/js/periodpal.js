@@ -140,6 +140,9 @@ function isBetween(key,start,end){return start&&end&&key>=start&&key<=end;}
 function isExcludedDate(key){return exclusions.some(function(x){return key>=x.start_date&&key<=x.end_date;});}
 function isExcludedCycle(c){return isExcludedDate(c.start_date);}
 function usableCycles(){return cycles.filter(function(c){return !isExcludedCycle(c);});}
+function cycleForDay(key){
+  return cycles.slice().sort(function(a,b){return cycleRank(b)-cycleRank(a);}).find(function(c){return key>=c.start_date&&key<=(c.end_date||todayKey());})||null;
+}
 function modelCycles(){
   var byStart={};
   usableCycles().forEach(function(c){
@@ -199,6 +202,7 @@ function openDay(key){
   document.getElementById('day-title').textContent=fmtFullDate(key);
   document.getElementById('day-content').innerHTML=(tags.length?tags.join(''):'<div class="empty-log">Nothing logged for this day</div>')+
     '<button class="btn btn-primary" onclick="closeModal(\'day-modal\');openCycleModal(null,\''+key+'\')">Log Period Here</button>'+
+    '<button class="btn btn-secondary" onclick="closeModal(\'day-modal\');openEventModal(null,\''+key+'\',\'symptom\')">Log Symptom / Mood</button>'+
     '<button class="btn btn-secondary" onclick="closeModal(\'day-modal\');openIntimacyModal(null,\''+key+'\')">Log Pregnancy Risk Note</button>';
   document.getElementById('day-modal').style.display='flex';
 }
@@ -515,6 +519,7 @@ async function saveJsonImport(){
 
 function openCycleModal(id,day){
   var c=id?cycles.find(function(x){return x.id===id;}):null;
+  if(!c&&day)c=cycleForDay(day);
   document.getElementById('cycle-modal-title').textContent=c?'Edit Period':'Period Details';
   document.getElementById('cycle-id').value=c?c.id:'';
   document.getElementById('cycle-start').value=c?c.start_date:(day||todayKey());
@@ -721,23 +726,25 @@ async function deleteNote(id){
   try{await sbFetch('/rest/v1/period_notes?note_id=eq.'+encodeURIComponent(id),{method:'DELETE'});closeModal('history-detail-modal');toast('Note deleted');loadData();}catch(e){toast('Error: '+e.message);}
 }
 
-function openEventModal(id){
-  var e=periodEvents.find(function(r){return r.event_id===id;});
-  if(!e)return;
-  document.getElementById('history-detail-title').textContent=eventTitle(e);
+function openEventModal(id,day,category){
+  var e=id?periodEvents.find(function(r){return r.event_id===id;}):null;
+  if(id&&!e)return;
+  var isNew=!e;
+  e=e||{event_id:'',source_app:'manual',event_date:day||todayKey(),category:category||'symptom',label:'',code:'',severity_code:'',value_text:'',value_number:null,unit:'',raw_value:''};
+  document.getElementById('history-detail-title').textContent=isNew?'Symptom / Mood':eventTitle(e);
   document.getElementById('history-detail-content').innerHTML=
-    '<div class="detail-grid"><div class="detail-chip"><span>Source</span><strong>'+esc(e.source_app||'imported')+'</strong></div><div class="detail-chip"><span>ID</span><strong>'+esc(e.event_id)+'</strong></div></div>'+
+    '<div class="detail-grid"><div class="detail-chip"><span>Source</span><strong>'+esc(e.source_app||'manual')+'</strong></div><div class="detail-chip"><span>ID</span><strong>'+esc(e.event_id||'new')+'</strong></div></div>'+
     detailInput('Date','detail-event-date',e.event_date,'date')+
-    detailInput('Category','detail-event-category',e.category)+
-    detailInput('Label','detail-event-label',e.label||'')+
+    '<div class="date-row"><label>Category</label><select id="detail-event-category"><option value="symptom" '+(e.category==='symptom'?'selected':'')+'>Symptom</option><option value="mood" '+(e.category==='mood'?'selected':'')+'>Mood</option><option value="sex" '+(e.category==='sex'?'selected':'')+'>Sex</option><option value="workout" '+(e.category==='workout'?'selected':'')+'>Workout</option><option value="water" '+(e.category==='water'?'selected':'')+'>Water</option><option value="pregnancy_test" '+(e.category==='pregnancy_test'?'selected':'')+'>Pregnancy test</option><option value="other" '+(['symptom','mood','sex','workout','water','pregnancy_test'].indexOf(e.category)<0?'selected':'')+'>Other</option></select></div>'+
+    detailInput('Name','detail-event-label',e.label||'')+
     detailInput('Code','detail-event-code',e.code||'')+
     detailInput('Severity','detail-event-severity',e.severity_code||'')+
     detailInput('Value','detail-event-value-text',e.value_text||'')+
     detailInput('Number','detail-event-value-number',e.value_number==null?'':e.value_number,'number')+
     detailInput('Unit','detail-event-unit',e.unit||'')+
     detailArea('Raw value','detail-event-raw',e.raw_value||'')+
-    '<button class="btn btn-primary" onclick="saveEvent(\''+e.event_id+'\')">Save Event</button>'+
-    '<button class="btn btn-secondary" style="color:var(--red)" onclick="deleteEvent(\''+e.event_id+'\')">Delete Event</button>';
+    '<button class="btn btn-primary" onclick="saveEvent(\''+(e.event_id||'')+'\')">Save Event</button>'+
+    (isNew?'':'<button class="btn btn-secondary" style="color:var(--red)" onclick="deleteEvent(\''+e.event_id+'\')">Delete Event</button>');
   document.getElementById('history-detail-modal').style.display='flex';
 }
 
@@ -755,7 +762,16 @@ async function saveEvent(id){
     raw_value:document.getElementById('detail-event-raw').value.trim()||null
   };
   if(!payload.event_date||!payload.category){toast('Date and category are required');return;}
-  try{await sbFetch('/rest/v1/period_events?event_id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});closeModal('history-detail-modal');toast('Event saved');loadData();}catch(e){toast('Error: '+e.message);}
+  if((payload.category==='symptom'||payload.category==='mood')&&!payload.label){toast('Add a meaningful name first');return;}
+  try{
+    if(id)await sbFetch('/rest/v1/period_events?event_id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});
+    else{
+      payload.event_id='manual_'+payload.category+'_'+Date.now();
+      payload.source_app='manual';
+      await sbFetch('/rest/v1/period_events',{method:'POST',body:JSON.stringify(payload)});
+    }
+    closeModal('history-detail-modal');toast('Event saved');loadData();
+  }catch(e){toast('Error: '+e.message);}
 }
 
 async function deleteEvent(id){
