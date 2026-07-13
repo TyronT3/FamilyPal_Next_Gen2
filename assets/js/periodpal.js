@@ -11,6 +11,7 @@ function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
 var cycles=[],intimacy=[],exclusions=[],periodEvents=[],periodNotes=[],periodMeasurements=[],periodMedLogs=[],viewMonth=new Date(),activeTab='calendar';
 var model={avgCycle:28,avgPeriod:5,lastStart:null,nextStart:null,periodEnd:null,ovulation:null,fertileStart:null,fertileEnd:null,confidence:'low'};
 var importRows=[],jsonImportData=null;
+var sexFilterStart='',sexFilterEnd='';
 
 function switchTab(tab,btn){
   activeTab=tab;
@@ -909,6 +910,30 @@ function sexReportRows(){
   return rows.sort(function(a,b){return b.date.localeCompare(a.date);});
 }
 
+function filteredSexRows(rows){
+  return rows.filter(function(x){
+    return (!sexFilterStart||x.date>=sexFilterStart)&&(!sexFilterEnd||x.date<=sexFilterEnd);
+  });
+}
+
+function applySexReportFilter(){
+  sexFilterStart=document.getElementById('sex-filter-start').value;
+  sexFilterEnd=document.getElementById('sex-filter-end').value;
+  if(sexFilterStart&&sexFilterEnd&&sexFilterEnd<sexFilterStart){toast('End date must be after start date');return;}
+  renderReports();
+}
+
+function setSexReportRange(days){
+  if(days==='all'){
+    sexFilterStart='';
+    sexFilterEnd='';
+  }else{
+    sexFilterEnd=todayKey();
+    sexFilterStart=addDays(sexFilterEnd,-days+1);
+  }
+  renderReports();
+}
+
 function renderReports(){
   var el=document.getElementById('reports-content');
   if(!cycles.length&&!periodEvents.length&&!intimacy.length){el.innerHTML='<div class="empty-log">No period logs to report yet</div>';return;}
@@ -937,8 +962,9 @@ function renderReports(){
   var measurementRows=Object.keys(measurementTypeCounts).sort(function(a,b){return measurementTypeCounts[b]-measurementTypeCounts[a];});
   var medRows=Object.keys(medCounts).sort(function(a,b){return medCounts[b]-medCounts[a];});
   var sexRows=sexReportRows();
-  var sexProtected=sexRows.filter(function(x){return x.protection&&x.protection!=='none';}).length;
-  var sexEc=sexRows.filter(function(x){return x.ec;}).length;
+  var shownSexRows=filteredSexRows(sexRows);
+  var sexProtected=shownSexRows.filter(function(x){return x.protection&&x.protection!=='none';}).length;
+  var sexEc=shownSexRows.filter(function(x){return x.ec;}).length;
   var avgPeriod=completed.length?Math.round(completed.reduce(function(s,c){return s+daysBetween(c.start_date,c.end_date)+1;},0)/completed.length):model.avgPeriod;
   el.innerHTML='<div class="report-wrap">'+
     '<div class="report-grid">'+
@@ -949,15 +975,25 @@ function renderReports(){
       '<div class="report-card"><div class="r-val">'+periodEvents.length+'</div><div class="r-lbl">Daily events</div></div>'+
       '<div class="report-card"><div class="r-val">'+displayEvents.length+'</div><div class="r-lbl">Named events</div></div>'+
       '<div class="report-card"><div class="r-val">'+periodNotes.length+'</div><div class="r-lbl">Notes</div></div>'+
-      '<div class="report-card"><div class="r-val">'+sexRows.length+'</div><div class="r-lbl">Sex events</div></div>'+
+      '<div class="report-card"><div class="r-val">'+shownSexRows.length+'</div><div class="r-lbl">Sex events</div></div>'+
       '<div class="report-card"><div class="r-val">'+sexProtected+'</div><div class="r-lbl">Protected</div></div>'+
     '</div>'+
     (sexRows.length?'<div class="report-list"><h3>Sex and Intimacy Events</h3>'+
+      '<div class="date-row"><label>From</label><input type="date" id="sex-filter-start" value="'+esc(sexFilterStart)+'"></div>'+
+      '<div class="date-row"><label>To</label><input type="date" id="sex-filter-end" value="'+esc(sexFilterEnd)+'"></div>'+
+      '<div class="type-toggle">'+
+        '<button class="type-opt" onclick="setSexReportRange(30)">30 days</button>'+
+        '<button class="type-opt" onclick="setSexReportRange(183)">6 months</button>'+
+        '<button class="type-opt" onclick="setSexReportRange(365)">1 year</button>'+
+        '<button class="type-opt" onclick="setSexReportRange(\'all\')">All</button>'+
+      '</div>'+
+      '<button class="btn btn-secondary" onclick="applySexReportFilter()">Apply Date Filter</button>'+
+      '<div class="report-row"><span>Showing in selected range</span><strong>'+shownSexRows.length+' of '+sexRows.length+'</strong></div>'+
       '<div class="report-row"><span>Emergency contraception marked</span><strong>'+sexEc+'</strong></div>'+
-      sexRows.slice(0,120).map(function(x){
+      (shownSexRows.length?shownSexRows.slice(0,120).map(function(x){
         return '<div class="note-card" onclick="'+x.onclick+'"><div class="note-date">'+fmtFullDate(x.date)+'</div><div class="note-meta">'+esc(x.kind==='imported'?'Imported sex event':'Risk note')+' · '+esc(protectionLabel(x.protection))+(x.ec?' · emergency contraception':'')+'</div><div class="log-detail">'+esc(x.detail)+'</div><span class="risk-pill risk-'+x.risk.level+'">'+esc(x.risk.label)+'</span></div>';
-      }).join('')+
-      (sexRows.length>120?'<div style="font-size:11px;color:var(--muted);padding-top:6px">Showing newest 120 records.</div>':'')+
+      }).join(''):'<div class="empty-log" style="padding:12px">No sex or intimacy events in this range</div>')+
+      (shownSexRows.length>120?'<div style="font-size:11px;color:var(--muted);padding-top:6px">Showing newest 120 records in this range.</div>':'')+
     '</div>':'')+
     (exclusions.length?'<div class="report-list"><h3>Excluded ranges</h3>'+exclusions.map(function(x){return '<div class="report-row"><span>'+fmtDate(x.start_date)+' - '+fmtDate(x.end_date)+'<br><small style="color:var(--muted)">'+esc(x.reason||'excluded')+(x.notes?' · '+esc(x.notes):'')+'</small></span><strong>'+daysBetween(x.start_date,x.end_date)+'d</strong></div>';}).join('')+'</div>':'')+
     '<div class="report-list"><h3>Cycle range</h3><div class="report-row"><span>Shortest - longest estimated cycle</span><strong>'+(range?range.min+'-'+range.max+'d':'-')+'</strong></div></div>'+
