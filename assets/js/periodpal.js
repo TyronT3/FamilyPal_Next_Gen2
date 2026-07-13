@@ -8,7 +8,7 @@ function fmtDate(s){return parseDay(s).toLocaleDateString([],{month:'short',day:
 function fmtFullDate(s){return parseDay(s).toLocaleDateString([],{weekday:'long',month:'long',day:'numeric'});}
 function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
 
-var cycles=[],intimacy=[],viewMonth=new Date(),activeTab='calendar';
+var cycles=[],intimacy=[],exclusions=[],viewMonth=new Date(),activeTab='calendar';
 var model={avgCycle:28,avgPeriod:5,lastStart:null,nextStart:null,periodEnd:null,ovulation:null,fertileStart:null,fertileEnd:null,confidence:'low'};
 var importRows=[];
 
@@ -27,10 +27,12 @@ async function loadData(){
     var end=new Date();end.setMonth(end.getMonth()+4);
     var results=await Promise.all([
       sbFetch('/rest/v1/period_cycles?start_date=gte.'+dateKey(start)+'&order=start_date.desc&select=*'),
-      sbFetch('/rest/v1/period_intimacy?logged_date=gte.'+dateKey(start)+'&logged_date=lte.'+dateKey(end)+'&order=logged_date.desc&select=*')
+      sbFetch('/rest/v1/period_intimacy?logged_date=gte.'+dateKey(start)+'&logged_date=lte.'+dateKey(end)+'&order=logged_date.desc&select=*'),
+      sbFetch('/rest/v1/period_exclusions?order=start_date.desc&select=*')
     ]);
     cycles=results[0]||[];
     intimacy=results[1]||[];
+    exclusions=results[2]||[];
     buildModel();
     renderForecast();
     renderCalendar();
@@ -42,7 +44,7 @@ async function loadData(){
 }
 
 function buildModel(){
-  var sorted=cycles.slice().sort(function(a,b){return a.start_date.localeCompare(b.start_date);});
+  var sorted=usableCycles().sort(function(a,b){return a.start_date.localeCompare(b.start_date);});
   var intervals=[];
   for(var i=1;i<sorted.length;i++){
     var diff=daysBetween(sorted[i-1].start_date,sorted[i].start_date);
@@ -71,11 +73,11 @@ function buildModel(){
 
 function renderForecast(){
   var el=document.getElementById('forecast-content');
-  if(!cycles.length){
+  if(!usableCycles().length){
     el.innerHTML='<div class="forecast-grid">'+
       '<div class="forecast-card fc-rose"><div class="fc-lbl">Next period</div><div class="fc-val">Log first</div><div class="fc-sub">Add the latest start date to begin predictions.</div></div>'+
       '<div class="forecast-card fc-blue"><div class="fc-lbl">Fertile window</div><div class="fc-val">Unknown</div><div class="fc-sub">Needs cycle history.</div></div>'+
-      '</div><div class="trust-note">PeriodPal estimates from logged dates only. It is not contraception or medical advice.</div>';
+      '</div><div class="trust-note">PeriodPal estimates from logged dates only. Pregnancy or excluded ranges are kept in history but ignored for predictions.</div>';
     return;
   }
   var daysTo=daysBetween(todayKey(),model.nextStart);
@@ -91,7 +93,7 @@ function renderForecast(){
 }
 
 function avgCycleRange(){
-  var sorted=cycles.slice().sort(function(a,b){return a.start_date.localeCompare(b.start_date);});
+  var sorted=usableCycles().sort(function(a,b){return a.start_date.localeCompare(b.start_date);});
   var vals=[];
   for(var i=1;i<sorted.length;i++){
     var diff=daysBetween(sorted[i-1].start_date,sorted[i].start_date);
@@ -123,6 +125,9 @@ function renderCalendar(){
 
 function moveMonth(delta){viewMonth.setMonth(viewMonth.getMonth()+delta);renderCalendar();}
 function isBetween(key,start,end){return start&&end&&key>=start&&key<=end;}
+function isExcludedDate(key){return exclusions.some(function(x){return key>=x.start_date&&key<=x.end_date;});}
+function isExcludedCycle(c){return isExcludedDate(c.start_date);}
+function usableCycles(){return cycles.filter(function(c){return !isExcludedCycle(c);});}
 function isLoggedPeriod(key){return cycles.some(function(c){return key>=c.start_date&&key<=(c.end_date||todayKey());});}
 function isPredictedPeriod(key){return isBetween(key,model.nextStart,model.periodEnd);}
 
@@ -165,6 +170,9 @@ function closeModalClick(e){if(e.target===e.currentTarget)closeModal(e.currentTa
 function openImportModal(){
   importRows=[];
   document.getElementById('import-text').value='';
+  document.getElementById('exclude-start').value='';
+  document.getElementById('exclude-end').value='';
+  document.getElementById('exclude-notes').value='';
   document.getElementById('import-preview').style.display='none';
   document.getElementById('import-preview').innerHTML='';
   document.getElementById('import-save-btn').style.display='none';
@@ -230,16 +238,24 @@ function previewImport(){
 
 async function saveImportRows(){
   if(!importRows.length){toast('Preview rows first');return;}
+  var exStart=document.getElementById('exclude-start').value;
+  var exEnd=document.getElementById('exclude-end').value;
+  var exNotes=document.getElementById('exclude-notes').value.trim();
+  if((exStart&&!exEnd)||(!exStart&&exEnd)){toast('Add both pregnancy start and end dates');return;}
+  if(exStart&&exEnd&&exEnd<exStart){toast('Pregnancy end date must be after start date');return;}
   var existing={};
   cycles.forEach(function(c){existing[c.start_date]=true;});
   var rows=importRows.filter(function(r){return !existing[r.start_date];}).map(function(r){
     return {start_date:r.start_date,end_date:r.end_date,flow:r.flow,symptoms:r.symptoms,notes:r.notes,updated_at:new Date().toISOString()};
   });
-  if(!rows.length){toast('Those start dates already exist');return;}
+  if(!rows.length&&!exStart){toast('Those start dates already exist');return;}
   try{
-    await sbFetch('/rest/v1/period_cycles',{method:'POST',body:JSON.stringify(rows)});
+    if(rows.length)await sbFetch('/rest/v1/period_cycles',{method:'POST',body:JSON.stringify(rows)});
+    if(exStart&&exEnd){
+      await sbFetch('/rest/v1/period_exclusions',{method:'POST',body:JSON.stringify({start_date:exStart,end_date:exEnd,reason:'pregnancy',notes:exNotes||null,updated_at:new Date().toISOString()})});
+    }
     closeModal('import-modal');
-    toast('Imported '+rows.length+' period log'+(rows.length!==1?'s':''));
+    toast((rows.length?'Imported '+rows.length+' period log'+(rows.length!==1?'s':''):'Saved exclusion range')+(exStart&&exEnd?' and pregnancy range':''));
     loadData();
   }catch(e){toast('Import error: '+e.message);}
 }
@@ -348,7 +364,7 @@ function renderHistory(){
     (rows.length?rows.slice(0,80).map(function(item){
       if(item.type==='cycle'){
         var c=item.row,len=c.end_date?daysBetween(c.start_date,c.end_date)+1:null;
-        return '<div class="log-item" onclick="openCycleModal(\''+c.id+'\')"><div class="log-icon">🩸</div><div class="log-info"><div class="log-title">Period started '+fmtDate(c.start_date)+'</div><div class="log-detail">'+esc(c.flow||'medium')+(len?' · '+len+' day'+(len!==1?'s':''):' · still active')+(c.symptoms&&c.symptoms.length?' · '+esc(c.symptoms.join(', ')):'')+(c.notes?' · '+esc(c.notes):'')+'</div></div><div class="log-actions"><button class="undo-btn">Edit</button></div></div>';
+        return '<div class="log-item" onclick="openCycleModal(\''+c.id+'\')"><div class="log-icon">🩸</div><div class="log-info"><div class="log-title">Period started '+fmtDate(c.start_date)+'</div><div class="log-detail">'+esc(c.flow||'medium')+(len?' · '+len+' day'+(len!==1?'s':''):' · still active')+(isExcludedCycle(c)?' · excluded from predictions':'')+(c.symptoms&&c.symptoms.length?' · '+esc(c.symptoms.join(', ')):'')+(c.notes?' · '+esc(c.notes):'')+'</div></div><div class="log-actions"><button class="undo-btn">Edit</button></div></div>';
       }
       var x=item.row,r=riskForDate(x.logged_date,x.protection,x.emergency_contraception);
       return '<div class="log-item" onclick="openIntimacyModal(\''+x.id+'\')"><div class="log-icon">🛡️</div><div class="log-info"><div class="log-title">Risk note '+fmtDate(x.logged_date)+'</div><div class="log-detail">'+esc(protectionLabel(x.protection))+(x.emergency_contraception?' · emergency contraception':'')+(x.notes?' · '+esc(x.notes):'')+'<br><span class="risk-pill risk-'+r.level+'">'+esc(r.label)+'</span></div></div><div class="log-actions"><button class="undo-btn">Edit</button></div></div>';
@@ -358,12 +374,13 @@ function renderHistory(){
 function renderReports(){
   var el=document.getElementById('reports-content');
   if(!cycles.length){el.innerHTML='<div class="empty-log">No period logs to report yet</div>';return;}
-  var sorted=cycles.slice().sort(function(a,b){return b.start_date.localeCompare(a.start_date);});
-  var completed=cycles.filter(function(c){return c.end_date;});
+  var usable=usableCycles();
+  var sorted=usable.slice().sort(function(a,b){return b.start_date.localeCompare(a.start_date);});
+  var completed=usable.filter(function(c){return c.end_date;});
   var range=avgCycleRange();
   var noteCycles=sorted.filter(function(c){return c.notes||c.symptoms&&c.symptoms.length;});
   var symptomCounts={},flowCounts={};
-  cycles.forEach(function(c){
+  usable.forEach(function(c){
     flowCounts[c.flow||'medium']=(flowCounts[c.flow||'medium']||0)+1;
     (c.symptoms||[]).forEach(function(s){symptomCounts[s]=(symptomCounts[s]||0)+1;});
   });
@@ -375,10 +392,12 @@ function renderReports(){
   el.innerHTML='<div class="report-wrap">'+
     '<div class="report-grid">'+
       '<div class="report-card"><div class="r-val">'+cycles.length+'</div><div class="r-lbl">Periods logged</div></div>'+
+      '<div class="report-card"><div class="r-val">'+usable.length+'</div><div class="r-lbl">Used for estimates</div></div>'+
       '<div class="report-card"><div class="r-val">'+model.avgCycle+'d</div><div class="r-lbl">Avg cycle</div></div>'+
       '<div class="report-card"><div class="r-val">'+avgPeriod+'d</div><div class="r-lbl">Avg period</div></div>'+
-      '<div class="report-card"><div class="r-val">'+(range?range.min+'-'+range.max+'d':'-')+'</div><div class="r-lbl">Cycle range</div></div>'+
     '</div>'+
+    (exclusions.length?'<div class="report-list"><h3>Excluded ranges</h3>'+exclusions.map(function(x){return '<div class="report-row"><span>'+fmtDate(x.start_date)+' - '+fmtDate(x.end_date)+'<br><small style="color:var(--muted)">'+esc(x.reason||'excluded')+(x.notes?' · '+esc(x.notes):'')+'</small></span><strong>'+daysBetween(x.start_date,x.end_date)+'d</strong></div>';}).join('')+'</div>':'')+
+    '<div class="report-list"><h3>Cycle range</h3><div class="report-row"><span>Shortest - longest estimated cycle</span><strong>'+(range?range.min+'-'+range.max+'d':'-')+'</strong></div></div>'+
     '<div class="report-list"><h3>Symptoms</h3>'+
       (symptomRows.length?symptomRows.map(function(s){var pct=Math.round(symptomCounts[s]/maxSym*100);return '<div class="report-row"><div style="flex:1"><div>'+esc(s)+'</div><div class="report-bar"><span style="width:'+pct+'%"></span></div></div><strong>'+symptomCounts[s]+'</strong></div>';}).join(''):'<div class="empty-log" style="padding:12px">No symptoms logged yet</div>')+
     '</div>'+

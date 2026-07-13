@@ -77,6 +77,7 @@
   .import-box{width:100%;min-height:180px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-size:13px;outline:none;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;resize:vertical;}
   .import-help{font-size:12px;color:var(--muted);line-height:1.45;margin:8px 0 14px;}
   .import-preview{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin:12px 0;max-height:220px;overflow:auto;font-size:12px;}
+  .exclude-panel{background:rgba(79,156,249,.08);border:1px solid rgba(79,156,249,.28);border-radius:12px;padding:12px;margin:10px 0 14px;}
   .log-item{border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px;}
   .log-icon{font-size:22px;flex-shrink:0;}
   .log-info{flex:1;min-width:0;}
@@ -200,6 +201,13 @@
       <strong>start date, end date, flow, symptoms, notes</strong><br>
       Example: <span style="color:var(--text)">2026-01-03,2026-01-07,medium,cramps|fatigue,rough cramps day 1</span><br>
       End date, symptoms, and notes can be blank.
+    </div>
+    <div class="exclude-panel">
+      <div class="section-label" style="margin-top:0">Exclude pregnancy range</div>
+      <div class="date-row"><label>From</label><input type="date" id="exclude-start"></div>
+      <div class="date-row"><label>To</label><input type="date" id="exclude-end"></div>
+      <div class="field"><label>Notes</label><input type="text" id="exclude-notes" placeholder="e.g. pregnant with Geomé"></div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.4">Any imported or existing cycle starts inside this range will stay visible in history, but will not affect predictions or cycle averages.</div>
     </div>
     <textarea id="import-text" class="import-box" placeholder="2026-01-03,2026-01-07,medium,cramps|fatigue,rough cramps day 1&#10;2026-02-01,2026-02-05,light,headache,"></textarea>
     <button class="btn btn-secondary" onclick="previewImport()">Preview Import</button>
