@@ -126,6 +126,8 @@ function renderCalendar(){
     if(isBetween(key,model.fertileStart,model.fertileEnd)){cls.push('fertile');dots.push('tag-fertile');}
     if(key===model.ovulation){cls.push('ovulation');dots.push('tag-ovulation');}
     if(intimacy.some(function(x){return x.logged_date===key;}))dots.push('tag-intimacy');
+    if(periodNotes.some(function(x){return x.note_date===key;}))dots.push('tag-note');
+    if(periodEvents.some(function(x){return x.event_date===key;}))dots.push('tag-event');
     html+='<div class="'+cls.join(' ')+'" onclick="openDay(\''+key+'\')"><div class="day-num">'+d.getDate()+'</div><div class="day-tags">'+dots.slice(0,4).map(function(c){return'<i class="tag-dot '+c+'"></i>';}).join('')+'</div></div>';
   }
   document.getElementById('calendar-grid').innerHTML=html;
@@ -156,10 +158,20 @@ function riskForDate(key,protection,ec){
 function openDay(key){
   var dayCycles=cycles.filter(function(c){return key>=c.start_date&&key<=(c.end_date||todayKey());});
   var dayInt=intimacy.filter(function(x){return x.logged_date===key;});
+  var dayNotes=periodNotes.filter(function(x){return x.note_date===key;});
+  var dayEvents=periodEvents.filter(function(x){return x.event_date===key;});
+  var dayMeasurements=periodMeasurements.filter(function(x){return x.measurement_date===key;});
+  var dayMeds=periodMedLogs.filter(function(x){return x.log_date===key;});
+  var dayExclusions=exclusions.filter(function(x){return key>=x.start_date&&key<=x.end_date;});
   var tags=[];
-  if(dayCycles.length)tags.push('<div class="log-item"><div class="log-icon">🩸</div><div class="log-info"><div class="log-title">Logged period</div><div class="log-detail">'+esc(dayCycles[0].flow||'medium')+(dayCycles[0].symptoms&&dayCycles[0].symptoms.length?' · '+esc(dayCycles[0].symptoms.join(', ')):'')+'</div></div></div>');
+  if(dayExclusions.length)dayExclusions.forEach(function(x){tags.push('<div class="log-item" onclick="closeModal(\'day-modal\');openExclusionModal(\''+x.id+'\')"><div class="log-icon">🚫</div><div class="log-info"><div class="log-title">Excluded from estimates</div><div class="log-detail">'+esc(x.reason||'excluded')+' · '+fmtDate(x.start_date)+' - '+fmtDate(x.end_date)+(x.notes?' · '+esc(x.notes):'')+'</div></div></div>');});
+  if(dayCycles.length)dayCycles.forEach(function(c){tags.push('<div class="log-item" onclick="closeModal(\'day-modal\');openCycleModal(\''+c.id+'\')"><div class="log-icon">🩸</div><div class="log-info"><div class="log-title">Logged period</div><div class="log-detail">'+esc(c.flow||'medium')+(c.symptoms&&c.symptoms.length?' · '+esc(c.symptoms.join(', ')):'')+(c.notes?' · '+esc(c.notes):'')+'</div></div></div>');});
   if(isPredictedPeriod(key))tags.push('<div class="log-item"><div class="log-icon">🌙</div><div class="log-info"><div class="log-title">Predicted period</div><div class="log-detail">Based on '+model.avgCycle+' day average cycle.</div></div></div>');
   if(isBetween(key,model.fertileStart,model.fertileEnd))tags.push('<div class="log-item"><div class="log-icon">🌱</div><div class="log-info"><div class="log-title">Estimated fertile window</div><div class="log-detail">Ovulation estimate: '+fmtDate(model.ovulation)+'.</div></div></div>');
+  dayNotes.forEach(function(n){tags.push('<div class="log-item" onclick="closeModal(\'day-modal\');openNoteModal(\''+n.note_id+'\')"><div class="log-icon">📝</div><div class="log-info"><div class="log-title">Note</div><div class="log-detail">'+esc(n.note_text)+'</div></div></div>');});
+  dayEvents.forEach(function(e){tags.push('<div class="log-item" onclick="closeModal(\'day-modal\');openEventModal(\''+e.event_id+'\')"><div class="log-icon">✨</div><div class="log-info"><div class="log-title">'+esc(eventTitle(e))+'</div><div class="log-detail">'+esc(eventDetail(e))+'</div></div></div>');});
+  dayMeasurements.forEach(function(m){tags.push('<div class="log-item" onclick="closeModal(\'day-modal\');openMeasurementModal(\''+m.measurement_id+'\')"><div class="log-icon">📏</div><div class="log-info"><div class="log-title">'+esc(measurementTitle(m))+'</div><div class="log-detail">'+esc(measurementDetail(m))+'</div></div></div>');});
+  dayMeds.forEach(function(m){tags.push('<div class="log-item" onclick="closeModal(\'day-modal\');openMedicationLogModal(\''+m.log_id+'\')"><div class="log-icon">💊</div><div class="log-info"><div class="log-title">'+esc(m.name||'Medication')+'</div><div class="log-detail">'+esc(medicationDetail(m))+'</div></div></div>');});
   dayInt.forEach(function(x){
     var r=riskForDate(x.logged_date,x.protection,x.emergency_contraception);
     tags.push('<div class="log-item" onclick="openIntimacyModal(\''+x.id+'\')"><div class="log-icon">🛡️</div><div class="log-info"><div class="log-title">Pregnancy risk note</div><div class="log-detail">'+esc(protectionLabel(x.protection))+(x.notes?' · '+esc(x.notes):'')+'<br><span class="risk-pill risk-'+r.level+'">'+esc(r.label)+'</span></div></div></div>');
@@ -576,20 +588,255 @@ async function deleteIntimacy(){
   try{await sbFetch('/rest/v1/period_intimacy?id=eq.'+id,{method:'DELETE'});closeModal('intimacy-modal');toast('Risk note deleted');loadData();}catch(e){toast('Error: '+e.message);}
 }
 
+function eventTitle(e){
+  return (e.label||e.category||'Event')+(e.code&&!e.label?' code '+e.code:'');
+}
+
+function eventDetail(e){
+  var parts=[e.category];
+  if(e.severity_code)parts.push('severity '+e.severity_code);
+  if(e.value_text)parts.push(e.value_text);
+  if(e.value_number!=null)parts.push(String(e.value_number)+(e.unit?' '+e.unit:''));
+  if(e.raw_value&&!e.value_text)parts.push(e.raw_value);
+  return parts.filter(Boolean).join(' · ')||'Imported event';
+}
+
+function measurementTitle(m){
+  return (m.measurement_type||'Measurement').replace(/_/g,' ');
+}
+
+function measurementDetail(m){
+  var primary=m.value!=null?String(m.value)+(m.unit?' '+m.unit:''):'No value';
+  var normalized=m.normalized_value!=null?'normalized '+m.normalized_value+(m.normalized_unit?' '+m.normalized_unit:''):'';
+  return [primary,normalized,m.raw_value].filter(Boolean).join(' · ');
+}
+
+function medicationDetail(m){
+  return ['status '+(m.take_status_code||'unknown'),m.pill_type_code?'type '+m.pill_type_code:'',m.raw_value].filter(Boolean).join(' · ');
+}
+
+function dateTimeLabel(date,datetime){
+  if(!datetime)return fmtFullDate(date);
+  try{return new Date(datetime).toLocaleString([],{weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return fmtFullDate(date);}
+}
+
+function openExclusionModal(id){
+  var x=id?exclusions.find(function(r){return r.id===id;}):null;
+  document.getElementById('exclusion-modal-title').textContent=x?'Edit Excluded Range':'Excluded Range';
+  document.getElementById('exclusion-id').value=x?x.id:'';
+  document.getElementById('exclusion-start').value=x?x.start_date:'';
+  document.getElementById('exclusion-end').value=x?x.end_date:'';
+  document.getElementById('exclusion-reason').value=x&&x.reason?x.reason:'pregnancy';
+  document.getElementById('exclusion-notes').value=x&&x.notes?x.notes:'';
+  document.getElementById('exclusion-delete-btn').style.display=x?'block':'none';
+  document.getElementById('exclusion-modal').style.display='flex';
+}
+
+async function saveExclusion(){
+  var id=document.getElementById('exclusion-id').value;
+  var start=document.getElementById('exclusion-start').value;
+  var end=document.getElementById('exclusion-end').value;
+  if(!start||!end){toast('Choose start and end dates');return;}
+  if(end<start){toast('End date must be after start date');return;}
+  var payload={start_date:start,end_date:end,reason:document.getElementById('exclusion-reason').value,notes:document.getElementById('exclusion-notes').value.trim()||null,updated_at:new Date().toISOString()};
+  try{
+    if(id)await sbFetch('/rest/v1/period_exclusions?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});
+    else await sbFetch('/rest/v1/period_exclusions',{method:'POST',body:JSON.stringify(payload)});
+    closeModal('exclusion-modal');toast('Exclusion saved');loadData();
+  }catch(e){toast('Error: '+e.message);}
+}
+
+async function deleteExclusion(){
+  var id=document.getElementById('exclusion-id').value;
+  if(!id||!confirm('Delete this excluded range?'))return;
+  try{await sbFetch('/rest/v1/period_exclusions?id=eq.'+id,{method:'DELETE'});closeModal('exclusion-modal');toast('Exclusion deleted');loadData();}catch(e){toast('Error: '+e.message);}
+}
+
+function detailInput(label,id,value,type){
+  type=type||'text';
+  return '<div class="date-row"><label>'+esc(label)+'</label><input type="'+type+'" id="'+id+'" value="'+esc(value||'')+'"></div>';
+}
+
+function detailArea(label,id,value){
+  return '<div class="field"><label>'+esc(label)+'</label><textarea id="'+id+'">'+esc(value||'')+'</textarea></div>';
+}
+
+function openNoteModal(id){
+  var n=periodNotes.find(function(r){return r.note_id===id;});
+  if(!n)return;
+  document.getElementById('history-detail-title').textContent='Note';
+  document.getElementById('history-detail-content').innerHTML=
+    detailInput('Date','detail-note-date',n.note_date,'date')+
+    detailArea('Note','detail-note-text',n.note_text)+
+    '<button class="btn btn-primary" onclick="saveNote(\''+n.note_id+'\')">Save Note</button>'+
+    '<button class="btn btn-secondary" style="color:var(--red)" onclick="deleteNote(\''+n.note_id+'\')">Delete Note</button>';
+  document.getElementById('history-detail-modal').style.display='flex';
+}
+
+async function saveNote(id){
+  var payload={note_date:document.getElementById('detail-note-date').value,note_text:document.getElementById('detail-note-text').value.trim()};
+  if(!payload.note_date||!payload.note_text){toast('Date and note are required');return;}
+  try{await sbFetch('/rest/v1/period_notes?note_id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});closeModal('history-detail-modal');toast('Note saved');loadData();}catch(e){toast('Error: '+e.message);}
+}
+
+async function deleteNote(id){
+  if(!confirm('Delete this note?'))return;
+  try{await sbFetch('/rest/v1/period_notes?note_id=eq.'+encodeURIComponent(id),{method:'DELETE'});closeModal('history-detail-modal');toast('Note deleted');loadData();}catch(e){toast('Error: '+e.message);}
+}
+
+function openEventModal(id){
+  var e=periodEvents.find(function(r){return r.event_id===id;});
+  if(!e)return;
+  document.getElementById('history-detail-title').textContent=eventTitle(e);
+  document.getElementById('history-detail-content').innerHTML=
+    '<div class="detail-grid"><div class="detail-chip"><span>Source</span><strong>'+esc(e.source_app||'imported')+'</strong></div><div class="detail-chip"><span>ID</span><strong>'+esc(e.event_id)+'</strong></div></div>'+
+    detailInput('Date','detail-event-date',e.event_date,'date')+
+    detailInput('Category','detail-event-category',e.category)+
+    detailInput('Label','detail-event-label',e.label||'')+
+    detailInput('Code','detail-event-code',e.code||'')+
+    detailInput('Severity','detail-event-severity',e.severity_code||'')+
+    detailInput('Value','detail-event-value-text',e.value_text||'')+
+    detailInput('Number','detail-event-value-number',e.value_number==null?'':e.value_number,'number')+
+    detailInput('Unit','detail-event-unit',e.unit||'')+
+    detailArea('Raw value','detail-event-raw',e.raw_value||'')+
+    '<button class="btn btn-primary" onclick="saveEvent(\''+e.event_id+'\')">Save Event</button>'+
+    '<button class="btn btn-secondary" style="color:var(--red)" onclick="deleteEvent(\''+e.event_id+'\')">Delete Event</button>';
+  document.getElementById('history-detail-modal').style.display='flex';
+}
+
+async function saveEvent(id){
+  var num=document.getElementById('detail-event-value-number').value;
+  var payload={
+    event_date:document.getElementById('detail-event-date').value,
+    category:document.getElementById('detail-event-category').value.trim(),
+    label:document.getElementById('detail-event-label').value.trim()||null,
+    code:document.getElementById('detail-event-code').value.trim()||null,
+    severity_code:document.getElementById('detail-event-severity').value.trim()||null,
+    value_text:document.getElementById('detail-event-value-text').value.trim()||null,
+    value_number:num===''?null:Number(num),
+    unit:document.getElementById('detail-event-unit').value.trim()||null,
+    raw_value:document.getElementById('detail-event-raw').value.trim()||null
+  };
+  if(!payload.event_date||!payload.category){toast('Date and category are required');return;}
+  try{await sbFetch('/rest/v1/period_events?event_id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});closeModal('history-detail-modal');toast('Event saved');loadData();}catch(e){toast('Error: '+e.message);}
+}
+
+async function deleteEvent(id){
+  if(!confirm('Delete this event?'))return;
+  try{await sbFetch('/rest/v1/period_events?event_id=eq.'+encodeURIComponent(id),{method:'DELETE'});closeModal('history-detail-modal');toast('Event deleted');loadData();}catch(e){toast('Error: '+e.message);}
+}
+
+function openMeasurementModal(id){
+  var m=periodMeasurements.find(function(r){return r.measurement_id===id;});
+  if(!m)return;
+  document.getElementById('history-detail-title').textContent=measurementTitle(m);
+  document.getElementById('history-detail-content').innerHTML=
+    detailInput('Date','detail-measure-date',m.measurement_date,'date')+
+    detailInput('Type','detail-measure-type',m.measurement_type)+
+    detailInput('Value','detail-measure-value',m.value==null?'':m.value,'number')+
+    detailInput('Unit','detail-measure-unit',m.unit||'')+
+    detailInput('Normalized','detail-measure-normalized',m.normalized_value==null?'':m.normalized_value,'number')+
+    detailInput('Norm unit','detail-measure-normalized-unit',m.normalized_unit||'')+
+    detailArea('Raw value','detail-measure-raw',m.raw_value||'')+
+    '<button class="btn btn-primary" onclick="saveMeasurement(\''+m.measurement_id+'\')">Save Measurement</button>'+
+    '<button class="btn btn-secondary" style="color:var(--red)" onclick="deleteMeasurement(\''+m.measurement_id+'\')">Delete Measurement</button>';
+  document.getElementById('history-detail-modal').style.display='flex';
+}
+
+async function saveMeasurement(id){
+  var val=document.getElementById('detail-measure-value').value;
+  var norm=document.getElementById('detail-measure-normalized').value;
+  var payload={
+    measurement_date:document.getElementById('detail-measure-date').value,
+    measurement_type:document.getElementById('detail-measure-type').value.trim(),
+    value:val===''?null:Number(val),
+    unit:document.getElementById('detail-measure-unit').value.trim()||null,
+    normalized_value:norm===''?null:Number(norm),
+    normalized_unit:document.getElementById('detail-measure-normalized-unit').value.trim()||null,
+    raw_value:document.getElementById('detail-measure-raw').value.trim()||null
+  };
+  if(!payload.measurement_date||!payload.measurement_type){toast('Date and type are required');return;}
+  try{await sbFetch('/rest/v1/period_measurements?measurement_id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});closeModal('history-detail-modal');toast('Measurement saved');loadData();}catch(e){toast('Error: '+e.message);}
+}
+
+async function deleteMeasurement(id){
+  if(!confirm('Delete this measurement?'))return;
+  try{await sbFetch('/rest/v1/period_measurements?measurement_id=eq.'+encodeURIComponent(id),{method:'DELETE'});closeModal('history-detail-modal');toast('Measurement deleted');loadData();}catch(e){toast('Error: '+e.message);}
+}
+
+function openMedicationLogModal(id){
+  var m=periodMedLogs.find(function(r){return r.log_id===id;});
+  if(!m)return;
+  document.getElementById('history-detail-title').textContent=m.name||'Medication';
+  document.getElementById('history-detail-content').innerHTML=
+    detailInput('Date','detail-med-date',m.log_date,'date')+
+    detailInput('Name','detail-med-name',m.name||'')+
+    detailInput('Status','detail-med-status',m.take_status_code||'')+
+    detailInput('Type','detail-med-type',m.pill_type_code||'')+
+    detailArea('Raw value','detail-med-raw',m.raw_value||'')+
+    '<button class="btn btn-primary" onclick="saveMedicationLog(\''+m.log_id+'\')">Save Medication Log</button>'+
+    '<button class="btn btn-secondary" style="color:var(--red)" onclick="deleteMedicationLog(\''+m.log_id+'\')">Delete Medication Log</button>';
+  document.getElementById('history-detail-modal').style.display='flex';
+}
+
+async function saveMedicationLog(id){
+  var payload={
+    log_date:document.getElementById('detail-med-date').value,
+    name:document.getElementById('detail-med-name').value.trim()||null,
+    take_status_code:document.getElementById('detail-med-status').value.trim()||null,
+    pill_type_code:document.getElementById('detail-med-type').value.trim()||null,
+    raw_value:document.getElementById('detail-med-raw').value.trim()||null
+  };
+  if(!payload.log_date){toast('Date is required');return;}
+  try{await sbFetch('/rest/v1/period_medication_logs?log_id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});closeModal('history-detail-modal');toast('Medication log saved');loadData();}catch(e){toast('Error: '+e.message);}
+}
+
+async function deleteMedicationLog(id){
+  if(!confirm('Delete this medication log?'))return;
+  try{await sbFetch('/rest/v1/period_medication_logs?log_id=eq.'+encodeURIComponent(id),{method:'DELETE'});closeModal('history-detail-modal');toast('Medication log deleted');loadData();}catch(e){toast('Error: '+e.message);}
+}
+
 function renderHistory(){
-  var rows=[];
+  var rows=[],lastDate=null;
   cycles.forEach(function(c){rows.push({type:'cycle',date:c.start_date,row:c});});
   intimacy.forEach(function(x){rows.push({type:'intimacy',date:x.logged_date,row:x});});
+  periodNotes.forEach(function(n){rows.push({type:'note',date:n.note_date,row:n});});
+  periodEvents.forEach(function(e){rows.push({type:'event',date:e.event_date,row:e});});
+  periodMeasurements.forEach(function(m){rows.push({type:'measurement',date:m.measurement_date,row:m});});
+  periodMedLogs.forEach(function(m){rows.push({type:'medication',date:m.log_date,row:m});});
   rows.sort(function(a,b){return b.date.localeCompare(a.date);});
-  document.getElementById('history-content').innerHTML='<div class="history-section"><h3>Recent logs</h3>'+
-    (rows.length?rows.slice(0,80).map(function(item){
+  var exclusionHtml='<div class="history-section"><h3>Excluded ranges</h3>'+
+    (exclusions.length?exclusions.map(function(x){
+      return '<div class="log-item" onclick="openExclusionModal(\''+x.id+'\')"><div class="log-icon">🚫</div><div class="log-info"><div class="log-title">'+esc((x.reason||'excluded').replace(/_/g,' '))+'</div><div class="log-detail">'+fmtDate(x.start_date)+' - '+fmtDate(x.end_date)+' · '+(daysBetween(x.start_date,x.end_date)+1)+' days'+(x.notes?' · '+esc(x.notes):'')+'</div></div><div class="log-actions"><button class="undo-btn">Edit</button></div></div>';
+    }).join(''):'<div class="empty-log" style="padding:12px">No excluded ranges yet</div>')+
+    '<button class="btn btn-secondary" onclick="openExclusionModal()">Add Excluded Range</button></div>';
+  var timeline=rows.length?rows.slice(0,220).map(function(item){
+      var heading='';
+      if(item.date!==lastDate){lastDate=item.date;heading='<div class="timeline-date">'+fmtFullDate(item.date)+'</div>';}
       if(item.type==='cycle'){
         var c=item.row,len=c.end_date?daysBetween(c.start_date,c.end_date)+1:null;
-        return '<div class="log-item" onclick="openCycleModal(\''+c.id+'\')"><div class="log-icon">🩸</div><div class="log-info"><div class="log-title">Period started '+fmtDate(c.start_date)+'</div><div class="log-detail">'+esc(c.flow||'medium')+(len?' · '+len+' day'+(len!==1?'s':''):' · still active')+(isExcludedCycle(c)?' · excluded from predictions':'')+(c.symptoms&&c.symptoms.length?' · '+esc(c.symptoms.join(', ')):'')+(c.notes?' · '+esc(c.notes):'')+'</div></div><div class="log-actions"><button class="undo-btn">Edit</button></div></div>';
+        return heading+'<div class="log-item" onclick="openCycleModal(\''+c.id+'\')"><div class="log-icon">🩸</div><div class="log-info"><div class="log-title">Period started</div><div class="log-detail">'+esc(c.flow||'medium')+(len?' · '+len+' day'+(len!==1?'s':''):' · still active')+(isExcludedCycle(c)?' · excluded from predictions':'')+(c.symptoms&&c.symptoms.length?' · '+esc(c.symptoms.join(', ')):'')+(c.notes?' · '+esc(c.notes):'')+'</div></div><div class="log-actions"><button class="undo-btn">Edit</button></div></div>';
       }
-      var x=item.row,r=riskForDate(x.logged_date,x.protection,x.emergency_contraception);
-      return '<div class="log-item" onclick="openIntimacyModal(\''+x.id+'\')"><div class="log-icon">🛡️</div><div class="log-info"><div class="log-title">Risk note '+fmtDate(x.logged_date)+'</div><div class="log-detail">'+esc(protectionLabel(x.protection))+(x.emergency_contraception?' · emergency contraception':'')+(x.notes?' · '+esc(x.notes):'')+'<br><span class="risk-pill risk-'+r.level+'">'+esc(r.label)+'</span></div></div><div class="log-actions"><button class="undo-btn">Edit</button></div></div>';
-    }).join(''):'<div class="empty-log">No period logs yet</div>')+'</div>';
+      if(item.type==='intimacy'){
+        var x=item.row,r=riskForDate(x.logged_date,x.protection,x.emergency_contraception);
+        return heading+'<div class="log-item" onclick="openIntimacyModal(\''+x.id+'\')"><div class="log-icon">🛡️</div><div class="log-info"><div class="log-title">Risk note</div><div class="log-detail">'+esc(protectionLabel(x.protection))+(x.emergency_contraception?' · emergency contraception':'')+(x.notes?' · '+esc(x.notes):'')+'<br><span class="risk-pill risk-'+r.level+'">'+esc(r.label)+'</span></div></div><div class="log-actions"><button class="undo-btn">Edit</button></div></div>';
+      }
+      if(item.type==='note'){
+        var n=item.row;
+        return heading+'<div class="log-item" onclick="openNoteModal(\''+n.note_id+'\')"><div class="log-icon">📝</div><div class="log-info"><div class="log-title">Note</div><div class="log-detail">'+esc(n.note_text)+'</div></div><div class="log-actions"><button class="undo-btn">Edit</button></div></div>';
+      }
+      if(item.type==='event'){
+        var e=item.row;
+        return heading+'<div class="log-item" onclick="openEventModal(\''+e.event_id+'\')"><div class="log-icon">✨</div><div class="log-info"><div class="log-title">'+esc(eventTitle(e))+'</div><div class="log-detail">'+esc(eventDetail(e))+'</div></div><div class="log-actions"><button class="undo-btn">Edit</button></div></div>';
+      }
+      if(item.type==='measurement'){
+        var m=item.row;
+        return heading+'<div class="log-item" onclick="openMeasurementModal(\''+m.measurement_id+'\')"><div class="log-icon">📏</div><div class="log-info"><div class="log-title">'+esc(measurementTitle(m))+'</div><div class="log-detail">'+esc(measurementDetail(m))+'</div></div><div class="log-actions"><button class="undo-btn">Edit</button></div></div>';
+      }
+      var med=item.row;
+      return heading+'<div class="log-item" onclick="openMedicationLogModal(\''+med.log_id+'\')"><div class="log-icon">💊</div><div class="log-info"><div class="log-title">'+esc(med.name||'Medication')+'</div><div class="log-detail">'+esc(medicationDetail(med))+'</div></div><div class="log-actions"><button class="undo-btn">Edit</button></div></div>';
+    }).join(''):'<div class="empty-log">No period history yet</div>';
+  document.getElementById('history-content').innerHTML=exclusionHtml+'<div class="timeline-group"><h3 style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Timeline</h3>'+timeline+'</div>';
 }
 
 function renderReports(){
