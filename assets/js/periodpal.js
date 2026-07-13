@@ -161,6 +161,32 @@ function cycleRank(c){
   }
   return rank;
 }
+function sortedModelCycles(){return modelCycles().sort(function(a,b){return a.start_date.localeCompare(b.start_date);});}
+function cycleWindow(c){
+  var sorted=sortedModelCycles();
+  var idx=sorted.findIndex(function(x){return x.start_date===c.start_date;});
+  var next=idx>=0?sorted[idx+1]:null;
+  return {start:c.start_date,end:next?addDays(next.start_date,-1):(c.end_date||addDays(c.start_date,model.avgCycle-1)),next:next};
+}
+function duplicateCycleGroups(){
+  var groups={};
+  cycles.forEach(function(c){groups[c.start_date]=groups[c.start_date]||[];groups[c.start_date].push(c);});
+  return Object.keys(groups).filter(function(k){return groups[k].length>1;}).map(function(k){
+    return {start_date:k,rows:groups[k].slice().sort(function(a,b){return cycleRank(b)-cycleRank(a);})};
+  }).sort(function(a,b){return b.start_date.localeCompare(a.start_date);});
+}
+function modelDiagnostics(){
+  var sorted=sortedModelCycles(),used=[],ignored=[];
+  for(var i=1;i<sorted.length;i++){
+    var diff=daysBetween(sorted[i-1].start_date,sorted[i].start_date);
+    var row={from:sorted[i-1].start_date,to:sorted[i].start_date,days:diff};
+    if(diff>=18&&diff<=45)used.push(row);
+    else ignored.push(Object.assign(row,{reason:diff<18?'too short':'long gap'}));
+  }
+  cycles.filter(isExcludedCycle).forEach(function(c){ignored.push({from:c.start_date,to:c.end_date||c.start_date,days:c.end_date?daysBetween(c.start_date,c.end_date)+1:1,reason:'excluded range'});});
+  duplicateCycleGroups().forEach(function(g){ignored.push({from:g.start_date,to:g.start_date,days:g.rows.length-1,reason:'duplicate starts collapsed'});});
+  return {used:used,ignored:ignored,cycleCount:sorted.length};
+}
 function isLoggedPeriod(key){return cycles.some(function(c){return key>=c.start_date&&key<=(c.end_date||todayKey());});}
 function isPredictedPeriod(key){return isBetween(key,model.nextStart,model.periodEnd);}
 
@@ -579,6 +605,11 @@ async function deleteCycle(){
   try{await sbFetch('/rest/v1/period_cycles?id=eq.'+id,{method:'DELETE'});closeModal('cycle-modal');toast('Period deleted');loadData();}catch(e){toast('Error: '+e.message);}
 }
 
+async function deleteCycleById(id){
+  if(!id||!confirm('Delete this duplicate period log?'))return;
+  try{await sbFetch('/rest/v1/period_cycles?id=eq.'+id,{method:'DELETE'});toast('Duplicate deleted');loadData();}catch(e){toast('Error: '+e.message);}
+}
+
 function openIntimacyModal(id,day){
   var x=id?intimacy.find(function(r){return r.id===id;}):null;
   document.getElementById('intimacy-modal-title').textContent=x?'Edit Pregnancy Risk Note':'Pregnancy Risk Note';
@@ -736,6 +767,7 @@ function openEventModal(id,day,category){
     '<div class="detail-grid"><div class="detail-chip"><span>Source</span><strong>'+esc(e.source_app||'manual')+'</strong></div><div class="detail-chip"><span>ID</span><strong>'+esc(e.event_id||'new')+'</strong></div></div>'+
     detailInput('Date','detail-event-date',e.event_date,'date')+
     '<div class="date-row"><label>Category</label><select id="detail-event-category"><option value="symptom" '+(e.category==='symptom'?'selected':'')+'>Symptom</option><option value="mood" '+(e.category==='mood'?'selected':'')+'>Mood</option><option value="sex" '+(e.category==='sex'?'selected':'')+'>Sex</option><option value="workout" '+(e.category==='workout'?'selected':'')+'>Workout</option><option value="water" '+(e.category==='water'?'selected':'')+'>Water</option><option value="pregnancy_test" '+(e.category==='pregnancy_test'?'selected':'')+'>Pregnancy test</option><option value="other" '+(['symptom','mood','sex','workout','water','pregnancy_test'].indexOf(e.category)<0?'selected':'')+'>Other</option></select></div>'+
+    '<div class="section-label">Quick names</div><div class="type-toggle">'+['Cramps','Headache','Bloating','Fatigue','Nausea','Back pain','Tender breasts','Emotional','Irritable','Happy','Anxious','Low mood'].map(function(s){return '<button class="type-opt" onclick="chooseEventPreset(\''+s.replace(/'/g,'')+'\')">'+esc(s)+'</button>';}).join('')+'</div>'+
     detailInput('Name','detail-event-label',e.label||'')+
     detailInput('Code','detail-event-code',e.code||'')+
     detailInput('Severity','detail-event-severity',e.severity_code||'')+
@@ -746,6 +778,11 @@ function openEventModal(id,day,category){
     '<button class="btn btn-primary" onclick="saveEvent(\''+(e.event_id||'')+'\')">Save Event</button>'+
     (isNew?'':'<button class="btn btn-secondary" style="color:var(--red)" onclick="deleteEvent(\''+e.event_id+'\')">Delete Event</button>');
   document.getElementById('history-detail-modal').style.display='flex';
+}
+
+function chooseEventPreset(name){
+  document.getElementById('detail-event-label').value=name;
+  document.getElementById('detail-event-category').value=['Emotional','Irritable','Happy','Anxious','Low mood'].indexOf(name)>=0?'mood':'symptom';
 }
 
 async function saveEvent(id){
@@ -849,8 +886,47 @@ async function deleteMedicationLog(id){
   try{await sbFetch('/rest/v1/period_medication_logs?log_id=eq.'+encodeURIComponent(id),{method:'DELETE'});closeModal('history-detail-modal');toast('Medication log deleted');loadData();}catch(e){toast('Error: '+e.message);}
 }
 
+function entriesForCycle(c){
+  var w=cycleWindow(c),start=w.start,end=w.end;
+  return {
+    window:w,
+    cycles:cycles.filter(function(x){return x.start_date===c.start_date;}),
+    notes:periodNotes.filter(function(x){return x.note_date>=start&&x.note_date<=end;}),
+    events:visibleEvents().filter(function(x){return x.event_date>=start&&x.event_date<=end;}),
+    intimacy:intimacy.filter(function(x){return x.logged_date>=start&&x.logged_date<=end;}),
+    measurements:periodMeasurements.filter(function(x){return x.measurement_date>=start&&x.measurement_date<=end;}),
+    meds:periodMedLogs.filter(function(x){return x.log_date>=start&&x.log_date<=end;})
+  };
+}
+
+function openCycleDetail(startDate){
+  var c=modelCycles().find(function(x){return x.start_date===startDate;})||cycles.find(function(x){return x.start_date===startDate;});
+  if(!c)return;
+  var data=entriesForCycle(c),w=data.window,len=c.end_date?daysBetween(c.start_date,c.end_date)+1:null;
+  document.getElementById('history-detail-title').textContent='Cycle Detail';
+  document.getElementById('history-detail-content').innerHTML=
+    '<div class="detail-grid">'+
+      '<div class="detail-chip"><span>Started</span><strong>'+fmtDate(c.start_date)+'</strong></div>'+
+      '<div class="detail-chip"><span>Period length</span><strong>'+(len?len+' days':'active')+'</strong></div>'+
+      '<div class="detail-chip"><span>Cycle window</span><strong>'+fmtDate(w.start)+' - '+fmtDate(w.end)+'</strong></div>'+
+      '<div class="detail-chip"><span>Entries</span><strong>'+(data.notes.length+data.events.length+data.intimacy.length+data.measurements.length+data.meds.length)+'</strong></div>'+
+    '</div>'+
+    '<button class="btn btn-secondary" onclick="openCycleModal(\''+c.id+'\')">Edit Period</button>'+
+    (data.cycles.length>1?'<div class="report-list"><h3>Duplicate starts</h3>'+data.cycles.map(function(x,i){return '<div class="report-row"><span>'+esc(x.flow||'medium')+(x.end_date?' · ends '+fmtDate(x.end_date):'')+(x.notes?' · '+esc(x.notes):'')+'</span><strong>'+(i===0?'Keep':'')+'</strong></div>'+(i>0?'<button class="btn btn-secondary" style="color:var(--red)" onclick="deleteCycleById(\''+x.id+'\')">Delete Duplicate</button>':'');}).join('')+'</div>':'')+
+    '<div class="report-list"><h3>Cycle entries</h3>'+
+      (data.events.length?data.events.map(function(e){return '<div class="report-row" onclick="openEventModal(\''+e.event_id+'\')"><span>'+fmtDate(e.event_date)+'<br><small style="color:var(--muted)">'+esc(eventTitle(e))+' · '+esc(eventDetail(e))+'</small></span><strong>'+esc(e.category)+'</strong></div>';}).join(''):'')+
+      (data.notes.length?data.notes.map(function(n){return '<div class="report-row" onclick="openNoteModal(\''+n.note_id+'\')"><span>'+fmtDate(n.note_date)+'<br><small style="color:var(--muted)">'+esc(n.note_text)+'</small></span><strong>note</strong></div>';}).join(''):'')+
+      (data.intimacy.length?data.intimacy.map(function(x){return '<div class="report-row" onclick="openIntimacyModal(\''+x.id+'\')"><span>'+fmtDate(x.logged_date)+'<br><small style="color:var(--muted)">'+esc(protectionLabel(x.protection))+(x.notes?' · '+esc(x.notes):'')+'</small></span><strong>sex</strong></div>';}).join(''):'')+
+      (data.meds.length?data.meds.map(function(m){return '<div class="report-row" onclick="openMedicationLogModal(\''+m.log_id+'\')"><span>'+fmtDate(m.log_date)+'<br><small style="color:var(--muted)">'+esc(m.name||'Medication')+' · '+esc(medicationDetail(m))+'</small></span><strong>med</strong></div>';}).join(''):'')+
+      (data.measurements.length?data.measurements.map(function(m){return '<div class="report-row" onclick="openMeasurementModal(\''+m.measurement_id+'\')"><span>'+fmtDate(m.measurement_date)+'<br><small style="color:var(--muted)">'+esc(measurementTitle(m))+' · '+esc(measurementDetail(m))+'</small></span><strong>measure</strong></div>';}).join(''):'')+
+      (!(data.events.length||data.notes.length||data.intimacy.length||data.meds.length||data.measurements.length)?'<div class="empty-log" style="padding:12px">No daily entries inside this cycle yet</div>':'')+
+    '</div>';
+  document.getElementById('history-detail-modal').style.display='flex';
+}
+
 function renderHistory(){
   var rows=[],lastDate=null;
+  var dupes=duplicateCycleGroups();
   cycles.forEach(function(c){rows.push({type:'cycle',date:c.start_date,row:c});});
   intimacy.forEach(function(x){rows.push({type:'intimacy',date:x.logged_date,row:x});});
   periodNotes.forEach(function(n){rows.push({type:'note',date:n.note_date,row:n});});
@@ -863,12 +939,17 @@ function renderHistory(){
       return '<div class="log-item" onclick="openExclusionModal(\''+x.id+'\')"><div class="log-icon">🚫</div><div class="log-info"><div class="log-title">'+esc((x.reason||'excluded').replace(/_/g,' '))+'</div><div class="log-detail">'+fmtDate(x.start_date)+' - '+fmtDate(x.end_date)+' · '+(daysBetween(x.start_date,x.end_date)+1)+' days'+(x.notes?' · '+esc(x.notes):'')+'</div></div><div class="log-actions"><button class="undo-btn">Edit</button></div></div>';
     }).join(''):'<div class="empty-log" style="padding:12px">No excluded ranges yet</div>')+
     '<button class="btn btn-secondary" onclick="openExclusionModal()">Add Excluded Range</button></div>';
+  var duplicateHtml=dupes.length?'<div class="history-section"><h3>Duplicate period starts</h3>'+dupes.map(function(g){
+    return '<div class="note-card"><div class="note-date">'+fmtFullDate(g.start_date)+'</div><div class="note-meta">'+g.rows.length+' entries found · calculations use one</div>'+
+      g.rows.map(function(c,i){return '<div class="report-row"><span>'+esc(c.flow||'medium')+(c.end_date?' · ends '+fmtDate(c.end_date):'')+(c.notes?' · '+esc(c.notes):'')+'</span><strong>'+(i===0?'Keep':'')+'</strong></div>'+(i>0?'<button class="btn btn-secondary" style="color:var(--red)" onclick="deleteCycleById(\''+c.id+'\')">Delete Duplicate</button>':'');}).join('')+
+    '</div>';
+  }).join('')+'</div>':'';
   var timeline=rows.length?rows.slice(0,220).map(function(item){
       var heading='';
       if(item.date!==lastDate){lastDate=item.date;heading='<div class="timeline-date">'+fmtFullDate(item.date)+'</div>';}
       if(item.type==='cycle'){
         var c=item.row,len=c.end_date?daysBetween(c.start_date,c.end_date)+1:null;
-        return heading+'<div class="log-item" onclick="openCycleModal(\''+c.id+'\')"><div class="log-icon">🩸</div><div class="log-info"><div class="log-title">Period started</div><div class="log-detail">'+esc(c.flow||'medium')+(len?' · '+len+' day'+(len!==1?'s':''):' · still active')+(isExcludedCycle(c)?' · excluded from predictions':'')+(c.symptoms&&c.symptoms.length?' · '+esc(c.symptoms.join(', ')):'')+(c.notes?' · '+esc(c.notes):'')+'</div></div><div class="log-actions"><button class="undo-btn">Edit</button></div></div>';
+        return heading+'<div class="log-item" onclick="openCycleDetail(\''+c.start_date+'\')"><div class="log-icon">🩸</div><div class="log-info"><div class="log-title">Period started</div><div class="log-detail">'+esc(c.flow||'medium')+(len?' · '+len+' day'+(len!==1?'s':''):' · still active')+(isExcludedCycle(c)?' · excluded from predictions':'')+(c.symptoms&&c.symptoms.length?' · '+esc(c.symptoms.join(', ')):'')+(c.notes?' · '+esc(c.notes):'')+'</div></div><div class="log-actions"><button class="undo-btn">Open</button></div></div>';
       }
       if(item.type==='intimacy'){
         var x=item.row,r=riskForDate(x.logged_date,x.protection,x.emergency_contraception);
@@ -889,7 +970,7 @@ function renderHistory(){
       var med=item.row;
       return heading+'<div class="log-item" onclick="openMedicationLogModal(\''+med.log_id+'\')"><div class="log-icon">💊</div><div class="log-info"><div class="log-title">'+esc(med.name||'Medication')+'</div><div class="log-detail">'+esc(medicationDetail(med))+'</div></div><div class="log-actions"><button class="undo-btn">Edit</button></div></div>';
     }).join(''):'<div class="empty-log">No period history yet</div>';
-  document.getElementById('history-content').innerHTML=exclusionHtml+'<div class="timeline-group"><h3 style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Timeline</h3>'+timeline+'</div>';
+  document.getElementById('history-content').innerHTML=exclusionHtml+duplicateHtml+'<div class="timeline-group"><h3 style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Timeline</h3>'+timeline+'</div>';
 }
 
 function sexRawDetails(e){
@@ -955,6 +1036,41 @@ function filteredSexRows(rows){
   });
 }
 
+function positivePregnancyTests(){
+  return periodEvents.filter(function(e){
+    var text=[e.category,e.label,e.code,e.value_text,e.raw_value].filter(Boolean).join(' ').toLowerCase();
+    return e.category==='pregnancy_test'&&(text.indexOf('positive')>=0||text.indexOf('pregnant')>=0||text.indexOf('1')>=0);
+  }).sort(function(a,b){return b.event_date.localeCompare(a.event_date);});
+}
+
+function pregnancySourceEstimate(testDate){
+  if(!testDate)return null;
+  var before=sortedModelCycles().filter(function(c){return c.start_date<=testDate;});
+  var last=before[before.length-1]||null;
+  var ov=last?addDays(last.start_date,model.avgCycle-14):addDays(testDate,-14);
+  var likelyStart=addDays(ov,-5),likelyEnd=addDays(ov,1);
+  var broadStart=addDays(testDate,-28),broadEnd=addDays(testDate,-7);
+  var sex=sexReportRows().filter(function(x){return x.date>=broadStart&&x.date<=testDate;});
+  sex.forEach(function(x){
+    x.sourceRank=(x.date>=likelyStart&&x.date<=likelyEnd)?'Most likely':(x.date>=broadStart&&x.date<=broadEnd?'Possible':'Unlikely');
+  });
+  return {testDate:testDate,last:last,ovulation:ov,likelyStart:likelyStart,likelyEnd:likelyEnd,broadStart:broadStart,broadEnd:broadEnd,sex:sex};
+}
+
+function medicationAdherenceRows(){
+  var by={};
+  periodMedLogs.forEach(function(m){
+    var key=(m.log_date||'').slice(0,7),name=m.name||'Medication';
+    var id=key+'|'+name;
+    by[id]=by[id]||{month:key,name:name,total:0,taken:0,missed:0};
+    by[id].total++;
+    var status=String(m.take_status_code||m.raw_value||'').toLowerCase();
+    if(status==='1'||status.indexOf('taken')>=0)by[id].taken++;
+    else by[id].missed++;
+  });
+  return Object.keys(by).map(function(k){return by[k];}).sort(function(a,b){return b.month.localeCompare(a.month)||a.name.localeCompare(b.name);});
+}
+
 function applySexReportFilter(){
   sexFilterStart=document.getElementById('sex-filter-start').value;
   sexFilterEnd=document.getElementById('sex-filter-end').value;
@@ -971,6 +1087,29 @@ function setSexReportRange(days){
     sexFilterStart=addDays(sexFilterEnd,-days+1);
   }
   renderReports();
+}
+
+function exportPeriodPalData(){
+  var data={
+    exported_at:new Date().toISOString(),
+    cycles:cycles,
+    exclusions:exclusions,
+    intimacy:intimacy,
+    events:periodEvents,
+    notes:periodNotes,
+    measurements:periodMeasurements,
+    medication_logs:periodMedLogs
+  };
+  var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;
+  a.download='periodpal-backup-'+todayKey()+'.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  toast('PeriodPal backup exported');
 }
 
 function renderReports(){
@@ -1004,6 +1143,13 @@ function renderReports(){
   var shownSexRows=filteredSexRows(sexRows);
   var sexProtected=shownSexRows.filter(function(x){return x.protection&&x.protection!=='none';}).length;
   var sexEc=shownSexRows.filter(function(x){return x.ec;}).length;
+  var diag=modelDiagnostics();
+  var dupes=duplicateCycleGroups();
+  var medAdherence=medicationAdherenceRows();
+  var pregTests=positivePregnancyTests();
+  var pregEstimate=pregnancySourceEstimate(pregTests[0]&&pregTests[0].event_date);
+  var cycleBars=sortedModelCycles().map(function(c,i,arr){return i?{start:c.start_date,days:daysBetween(arr[i-1].start_date,c.start_date)}:null;}).filter(Boolean).filter(function(x){return x.days>=1;});
+  var maxCycleBar=cycleBars.length?Math.max.apply(null,cycleBars.map(function(x){return x.days;})):1;
   var avgPeriod=completed.length?Math.round(completed.reduce(function(s,c){return s+daysBetween(c.start_date,c.end_date)+1;},0)/completed.length):model.avgPeriod;
   el.innerHTML='<div class="report-wrap">'+
     '<div class="report-grid">'+
@@ -1017,6 +1163,22 @@ function renderReports(){
       '<div class="report-card"><div class="r-val">'+shownSexRows.length+'</div><div class="r-lbl">Sex events</div></div>'+
       '<div class="report-card"><div class="r-val">'+sexProtected+'</div><div class="r-lbl">Protected</div></div>'+
     '</div>'+
+    '<div class="report-list"><h3>Prediction Confidence</h3>'+
+      '<div class="report-row"><span>Cycles available after exclusions and duplicate collapse</span><strong>'+diag.cycleCount+'</strong></div>'+
+      '<div class="report-row"><span>Intervals used for average</span><strong>'+diag.used.length+'</strong></div>'+
+      '<div class="report-row"><span>Ignored or protected records</span><strong>'+diag.ignored.length+'</strong></div>'+
+      (diag.used.length?diag.used.slice(-8).reverse().map(function(x){return '<div class="report-row"><span>'+fmtDate(x.from)+' to '+fmtDate(x.to)+'</span><strong>'+x.days+'d</strong></div>';}).join(''):'<div class="empty-log" style="padding:12px">No normal intervals yet</div>')+
+      (diag.ignored.length?'<div style="font-size:11px;color:var(--muted);margin-top:8px">Ignored: '+esc(diag.ignored.slice(-10).map(function(x){return x.reason+' '+fmtDate(x.from);}).join(' · '))+'</div>':'')+
+    '</div>'+
+    (dupes.length?'<div class="report-list"><h3>Duplicate Cleanup</h3>'+dupes.map(function(g){return '<div class="note-card"><div class="note-date">'+fmtFullDate(g.start_date)+'</div><div class="note-meta">'+g.rows.length+' period-start entries · calculations use the best one</div>'+g.rows.map(function(c,i){return '<div class="report-row"><span>'+esc(c.flow||'medium')+(c.end_date?' · ends '+fmtDate(c.end_date):'')+'</span><strong>'+(i===0?'Keep':'')+'</strong></div>'+(i>0?'<button class="btn btn-secondary" style="color:var(--red)" onclick="deleteCycleById(\''+c.id+'\')">Delete Duplicate</button>':'');}).join('')+'</div>';}).join('')+'</div>':'')+
+    (cycleBars.length?'<div class="report-list"><h3>Cycle Length Trend</h3>'+cycleBars.slice(-18).map(function(x){var pct=Math.max(6,Math.round(x.days/maxCycleBar*100));return '<div class="report-row"><div style="flex:1"><div>'+fmtDate(x.start)+' · '+x.days+' days</div><div class="report-bar"><span style="width:'+pct+'%"></span></div></div><strong>'+((x.days>=18&&x.days<=45)?'used':'ignored')+'</strong></div>';}).join('')+'</div>':'')+
+    (pregEstimate?'<div class="report-list"><h3>Pregnancy Source Estimate</h3>'+
+      '<div class="report-row"><span>Positive test</span><strong>'+fmtDate(pregEstimate.testDate)+'</strong></div>'+
+      '<div class="report-row"><span>Estimated ovulation</span><strong>'+fmtDate(pregEstimate.ovulation)+'</strong></div>'+
+      '<div class="report-row"><span>Likely fertile window</span><strong>'+fmtDate(pregEstimate.likelyStart)+' - '+fmtDate(pregEstimate.likelyEnd)+'</strong></div>'+
+      (pregEstimate.sex.length?pregEstimate.sex.map(function(x){return '<div class="note-card"><div class="note-date">'+fmtFullDate(x.date)+'</div><div class="note-meta">'+esc(x.sourceRank)+' · '+esc(protectionLabel(x.protection))+'</div><div class="log-detail">'+esc(x.detail)+'</div></div>';}).join(''):'<div class="empty-log" style="padding:12px">No sex events found in the broad candidate window</div>')+
+      '<div style="font-size:11px;color:var(--muted);line-height:1.4">This ranks timing candidates only. It cannot prove which event caused a pregnancy.</div>'+
+    '</div>':'')+
     (sexRows.length?'<div class="report-list"><h3>Sex and Intimacy Events</h3>'+
       '<div class="date-row"><label>From</label><input type="date" id="sex-filter-start" value="'+esc(sexFilterStart)+'"></div>'+
       '<div class="date-row"><label>To</label><input type="date" id="sex-filter-end" value="'+esc(sexFilterEnd)+'"></div>'+
@@ -1042,6 +1204,7 @@ function renderReports(){
     (eventRows.length?'<div class="report-list"><h3>Imported event categories</h3>'+eventRows.map(function(k){return '<div class="report-row"><span>'+esc(k)+'</span><strong>'+eventCatCounts[k]+'</strong></div>';}).join('')+'</div>':'')+
     (periodNotes.length?'<div class="report-list"><h3>Imported notes</h3>'+periodNotes.slice().sort(function(a,b){return b.note_date.localeCompare(a.note_date);}).slice(0,30).map(function(n){return '<div class="note-card"><div class="note-date">'+fmtFullDate(n.note_date)+'</div><div class="log-detail">'+esc(n.note_text)+'</div></div>';}).join('')+'</div>':'')+
     (measurementRows.length?'<div class="report-list"><h3>Measurements</h3>'+measurementRows.map(function(k){return '<div class="report-row"><span>'+esc(k)+'</span><strong>'+measurementTypeCounts[k]+'</strong></div>';}).join('')+'</div>':'')+
+    (medAdherence.length?'<div class="report-list"><h3>Medication Adherence</h3>'+medAdherence.slice(0,18).map(function(m){return '<div class="report-row"><span>'+esc(m.month)+' · '+esc(m.name)+'<br><small style="color:var(--muted)">taken '+m.taken+' · missed/unknown '+m.missed+'</small></span><strong>'+m.total+'</strong></div>';}).join('')+'</div>':'')+
     (medRows.length?'<div class="report-list"><h3>Medication logs</h3>'+medRows.map(function(k){return '<div class="report-row"><span>'+esc(k)+'</span><strong>'+medCounts[k]+'</strong></div>';}).join('')+'</div>':'')+
     '<div class="report-list"><h3>Flow</h3>'+
       (flowRows.length?flowRows.map(function(f){var pct=Math.round(flowCounts[f]/maxFlow*100);return '<div class="report-row"><div style="flex:1"><div>'+esc(f)+'</div><div class="report-bar"><span style="width:'+pct+'%"></span></div></div><strong>'+flowCounts[f]+'</strong></div>';}).join(''):'')+

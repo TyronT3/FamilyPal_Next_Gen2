@@ -178,6 +178,7 @@
       <div class="ql-btn blue" onclick="openCycleModal()"><div class="ql-icon">✏️</div><div class="ql-label">Add / Edit Period</div><div class="ql-sub">Dates, flow, symptoms</div></div>
       <div class="ql-btn yellow" onclick="openEventModal(null,todayKey(),'symptom')"><div class="ql-icon">✨</div><div class="ql-label">Symptom / Mood</div><div class="ql-sub">Named daily entry</div></div>
       <div class="ql-btn yellow" onclick="openIntimacyModal()"><div class="ql-icon">🛡️</div><div class="ql-label">Pregnancy Risk</div><div class="ql-sub">Log intimacy privately</div></div>
+      <div class="ql-btn coral" onclick="exportPeriodPalData()"><div class="ql-icon">💾</div><div class="ql-label">Export Backup</div><div class="ql-sub">Download JSON history</div></div>
       <div class="ql-btn blue" style="grid-column:1/-1" onclick="openImportModal()"><div class="ql-icon">📥</div><div class="ql-label">Import Old Data</div><div class="ql-sub">Paste past period dates for better predictions</div></div>
     </div>
   </div>
@@ -199,6 +200,7 @@
       <div class="ql-btn blue" onclick="closeModal('log-picker-modal');openCycleModal()"><div class="ql-icon">✏️</div><div class="ql-label">Period Details</div></div>
       <div class="ql-btn yellow" onclick="closeModal('log-picker-modal');openEventModal(null,todayKey(),'symptom')"><div class="ql-icon">✨</div><div class="ql-label">Symptom / Mood</div></div>
       <div class="ql-btn yellow" onclick="closeModal('log-picker-modal');openIntimacyModal()"><div class="ql-icon">🛡️</div><div class="ql-label">Intimacy</div></div>
+      <div class="ql-btn coral" onclick="closeModal('log-picker-modal');exportPeriodPalData()"><div class="ql-icon">💾</div><div class="ql-label">Export</div></div>
       <div class="ql-btn blue" style="grid-column:1/-1" onclick="closeModal('log-picker-modal');openImportModal()"><div class="ql-icon">📥</div><div class="ql-label">Import Old Data</div></div>
     </div>
   </div>
