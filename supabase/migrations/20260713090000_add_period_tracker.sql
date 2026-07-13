@@ -28,5 +28,27 @@ CREATE TABLE IF NOT EXISTS public.period_intimacy (
 CREATE INDEX IF NOT EXISTS idx_period_cycles_start_date ON public.period_cycles(start_date DESC);
 CREATE INDEX IF NOT EXISTS idx_period_intimacy_logged_date ON public.period_intimacy(logged_date DESC);
 
-ALTER TABLE public.period_cycles DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.period_intimacy DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.period_cycles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.period_intimacy ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON public.period_cycles FROM anon;
+REVOKE ALL ON public.period_intimacy FROM anon;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.period_cycles TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.period_intimacy TO authenticated;
+
+DROP POLICY IF EXISTS "authenticated users can manage period_cycles" ON public.period_cycles;
+CREATE POLICY "authenticated users can manage period_cycles"
+  ON public.period_cycles
+  FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+DROP POLICY IF EXISTS "authenticated users can manage period_intimacy" ON public.period_intimacy;
+CREATE POLICY "authenticated users can manage period_intimacy"
+  ON public.period_intimacy
+  FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
