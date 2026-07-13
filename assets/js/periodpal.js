@@ -54,7 +54,7 @@ async function loadData(){
 }
 
 function buildModel(){
-  var sorted=usableCycles().sort(function(a,b){return a.start_date.localeCompare(b.start_date);});
+  var sorted=modelCycles().sort(function(a,b){return a.start_date.localeCompare(b.start_date);});
   var intervals=[];
   for(var i=1;i<sorted.length;i++){
     var diff=daysBetween(sorted[i-1].start_date,sorted[i].start_date);
@@ -83,7 +83,7 @@ function buildModel(){
 
 function renderForecast(){
   var el=document.getElementById('forecast-content');
-  if(!usableCycles().length){
+  if(!modelCycles().length){
     el.innerHTML='<div class="forecast-grid">'+
       '<div class="forecast-card fc-rose"><div class="fc-lbl">Next period</div><div class="fc-val">Log first</div><div class="fc-sub">Add the latest start date to begin predictions.</div></div>'+
       '<div class="forecast-card fc-blue"><div class="fc-lbl">Fertile window</div><div class="fc-val">Unknown</div><div class="fc-sub">Needs cycle history.</div></div>'+
@@ -103,7 +103,7 @@ function renderForecast(){
 }
 
 function avgCycleRange(){
-  var sorted=usableCycles().sort(function(a,b){return a.start_date.localeCompare(b.start_date);});
+  var sorted=modelCycles().sort(function(a,b){return a.start_date.localeCompare(b.start_date);});
   var vals=[];
   for(var i=1;i<sorted.length;i++){
     var diff=daysBetween(sorted[i-1].start_date,sorted[i].start_date);
@@ -140,6 +140,24 @@ function isBetween(key,start,end){return start&&end&&key>=start&&key<=end;}
 function isExcludedDate(key){return exclusions.some(function(x){return key>=x.start_date&&key<=x.end_date;});}
 function isExcludedCycle(c){return isExcludedDate(c.start_date);}
 function usableCycles(){return cycles.filter(function(c){return !isExcludedCycle(c);});}
+function modelCycles(){
+  var byStart={};
+  usableCycles().forEach(function(c){
+    var existing=byStart[c.start_date];
+    if(!existing||cycleRank(c)>cycleRank(existing))byStart[c.start_date]=c;
+  });
+  return Object.keys(byStart).map(function(k){return byStart[k];});
+}
+function cycleRank(c){
+  var rank=c.end_date?10:0;
+  if(c.notes)rank+=2;
+  if(c.symptoms&&c.symptoms.length)rank+=1;
+  if(c.updated_at){
+    var ts=Date.parse(c.updated_at);
+    if(!isNaN(ts))rank+=Math.min(1,ts/100000000000000);
+  }
+  return rank;
+}
 function isLoggedPeriod(key){return cycles.some(function(c){return key>=c.start_date&&key<=(c.end_date||todayKey());});}
 function isPredictedPeriod(key){return isBetween(key,model.nextStart,model.periodEnd);}
 
@@ -520,16 +538,21 @@ async function saveCycle(){
   var end=document.getElementById('cycle-end').value;
   if(!start){toast('Choose a start date');return;}
   if(end&&end<start){toast('End date must be after start date');return;}
+  var duplicate=!id?cycles.find(function(c){return c.start_date===start;}):cycles.find(function(c){return c.start_date===start&&c.id!==id;});
   var symptoms=[].slice.call(document.querySelectorAll('input[name="symptom"]:checked')).map(function(b){return b.value;});
   var payload={start_date:start,end_date:end||null,flow:document.getElementById('cycle-flow').value,symptoms:symptoms,notes:document.getElementById('cycle-notes').value.trim()||null,updated_at:new Date().toISOString()};
   try{
+    if(duplicate&&!id)id=duplicate.id;
+    if(duplicate&&document.getElementById('cycle-id').value){toast('A period already starts on that date');return;}
     if(id)await sbFetch('/rest/v1/period_cycles?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});
     else await sbFetch('/rest/v1/period_cycles',{method:'POST',body:JSON.stringify(payload)});
-    closeModal('cycle-modal');toast('Period saved');loadData();
+    closeModal('cycle-modal');toast(duplicate?'Updated existing period for that date':'Period saved');loadData();
   }catch(e){toast('Error: '+e.message);}
 }
 
 async function quickStartPeriod(){
+  var existing=cycles.find(function(c){return c.start_date===todayKey();});
+  if(existing){toast('Period already started today');openCycleModal(existing.id);return;}
   try{
     await sbFetch('/rest/v1/period_cycles',{method:'POST',body:JSON.stringify({start_date:todayKey(),flow:'medium'})});
     toast('Period start logged');loadData();
