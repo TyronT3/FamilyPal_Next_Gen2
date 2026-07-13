@@ -78,6 +78,8 @@
   .import-help{font-size:12px;color:var(--muted);line-height:1.45;margin:8px 0 14px;}
   .import-preview{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin:12px 0;max-height:220px;overflow:auto;font-size:12px;}
   .exclude-panel{background:rgba(79,156,249,.08);border:1px solid rgba(79,156,249,.28);border-radius:12px;padding:12px;margin:10px 0 14px;}
+  .file-import{background:var(--card);border:1px dashed var(--border);border-radius:12px;padding:12px;margin:8px 0 14px;}
+  .file-import input{width:100%;font-size:13px;color:var(--muted);}
   .log-item{border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px;}
   .log-icon{font-size:22px;flex-shrink:0;}
   .log-info{flex:1;min-width:0;}
@@ -196,8 +198,13 @@
     <div class="modal-handle"></div>
     <button class="modal-close" onclick="closeModal('import-modal')">✕</button>
     <h2>Import Period History</h2>
+    <div class="file-import">
+      <div class="section-label" style="margin-top:0">Best option: full JSON export</div>
+      <input type="file" id="json-import-file" accept=".json,application/json" onchange="loadJsonImportFile(this)">
+      <div class="import-help" style="margin-bottom:0">Use <strong>period_app_import_data.json</strong>. It imports confirmed cycles, the pregnancy exclusion, daily events, notes, measurements, medication logs, and sex history.</div>
+    </div>
     <div class="import-help">
-      Paste one period per line. Format:<br>
+      Or paste one period per line. Format:<br>
       <strong>start date, end date, flow, symptoms, notes</strong><br>
       Example: <span style="color:var(--text)">2026-01-03,2026-01-07,medium,cramps|fatigue,rough cramps day 1</span><br>
       End date, symptoms, and notes can be blank.

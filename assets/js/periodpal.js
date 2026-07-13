@@ -8,9 +8,9 @@ function fmtDate(s){return parseDay(s).toLocaleDateString([],{month:'short',day:
 function fmtFullDate(s){return parseDay(s).toLocaleDateString([],{weekday:'long',month:'long',day:'numeric'});}
 function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
 
-var cycles=[],intimacy=[],exclusions=[],viewMonth=new Date(),activeTab='calendar';
+var cycles=[],intimacy=[],exclusions=[],periodEvents=[],periodNotes=[],periodMeasurements=[],periodMedLogs=[],viewMonth=new Date(),activeTab='calendar';
 var model={avgCycle:28,avgPeriod:5,lastStart:null,nextStart:null,periodEnd:null,ovulation:null,fertileStart:null,fertileEnd:null,confidence:'low'};
-var importRows=[];
+var importRows=[],jsonImportData=null;
 
 function switchTab(tab,btn){
   activeTab=tab;
@@ -28,11 +28,19 @@ async function loadData(){
     var results=await Promise.all([
       sbFetch('/rest/v1/period_cycles?start_date=gte.'+dateKey(start)+'&order=start_date.desc&select=*'),
       sbFetch('/rest/v1/period_intimacy?logged_date=gte.'+dateKey(start)+'&logged_date=lte.'+dateKey(end)+'&order=logged_date.desc&select=*'),
-      sbFetch('/rest/v1/period_exclusions?order=start_date.desc&select=*')
+      sbFetch('/rest/v1/period_exclusions?order=start_date.desc&select=*'),
+      sbFetch('/rest/v1/period_events?order=event_date.desc&select=*'),
+      sbFetch('/rest/v1/period_notes?order=note_date.desc&select=*'),
+      sbFetch('/rest/v1/period_measurements?order=measurement_date.desc&select=*'),
+      sbFetch('/rest/v1/period_medication_logs?order=log_date.desc&select=*')
     ]);
     cycles=results[0]||[];
     intimacy=results[1]||[];
     exclusions=results[2]||[];
+    periodEvents=results[3]||[];
+    periodNotes=results[4]||[];
+    periodMeasurements=results[5]||[];
+    periodMedLogs=results[6]||[];
     buildModel();
     renderForecast();
     renderCalendar();
@@ -169,6 +177,8 @@ function closeModalClick(e){if(e.target===e.currentTarget)closeModal(e.currentTa
 
 function openImportModal(){
   importRows=[];
+  jsonImportData=null;
+  document.getElementById('json-import-file').value='';
   document.getElementById('import-text').value='';
   document.getElementById('exclude-start').value='';
   document.getElementById('exclude-end').value='';
@@ -177,6 +187,47 @@ function openImportModal(){
   document.getElementById('import-preview').innerHTML='';
   document.getElementById('import-save-btn').style.display='none';
   document.getElementById('import-modal').style.display='flex';
+}
+
+function loadJsonImportFile(input){
+  var file=input.files&&input.files[0];
+  if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(){
+    try{
+      jsonImportData=JSON.parse(reader.result);
+      previewJsonImport();
+    }catch(e){
+      jsonImportData=null;
+      document.getElementById('import-preview').style.display='block';
+      document.getElementById('import-preview').innerHTML='<div style="color:var(--red)">Could not read JSON: '+esc(e.message)+'</div>';
+      document.getElementById('import-save-btn').style.display='none';
+    }
+  };
+  reader.readAsText(file);
+}
+
+function previewJsonImport(){
+  var d=jsonImportData||{};
+  var cyclesIn=(d.cycles||[]).filter(function(c){return !c.is_prediction;});
+  var forecasts=(d.cycles||[]).filter(function(c){return c.is_prediction;});
+  var pregnancy=(d.cycles||[]).filter(function(c){return c.record_status==='pregnancy_gap';});
+  var events=d.events||[],notes=d.notes||[],measurements=d.measurements||[],medDefs=d.medication_definitions||[],medLogs=d.medication_logs||[];
+  var cats={};
+  events.forEach(function(e){cats[e.category]=(cats[e.category]||0)+1;});
+  var preview=document.getElementById('import-preview');
+  preview.style.display='block';
+  preview.innerHTML='<div style="color:var(--muted);margin-bottom:8px">Full JSON import preview</div>'+
+    '<div class="report-row"><span>Confirmed cycles</span><strong>'+cyclesIn.length+'</strong></div>'+
+    '<div class="report-row"><span>Pregnancy exclusions</span><strong>'+pregnancy.length+'</strong></div>'+
+    '<div class="report-row"><span>Forecast rows skipped</span><strong>'+forecasts.length+'</strong></div>'+
+    '<div class="report-row"><span>Daily events</span><strong>'+events.length+'</strong></div>'+
+    '<div style="font-size:11px;color:var(--muted);margin:6px 0">'+esc(Object.keys(cats).map(function(k){return k+': '+cats[k];}).join(' · '))+'</div>'+
+    '<div class="report-row"><span>Notes</span><strong>'+notes.length+'</strong></div>'+
+    '<div class="report-row"><span>Measurements</span><strong>'+measurements.length+'</strong></div>'+
+    '<div class="report-row"><span>Medication definitions</span><strong>'+medDefs.length+'</strong></div>'+
+    '<div class="report-row"><span>Medication logs</span><strong>'+medLogs.length+'</strong></div>';
+  document.getElementById('import-save-btn').style.display='block';
 }
 
 function parseCsvLine(line){
@@ -216,6 +267,7 @@ function parseImportRows(text){
 }
 
 function previewImport(){
+  if(jsonImportData){previewJsonImport();return;}
   var parsed=parseImportRows(document.getElementById('import-text').value);
   importRows=parsed.rows;
   var preview=document.getElementById('import-preview');
@@ -237,6 +289,7 @@ function previewImport(){
 }
 
 async function saveImportRows(){
+  if(jsonImportData){await saveJsonImport();return;}
   if(!importRows.length){toast('Preview rows first');return;}
   var exStart=document.getElementById('exclude-start').value;
   var exEnd=document.getElementById('exclude-end').value;
@@ -258,6 +311,174 @@ async function saveImportRows(){
     toast((rows.length?'Imported '+rows.length+' period log'+(rows.length!==1?'s':''):'Saved exclusion range')+(exStart&&exEnd?' and pregnancy range':''));
     loadData();
   }catch(e){toast('Import error: '+e.message);}
+}
+
+function chunk(arr,size){
+  var out=[];
+  for(var i=0;i<arr.length;i+=size)out.push(arr.slice(i,i+size));
+  return out;
+}
+
+async function upsertRows(table,rows,conflictKey){
+  if(!rows.length)return 0;
+  var total=0;
+  var batches=chunk(rows,100);
+  for(var i=0;i<batches.length;i++){
+    await sbFetch('/rest/v1/'+table+'?on_conflict='+conflictKey,{
+      method:'POST',
+      headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},
+      body:JSON.stringify(batches[i])
+    });
+    total+=batches[i].length;
+  }
+  return total;
+}
+
+function mapImportedFlow(c){
+  var flow=(c.flow||'medium').toLowerCase();
+  if(['spotting','light','medium','heavy'].indexOf(flow)>=0)return flow;
+  return 'medium';
+}
+
+function sexProtection(e){
+  try{
+    var raw=JSON.parse(e.raw_value||e.value_text||'{}');
+    return raw.condom?'condom':'none';
+  }catch(err){return 'none';}
+}
+
+async function saveJsonImport(){
+  var d=jsonImportData||{};
+  var allCycles=d.cycles||[];
+  var confirmed=allCycles.filter(function(c){return !c.is_prediction;});
+  var pregnancy=allCycles.filter(function(c){return c.record_status==='pregnancy_gap';});
+  var cycleRows=confirmed.map(function(c){
+    return {
+      import_record_id:c.record_id,
+      source_app:c.source_app||null,
+      source_record_id:c.source_record_id==null?null:String(c.source_record_id),
+      start_date:c.period_start,
+      end_date:c.period_end||null,
+      flow:mapImportedFlow(c),
+      symptoms:[],
+      notes:c.notes||null,
+      record_status:c.record_status||'historical',
+      is_prediction:!!c.is_prediction,
+      is_confirmed:c.is_confirmed!==false,
+      next_cycle_start:c.next_cycle_start||null,
+      cycle_length_days:c.cycle_length_days||null,
+      updated_at:new Date().toISOString()
+    };
+  });
+  var exclusionRows=pregnancy.map(function(c){
+    return {
+      import_record_id:c.record_id,
+      source_app:c.source_app||null,
+      start_date:c.period_start,
+      end_date:c.next_cycle_start?addDays(c.next_cycle_start,-1):c.period_end,
+      reason:'pregnancy',
+      notes:c.notes||'Imported pregnancy/postpartum gap',
+      updated_at:new Date().toISOString()
+    };
+  });
+  var eventRows=(d.events||[]).map(function(e){
+    return {
+      event_id:e.event_id,
+      source_app:e.source_app||null,
+      source_record_id:e.source_record_id==null?null:String(e.source_record_id),
+      event_date:e.event_date,
+      event_datetime:e.event_datetime||null,
+      category:e.category,
+      code:e.code==null?null:String(e.code),
+      label:e.label||null,
+      severity_code:e.severity_code==null?null:String(e.severity_code),
+      value_text:e.value_text==null?null:String(e.value_text),
+      value_number:e.value_number==null?null:e.value_number,
+      unit:e.unit||null,
+      is_prediction:!!e.is_prediction,
+      raw_value:e.raw_value==null?null:String(e.raw_value)
+    };
+  });
+  var intimacyRows=(d.events||[]).filter(function(e){return e.category==='sex'&&!e.is_prediction;}).map(function(e){
+    return {
+      import_event_id:e.event_id,
+      source_app:e.source_app||null,
+      logged_date:e.event_date,
+      protection:sexProtection(e),
+      emergency_contraception:false,
+      notes:e.label||'Imported sex record',
+      updated_at:new Date().toISOString()
+    };
+  });
+  var noteRows=(d.notes||[]).map(function(n){
+    return {
+      note_id:n.note_id,
+      source_app:n.source_app||null,
+      source_record_id:n.source_record_id==null?null:String(n.source_record_id),
+      note_date:n.note_date,
+      note_datetime:n.note_datetime||null,
+      note_text:n.text||'',
+      source_created_at:n.created_at||null,
+      source_updated_at:n.updated_at||null
+    };
+  });
+  var measurementRows=(d.measurements||[]).map(function(m){
+    return {
+      measurement_id:m.measurement_id,
+      source_app:m.source_app||null,
+      source_record_id:m.source_record_id==null?null:String(m.source_record_id),
+      measurement_date:m.measurement_date,
+      measurement_datetime:m.measurement_datetime||null,
+      measurement_type:m.type,
+      value:m.value==null?null:m.value,
+      unit:m.unit||null,
+      normalized_value:m.normalized_value==null?null:m.normalized_value,
+      normalized_unit:m.normalized_unit||null,
+      raw_value:m.raw_value==null?null:String(m.raw_value)
+    };
+  });
+  var medDefRows=(d.medication_definitions||[]).map(function(m){
+    return {
+      medication_id:m.medication_id,
+      source_app:m.source_app||null,
+      source_record_id:m.source_record_id==null?null:String(m.source_record_id),
+      source_pill_id:m.source_pill_id==null?null:String(m.source_pill_id),
+      name:m.name||null,
+      classify_code:m.classify_code==null?null:String(m.classify_code),
+      pill_type_code:m.pill_type_code==null?null:String(m.pill_type_code),
+      start_datetime:m.start_datetime||null,
+      end_datetime:m.end_datetime||null,
+      notification_enabled_code:m.notification_enabled_code==null?null:String(m.notification_enabled_code),
+      configuration_json:m.configuration_json||null,
+      extension_json:m.extension_json||null
+    };
+  });
+  var medLogRows=(d.medication_logs||[]).map(function(m){
+    return {
+      log_id:m.log_id,
+      source_app:m.source_app||null,
+      source_record_id:m.source_record_id==null?null:String(m.source_record_id),
+      log_date:m.log_date,
+      source_pill_id:m.source_pill_id==null?null:String(m.source_pill_id),
+      name:m.name||null,
+      take_status_code:m.take_status_code==null?null:String(m.take_status_code),
+      pill_type_code:m.pill_type_code==null?null:String(m.pill_type_code),
+      raw_value:m.raw_value==null?null:String(m.raw_value)
+    };
+  });
+  try{
+    var savedCycles=await upsertRows('period_cycles',cycleRows,'import_record_id');
+    await upsertRows('period_exclusions',exclusionRows,'import_record_id');
+    await upsertRows('period_events',eventRows,'event_id');
+    await upsertRows('period_intimacy',intimacyRows,'import_event_id');
+    await upsertRows('period_notes',noteRows,'note_id');
+    await upsertRows('period_measurements',measurementRows,'measurement_id');
+    await upsertRows('period_medication_definitions',medDefRows,'medication_id');
+    await upsertRows('period_medication_logs',medLogRows,'log_id');
+    closeModal('import-modal');
+    toast('Imported JSON history: '+savedCycles+' cycles');
+    loadData();
+  }catch(e){toast('JSON import error: '+e.message);}
 }
 
 function openCycleModal(id,day){
@@ -379,15 +600,24 @@ function renderReports(){
   var completed=usable.filter(function(c){return c.end_date;});
   var range=avgCycleRange();
   var noteCycles=sorted.filter(function(c){return c.notes||c.symptoms&&c.symptoms.length;});
-  var symptomCounts={},flowCounts={};
+  var symptomCounts={},flowCounts={},eventCatCounts={},measurementTypeCounts={},medCounts={};
   usable.forEach(function(c){
     flowCounts[c.flow||'medium']=(flowCounts[c.flow||'medium']||0)+1;
     (c.symptoms||[]).forEach(function(s){symptomCounts[s]=(symptomCounts[s]||0)+1;});
   });
+  periodEvents.forEach(function(e){
+    eventCatCounts[e.category]=(eventCatCounts[e.category]||0)+1;
+    if(e.category==='symptom')symptomCounts[e.label||('code '+e.code)]=(symptomCounts[e.label||('code '+e.code)]||0)+1;
+  });
+  periodMeasurements.forEach(function(m){measurementTypeCounts[m.measurement_type]=(measurementTypeCounts[m.measurement_type]||0)+1;});
+  periodMedLogs.forEach(function(m){medCounts[m.name||'Medication']=(medCounts[m.name||'Medication']||0)+1;});
   var symptomRows=Object.keys(symptomCounts).sort(function(a,b){return symptomCounts[b]-symptomCounts[a];});
   var flowRows=Object.keys(flowCounts).sort(function(a,b){return flowCounts[b]-flowCounts[a];});
   var maxSym=symptomRows.length?symptomCounts[symptomRows[0]]:1;
   var maxFlow=flowRows.length?flowCounts[flowRows[0]]:1;
+  var eventRows=Object.keys(eventCatCounts).sort(function(a,b){return eventCatCounts[b]-eventCatCounts[a];});
+  var measurementRows=Object.keys(measurementTypeCounts).sort(function(a,b){return measurementTypeCounts[b]-measurementTypeCounts[a];});
+  var medRows=Object.keys(medCounts).sort(function(a,b){return medCounts[b]-medCounts[a];});
   var avgPeriod=completed.length?Math.round(completed.reduce(function(s,c){return s+daysBetween(c.start_date,c.end_date)+1;},0)/completed.length):model.avgPeriod;
   el.innerHTML='<div class="report-wrap">'+
     '<div class="report-grid">'+
@@ -395,12 +625,18 @@ function renderReports(){
       '<div class="report-card"><div class="r-val">'+usable.length+'</div><div class="r-lbl">Used for estimates</div></div>'+
       '<div class="report-card"><div class="r-val">'+model.avgCycle+'d</div><div class="r-lbl">Avg cycle</div></div>'+
       '<div class="report-card"><div class="r-val">'+avgPeriod+'d</div><div class="r-lbl">Avg period</div></div>'+
+      '<div class="report-card"><div class="r-val">'+periodEvents.length+'</div><div class="r-lbl">Daily events</div></div>'+
+      '<div class="report-card"><div class="r-val">'+periodNotes.length+'</div><div class="r-lbl">Notes</div></div>'+
     '</div>'+
     (exclusions.length?'<div class="report-list"><h3>Excluded ranges</h3>'+exclusions.map(function(x){return '<div class="report-row"><span>'+fmtDate(x.start_date)+' - '+fmtDate(x.end_date)+'<br><small style="color:var(--muted)">'+esc(x.reason||'excluded')+(x.notes?' · '+esc(x.notes):'')+'</small></span><strong>'+daysBetween(x.start_date,x.end_date)+'d</strong></div>';}).join('')+'</div>':'')+
     '<div class="report-list"><h3>Cycle range</h3><div class="report-row"><span>Shortest - longest estimated cycle</span><strong>'+(range?range.min+'-'+range.max+'d':'-')+'</strong></div></div>'+
     '<div class="report-list"><h3>Symptoms</h3>'+
       (symptomRows.length?symptomRows.map(function(s){var pct=Math.round(symptomCounts[s]/maxSym*100);return '<div class="report-row"><div style="flex:1"><div>'+esc(s)+'</div><div class="report-bar"><span style="width:'+pct+'%"></span></div></div><strong>'+symptomCounts[s]+'</strong></div>';}).join(''):'<div class="empty-log" style="padding:12px">No symptoms logged yet</div>')+
     '</div>'+
+    (eventRows.length?'<div class="report-list"><h3>Imported event categories</h3>'+eventRows.map(function(k){return '<div class="report-row"><span>'+esc(k)+'</span><strong>'+eventCatCounts[k]+'</strong></div>';}).join('')+'</div>':'')+
+    (periodNotes.length?'<div class="report-list"><h3>Imported notes</h3>'+periodNotes.slice(0,30).map(function(n){return '<div class="note-card"><div class="note-date">'+fmtFullDate(n.note_date)+'</div><div class="log-detail">'+esc(n.note_text)+'</div></div>';}).join('')+'</div>':'')+
+    (measurementRows.length?'<div class="report-list"><h3>Measurements</h3>'+measurementRows.map(function(k){return '<div class="report-row"><span>'+esc(k)+'</span><strong>'+measurementTypeCounts[k]+'</strong></div>';}).join('')+'</div>':'')+
+    (medRows.length?'<div class="report-list"><h3>Medication logs</h3>'+medRows.map(function(k){return '<div class="report-row"><span>'+esc(k)+'</span><strong>'+medCounts[k]+'</strong></div>';}).join('')+'</div>':'')+
     '<div class="report-list"><h3>Flow</h3>'+
       (flowRows.length?flowRows.map(function(f){var pct=Math.round(flowCounts[f]/maxFlow*100);return '<div class="report-row"><div style="flex:1"><div>'+esc(f)+'</div><div class="report-bar"><span style="width:'+pct+'%"></span></div></div><strong>'+flowCounts[f]+'</strong></div>';}).join(''):'')+
     '</div>'+
