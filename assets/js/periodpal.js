@@ -12,6 +12,18 @@ var cycles=[],intimacy=[],exclusions=[],periodEvents=[],periodNotes=[],periodMea
 var model={avgCycle:28,avgPeriod:5,lastStart:null,nextStart:null,periodEnd:null,ovulation:null,fertileStart:null,fertileEnd:null,confidence:'low'};
 var importRows=[],jsonImportData=null;
 var sexFilterStart='',sexFilterEnd='';
+var calendarFilters=loadCalendarFilters();
+
+function loadCalendarFilters(){
+  var defaults={period:true,predicted:true,fertile:true,ovulation:true,intimacy:true,notes:true,events:true};
+  try{return Object.assign(defaults,JSON.parse(localStorage.getItem('periodpal_calendar_filters')||'{}'));}catch(e){return defaults;}
+}
+
+function toggleCalendarFilter(key){
+  calendarFilters[key]=!calendarFilters[key];
+  localStorage.setItem('periodpal_calendar_filters',JSON.stringify(calendarFilters));
+  renderCalendar();
+}
 
 function switchTab(tab,btn){
   activeTab=tab;
@@ -123,16 +135,26 @@ function renderCalendar(){
     var key=dateKey(d),cls=['day'],dots=[];
     if(d.getMonth()!==m)cls.push('out');
     if(key===todayKey())cls.push('today');
-    if(isLoggedPeriod(key)){cls.push('period');dots.push('tag-period');}
-    if(isPredictedPeriod(key)){cls.push('predicted');dots.push('tag-predicted');}
-    if(isBetween(key,model.fertileStart,model.fertileEnd)){cls.push('fertile');dots.push('tag-fertile');}
-    if(key===model.ovulation){cls.push('ovulation');dots.push('tag-ovulation');}
-    if(intimacy.some(function(x){return x.logged_date===key;}))dots.push('tag-intimacy');
-    if(periodNotes.some(function(x){return x.note_date===key;}))dots.push('tag-note');
-    if(visibleEvents().some(function(x){return x.event_date===key;}))dots.push('tag-event');
+    if(calendarFilters.period&&isLoggedPeriod(key)){cls.push('period');dots.push('tag-period');}
+    if(calendarFilters.predicted&&isPredictedPeriod(key)){cls.push('predicted');dots.push('tag-predicted');}
+    if(calendarFilters.fertile&&isBetween(key,model.fertileStart,model.fertileEnd)){cls.push('fertile');dots.push('tag-fertile');}
+    if(calendarFilters.ovulation&&key===model.ovulation){cls.push('ovulation');dots.push('tag-ovulation');}
+    if(calendarFilters.intimacy&&intimacy.some(function(x){return x.logged_date===key;}))dots.push('tag-intimacy');
+    if(calendarFilters.notes&&periodNotes.some(function(x){return x.note_date===key;}))dots.push('tag-note');
+    if(calendarFilters.events&&visibleEvents().some(function(x){return x.event_date===key;}))dots.push('tag-event');
     html+='<div class="'+cls.join(' ')+'" onclick="openDay(\''+key+'\')"><div class="day-num">'+d.getDate()+'</div><div class="day-tags">'+dots.slice(0,4).map(function(c){return'<i class="tag-dot '+c+'"></i>';}).join('')+'</div></div>';
   }
   document.getElementById('calendar-grid').innerHTML=html;
+  renderCalendarFilters();
+}
+
+function renderCalendarFilters(){
+  var el=document.getElementById('calendar-filters');
+  if(!el)return;
+  var labels={period:'Logged',predicted:'Predicted',fertile:'Fertile',ovulation:'Ovulation',intimacy:'Intimacy',notes:'Notes',events:'Symptoms'};
+  el.innerHTML=Object.keys(labels).map(function(k){
+    return '<button class="filter-chip '+(calendarFilters[k]?'active':'')+'" onclick="toggleCalendarFilter(\''+k+'\')">'+esc(labels[k])+'</button>';
+  }).join('');
 }
 
 function moveMonth(delta){viewMonth.setMonth(viewMonth.getMonth()+delta);renderCalendar();}
@@ -661,6 +683,21 @@ function visibleEvents(){
   return periodEvents.filter(hasMeaningfulEventName);
 }
 
+function importAudit(){
+  var hidden=periodEvents.filter(function(e){return !hasMeaningfulEventName(e);});
+  var codeOnly=hidden.filter(function(e){return e.category==='symptom'||e.category==='mood';});
+  var imported=periodEvents.filter(function(e){return e.source_app&&e.source_app!=='manual';});
+  return {
+    imported:imported.length,
+    totalEvents:periodEvents.length,
+    visible:visibleEvents().length,
+    hidden:hidden.length,
+    codeOnly:codeOnly.length,
+    symptomCodes:codeOnly.filter(function(e){return e.category==='symptom';}).length,
+    moodCodes:codeOnly.filter(function(e){return e.category==='mood';}).length
+  };
+}
+
 function eventTitle(e){
   return (e.label||e.category||'Event')+(e.code&&!e.label?' code '+e.code:'');
 }
@@ -1143,6 +1180,7 @@ function renderReports(){
   var shownSexRows=filteredSexRows(sexRows);
   var sexProtected=shownSexRows.filter(function(x){return x.protection&&x.protection!=='none';}).length;
   var sexEc=shownSexRows.filter(function(x){return x.ec;}).length;
+  var audit=importAudit();
   var diag=modelDiagnostics();
   var dupes=duplicateCycleGroups();
   var medAdherence=medicationAdherenceRows();
@@ -1162,6 +1200,12 @@ function renderReports(){
       '<div class="report-card"><div class="r-val">'+periodNotes.length+'</div><div class="r-lbl">Notes</div></div>'+
       '<div class="report-card"><div class="r-val">'+shownSexRows.length+'</div><div class="r-lbl">Sex events</div></div>'+
       '<div class="report-card"><div class="r-val">'+sexProtected+'</div><div class="r-lbl">Protected</div></div>'+
+    '</div>'+
+    '<div class="report-list"><h3>Import Audit</h3>'+
+      '<div class="report-row"><span>Imported event rows kept</span><strong>'+audit.imported+'</strong></div>'+
+      '<div class="report-row"><span>Named/displayable event rows</span><strong>'+audit.visible+'</strong></div>'+
+      '<div class="report-row"><span>Hidden code-only mood/symptom rows</span><strong>'+audit.codeOnly+'</strong></div>'+
+      '<div style="font-size:11px;color:var(--muted);line-height:1.4;margin-top:8px">Hidden rows are still stored for future mapping. They are not shown in the timeline because their codes do not have meaningful names yet. Symptoms: '+audit.symptomCodes+' · moods: '+audit.moodCodes+'.</div>'+
     '</div>'+
     '<div class="report-list"><h3>Prediction Confidence</h3>'+
       '<div class="report-row"><span>Cycles available after exclusions and duplicate collapse</span><strong>'+diag.cycleCount+'</strong></div>'+

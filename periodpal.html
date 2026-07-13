@@ -60,6 +60,9 @@
   .day.ovulation{background:rgba(243,156,18,.16);border-color:rgba(243,156,18,.45);}
   .legend{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--muted);}
   .legend span{display:flex;align-items:center;gap:5px;}
+  .calendar-filters{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+  .filter-chip{border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:999px;padding:6px 9px;font-size:11px;font-weight:800;cursor:pointer;}
+  .filter-chip.active{border-color:var(--accent);background:rgba(217,70,143,.14);color:var(--text);}
   .history-section{padding:12px 16px;}
   .history-section h3{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
   .report-wrap{padding:12px 16px 18px;}
@@ -167,6 +170,7 @@
           <span><i class="tag-dot tag-intimacy"></i>Intimacy</span>
           <span><i class="tag-dot tag-note"></i>Notes</span>
         </div>
+        <div class="calendar-filters" id="calendar-filters"></div>
       </div>
     </div>
   </div>
