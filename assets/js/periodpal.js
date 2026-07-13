@@ -12,6 +12,7 @@ var cycles=[],intimacy=[],exclusions=[],periodEvents=[],periodNotes=[],periodMea
 var model={avgCycle:28,avgPeriod:5,lastStart:null,nextStart:null,periodEnd:null,ovulation:null,fertileStart:null,fertileEnd:null,confidence:'low'};
 var importRows=[],jsonImportData=null;
 var sexFilterStart='',sexFilterEnd='';
+var measurementFilterMin='',measurementFilterMax='';
 var calendarFilters=loadCalendarFilters();
 
 function loadCalendarFilters(){
@@ -721,6 +722,33 @@ function measurementDetail(m){
   return [primary,normalized,m.raw_value].filter(Boolean).join(' · ');
 }
 
+function measurementNumber(m){
+  if(m.normalized_value!=null&&!isNaN(Number(m.normalized_value)))return Number(m.normalized_value);
+  if(m.value!=null&&!isNaN(Number(m.value)))return Number(m.value);
+  return null;
+}
+
+function isWeightMeasurement(m){
+  return String(m.measurement_type||'').toLowerCase().indexOf('weight')>=0||String(m.unit||m.normalized_unit||'').toLowerCase()==='kg';
+}
+
+function suspiciousMeasurements(){
+  var min=measurementFilterMin===''?35:Number(measurementFilterMin);
+  var max=measurementFilterMax===''?120:Number(measurementFilterMax);
+  return periodMeasurements.filter(function(m){
+    if(!isWeightMeasurement(m))return false;
+    var n=measurementNumber(m);
+    return n!=null&&(n<min||n>max);
+  }).sort(function(a,b){return b.measurement_date.localeCompare(a.measurement_date);});
+}
+
+function applyMeasurementFilter(){
+  measurementFilterMin=document.getElementById('measure-filter-min').value;
+  measurementFilterMax=document.getElementById('measure-filter-max').value;
+  if(measurementFilterMin!==''&&measurementFilterMax!==''&&Number(measurementFilterMax)<Number(measurementFilterMin)){toast('Max must be above min');return;}
+  renderReports();
+}
+
 function medicationDetail(m){
   return ['status '+(m.take_status_code||'unknown'),m.pill_type_code?'type '+m.pill_type_code:'',m.raw_value].filter(Boolean).join(' · ');
 }
@@ -1184,6 +1212,7 @@ function renderReports(){
   var diag=modelDiagnostics();
   var dupes=duplicateCycleGroups();
   var medAdherence=medicationAdherenceRows();
+  var suspicious=suspiciousMeasurements();
   var pregTests=positivePregnancyTests();
   var pregEstimate=pregnancySourceEstimate(pregTests[0]&&pregTests[0].event_date);
   var cycleBars=sortedModelCycles().map(function(c,i,arr){return i?{start:c.start_date,days:daysBetween(arr[i-1].start_date,c.start_date)}:null;}).filter(Boolean).filter(function(x){return x.days>=1;});
@@ -1248,6 +1277,13 @@ function renderReports(){
     (eventRows.length?'<div class="report-list"><h3>Imported event categories</h3>'+eventRows.map(function(k){return '<div class="report-row"><span>'+esc(k)+'</span><strong>'+eventCatCounts[k]+'</strong></div>';}).join('')+'</div>':'')+
     (periodNotes.length?'<div class="report-list"><h3>Imported notes</h3>'+periodNotes.slice().sort(function(a,b){return b.note_date.localeCompare(a.note_date);}).slice(0,30).map(function(n){return '<div class="note-card"><div class="note-date">'+fmtFullDate(n.note_date)+'</div><div class="log-detail">'+esc(n.note_text)+'</div></div>';}).join('')+'</div>':'')+
     (measurementRows.length?'<div class="report-list"><h3>Measurements</h3>'+measurementRows.map(function(k){return '<div class="report-row"><span>'+esc(k)+'</span><strong>'+measurementTypeCounts[k]+'</strong></div>';}).join('')+'</div>':'')+
+    (periodMeasurements.length?'<div class="report-list"><h3>Measurement Review</h3>'+
+      '<div class="date-row"><label>Min kg</label><input type="number" id="measure-filter-min" value="'+esc(measurementFilterMin||'35')+'" step="0.1"></div>'+
+      '<div class="date-row"><label>Max kg</label><input type="number" id="measure-filter-max" value="'+esc(measurementFilterMax||'120')+'" step="0.1"></div>'+
+      '<button class="btn btn-secondary" onclick="applyMeasurementFilter()">Apply Weight Range</button>'+
+      '<div class="report-row"><span>Suspicious weight entries outside range</span><strong>'+suspicious.length+'</strong></div>'+
+      (suspicious.length?suspicious.map(function(m){return '<div class="note-card"><div class="note-date">'+fmtFullDate(m.measurement_date)+'</div><div class="note-meta">'+esc(measurementTitle(m))+' · '+esc(measurementDetail(m))+'</div><button class="btn btn-secondary" onclick="openMeasurementModal(\''+m.measurement_id+'\')">Edit Entry</button><button class="btn btn-secondary" style="color:var(--red)" onclick="deleteMeasurement(\''+m.measurement_id+'\')">Delete Entry</button></div>';}).join(''):'<div class="empty-log" style="padding:12px">No suspicious weight entries in this range</div>')+
+    '</div>':'')+
     (medAdherence.length?'<div class="report-list"><h3>Medication Adherence</h3>'+medAdherence.slice(0,18).map(function(m){return '<div class="report-row"><span>'+esc(m.month)+' · '+esc(m.name)+'<br><small style="color:var(--muted)">taken '+m.taken+' · missed/unknown '+m.missed+'</small></span><strong>'+m.total+'</strong></div>';}).join('')+'</div>':'')+
     (medRows.length?'<div class="report-list"><h3>Medication logs</h3>'+medRows.map(function(k){return '<div class="report-row"><span>'+esc(k)+'</span><strong>'+medCounts[k]+'</strong></div>';}).join('')+'</div>':'')+
     '<div class="report-list"><h3>Flow</h3>'+
