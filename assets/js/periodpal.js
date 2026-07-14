@@ -784,6 +784,47 @@ function eventDetail(e){
   return parts.filter(Boolean).join(' · ')||'Imported event';
 }
 
+function compactTimelineText(value,max){
+  var text=String(value||'').trim();
+  if(!text)return'';
+  if((text[0]==='{'&&text[text.length-1]==='}')||(text[0]==='['&&text[text.length-1]===']'))return'';
+  text=text.replace(/\s+/g,' ');
+  return text.length>(max||90)?text.slice(0,(max||90)-1)+'…':text;
+}
+
+function friendlyEventTitle(e){
+  if(e.category==='sex')return'Intimacy';
+  if(e.category==='pregnancy_test')return'Pregnancy test';
+  if(e.category==='mood')return e.label||'Mood';
+  if(e.category==='symptom')return e.label||'Symptom';
+  return e.label||String(e.category||'Daily entry').replace(/_/g,' ');
+}
+
+function friendlyEventDetail(e){
+  var parts=[];
+  if(e.category==='pregnancy_test')parts.push(pregnancyTestResult(e));
+  if(e.severity_code)parts.push('Severity '+String(e.severity_code).replace(/_/g,' '));
+  var value=compactTimelineText(e.value_text,70);
+  if(value&&value.toLowerCase()!==String(e.label||'').toLowerCase())parts.push(value);
+  if(e.value_number!=null)parts.push(String(e.value_number)+(e.unit?' '+e.unit:''));
+  if(e.category==='sex'&&!parts.length)parts.push('Private entry');
+  return parts.join(' · ')||'Tap to view details';
+}
+
+function friendlyMeasurementDetail(m){
+  var primary=m.value!=null?String(m.value)+(m.unit?' '+m.unit:''):'';
+  var normalized=m.normalized_value!=null&&String(m.normalized_value)!==String(m.value)?String(m.normalized_value)+(m.normalized_unit?' '+m.normalized_unit:''):'';
+  return [primary,normalized].filter(Boolean).join(' · ')||'Tap to view details';
+}
+
+function friendlyMedicationDetail(m){
+  var status=String(m.take_status_code||'').toLowerCase();
+  if(status==='taken'||status==='1')return'Taken';
+  if(status==='missed'||status==='0')return'Missed';
+  if(status==='skipped')return'Skipped';
+  return'Medication entry';
+}
+
 function measurementTitle(m){
   return (m.measurement_type||'Measurement').replace(/_/g,' ');
 }
@@ -1129,7 +1170,9 @@ function renderHistory(){
   cycles.forEach(function(c){rows.push({type:'cycle',date:c.start_date,row:c});});
   intimacy.forEach(function(x){rows.push({type:'intimacy',date:x.logged_date,row:x});});
   periodNotes.forEach(function(n){rows.push({type:'note',date:n.note_date,row:n});});
-  visibleEvents().forEach(function(e){rows.push({type:'event',date:e.event_date,row:e});});
+  var linkedSexEvents={};
+  intimacy.forEach(function(x){if(x.import_event_id)linkedSexEvents[x.import_event_id]=true;});
+  visibleEvents().filter(function(e){return e.category!=='sex'||!linkedSexEvents[e.event_id];}).forEach(function(e){rows.push({type:'event',date:e.event_date,row:e});});
   periodMeasurements.forEach(function(m){rows.push({type:'measurement',date:m.measurement_date,row:m});});
   periodMedLogs.forEach(function(m){rows.push({type:'medication',date:m.log_date,row:m});});
   rows.sort(function(a,b){return b.date.localeCompare(a.date);});
@@ -1148,26 +1191,26 @@ function renderHistory(){
       if(item.date!==lastDate){lastDate=item.date;heading='<div class="timeline-date">'+fmtFullDate(item.date)+'</div>';}
       if(item.type==='cycle'){
         var c=item.row,len=c.end_date?daysBetween(c.start_date,c.end_date)+1:null;
-        return heading+'<div class="log-item" onclick="openCycleDetail(\''+c.start_date+'\')"><div class="log-icon">🩸</div><div class="log-info"><div class="log-title">Period started</div><div class="log-detail">'+esc(c.flow||'medium')+(len?' · '+len+' day'+(len!==1?'s':''):' · still active')+(isExcludedCycle(c)?' · excluded from predictions':'')+(c.symptoms&&c.symptoms.length?' · '+esc(c.symptoms.join(', ')):'')+(c.notes?' · '+esc(c.notes):'')+'</div></div><div class="log-actions"><button class="undo-btn">Open</button></div></div>';
+        return heading+'<div class="log-item" onclick="openCycleDetail(\''+c.start_date+'\')"><div class="log-icon">🩸</div><div class="log-info"><div class="log-title">Period started</div><div class="log-detail">'+esc(String(c.flow||'medium').replace(/_/g,' '))+(len?' · '+len+' day'+(len!==1?'s':''):' · ongoing')+(isExcludedCycle(c)?' · excluded from predictions':'')+(c.symptoms&&c.symptoms.length?' · '+esc(c.symptoms.slice(0,3).join(', ')):'')+(c.notes?' · '+esc(compactTimelineText(c.notes,70)):'')+'</div></div><div class="log-actions"><button class="undo-btn">View</button></div></div>';
       }
       if(item.type==='intimacy'){
         var x=item.row,r=riskForDate(x.logged_date,x.protection,x.emergency_contraception);
-        return heading+'<div class="log-item" onclick="openIntimacyModal(\''+x.id+'\')"><div class="log-icon">🛡️</div><div class="log-info"><div class="log-title">Risk note</div><div class="log-detail">'+esc(protectionLabel(x.protection))+(x.emergency_contraception?' · emergency contraception':'')+(x.notes?' · '+esc(x.notes):'')+'<br><span class="risk-pill risk-'+r.level+'">'+esc(r.label)+'</span></div></div><div class="log-actions"><button class="undo-btn">Edit</button></div></div>';
+        return heading+'<div class="log-item" onclick="openIntimacyModal(\''+x.id+'\')"><div class="log-icon">🛡️</div><div class="log-info"><div class="log-title">Intimacy</div><div class="log-detail">'+esc(protectionLabel(x.protection))+(x.emergency_contraception?' · Emergency contraception':'')+(x.notes?' · '+esc(compactTimelineText(x.notes,65)):'')+'<br><span class="risk-pill risk-'+r.level+'">'+esc(r.label)+'</span></div></div><div class="log-actions"><button class="undo-btn">View</button></div></div>';
       }
       if(item.type==='note'){
         var n=item.row;
-        return heading+'<div class="log-item" onclick="openNoteModal(\''+n.note_id+'\')"><div class="log-icon">📝</div><div class="log-info"><div class="log-title">Note</div><div class="log-detail">'+esc(n.note_text)+'</div></div><div class="log-actions"><button class="undo-btn">Edit</button></div></div>';
+        return heading+'<div class="log-item" onclick="openNoteModal(\''+n.note_id+'\')"><div class="log-icon">📝</div><div class="log-info"><div class="log-title">Note</div><div class="log-detail">'+esc(compactTimelineText(n.note_text,90)||'Tap to view note')+'</div></div><div class="log-actions"><button class="undo-btn">View</button></div></div>';
       }
       if(item.type==='event'){
         var e=item.row;
-        return heading+'<div class="log-item" onclick="openEventModal(\''+e.event_id+'\')"><div class="log-icon">✨</div><div class="log-info"><div class="log-title">'+esc(eventTitle(e))+'</div><div class="log-detail">'+esc(eventDetail(e))+'</div></div><div class="log-actions"><button class="undo-btn">Edit</button></div></div>';
+        return heading+'<div class="log-item" onclick="openEventModal(\''+e.event_id+'\')"><div class="log-icon">✨</div><div class="log-info"><div class="log-title">'+esc(friendlyEventTitle(e))+'</div><div class="log-detail">'+esc(friendlyEventDetail(e))+'</div></div><div class="log-actions"><button class="undo-btn">View</button></div></div>';
       }
       if(item.type==='measurement'){
         var m=item.row;
-        return heading+'<div class="log-item" onclick="openMeasurementModal(\''+m.measurement_id+'\')"><div class="log-icon">📏</div><div class="log-info"><div class="log-title">'+esc(measurementTitle(m))+'</div><div class="log-detail">'+esc(measurementDetail(m))+'</div></div><div class="log-actions"><button class="undo-btn">Edit</button></div></div>';
+        return heading+'<div class="log-item" onclick="openMeasurementModal(\''+m.measurement_id+'\')"><div class="log-icon">📏</div><div class="log-info"><div class="log-title">'+esc(measurementTitle(m))+'</div><div class="log-detail">'+esc(friendlyMeasurementDetail(m))+'</div></div><div class="log-actions"><button class="undo-btn">View</button></div></div>';
       }
       var med=item.row;
-      return heading+'<div class="log-item" onclick="openMedicationLogModal(\''+med.log_id+'\')"><div class="log-icon">💊</div><div class="log-info"><div class="log-title">'+esc(med.name||'Medication')+'</div><div class="log-detail">'+esc(medicationDetail(med))+'</div></div><div class="log-actions"><button class="undo-btn">Edit</button></div></div>';
+      return heading+'<div class="log-item" onclick="openMedicationLogModal(\''+med.log_id+'\')"><div class="log-icon">💊</div><div class="log-info"><div class="log-title">'+esc(med.name||'Medication')+'</div><div class="log-detail">'+esc(friendlyMedicationDetail(med))+'</div></div><div class="log-actions"><button class="undo-btn">View</button></div></div>';
     }).join(''):'<div class="empty-log">No period history yet</div>';
   document.getElementById('history-content').innerHTML=exclusionHtml+duplicateHtml+'<div class="timeline-group"><h3 style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Timeline</h3>'+timeline+'</div>';
 }
