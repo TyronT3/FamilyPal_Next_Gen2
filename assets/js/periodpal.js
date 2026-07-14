@@ -162,14 +162,11 @@ function latePeriodAssistant(){
 }
 
 function medicationTodayHtml(){
-  var key=todayKey(),seen={};
+  var key=todayKey();
   var defs=periodMedDefs.filter(function(d){
     var start=(d.start_datetime||'').slice(0,10),end=(d.end_datetime||'').slice(0,10);
     return (!start||start<=key)&&(!end||end>=key);
   });
-  if(!defs.length){
-    periodMedLogs.forEach(function(m){if(m.name&&!seen[m.name]){seen[m.name]=true;defs.push({medication_id:'',source_pill_id:m.source_pill_id||'',name:m.name,pill_type_code:m.pill_type_code||''});}});
-  }
   var cards=defs.map(function(d){
     var existing=periodMedLogs.find(function(m){return m.log_date===key&&((d.source_pill_id&&m.source_pill_id===d.source_pill_id)||(d.name&&m.name===d.name));});
     var status=existing?String(existing.take_status_code||'unknown').toLowerCase():'not logged';
@@ -803,8 +800,27 @@ function measurementNumber(m){
   return null;
 }
 
+function measurementKgValues(m){
+  var values=[];
+  if(m.value!=null&&!isNaN(Number(m.value))){
+    var unit=String(m.unit||'').toLowerCase();
+    values.push((unit==='lb'||unit==='lbs')?Number(m.value)*0.453592:Number(m.value));
+  }
+  if(m.normalized_value!=null&&!isNaN(Number(m.normalized_value))){
+    var normalizedUnit=String(m.normalized_unit||'').toLowerCase();
+    values.push((normalizedUnit==='lb'||normalizedUnit==='lbs')?Number(m.normalized_value)*0.453592:Number(m.normalized_value));
+  }
+  return values;
+}
+
 function isWeightMeasurement(m){
-  return String(m.measurement_type||'').toLowerCase().indexOf('weight')>=0||String(m.unit||m.normalized_unit||'').toLowerCase()==='kg';
+  var type=String(m.measurement_type||'').toLowerCase();
+  var unit=String(m.unit||m.normalized_unit||'').toLowerCase();
+  var raw=String(m.raw_value||'').toLowerCase();
+  if(type.indexOf('weight')>=0||type.indexOf('mass')>=0)return true;
+  if(unit==='kg'||unit==='kgs'||unit==='lb'||unit==='lbs')return true;
+  if(raw.indexOf('weight')>=0||raw.indexOf('"kg"')>=0||raw.indexOf(' kg')>=0)return true;
+  return /^\d+$/.test(type)&&!unit;
 }
 
 function suspiciousMeasurements(){
@@ -812,8 +828,7 @@ function suspiciousMeasurements(){
   var max=measurementFilterMax===''?120:Number(measurementFilterMax);
   return periodMeasurements.filter(function(m){
     if(!isWeightMeasurement(m))return false;
-    var n=measurementNumber(m);
-    return n!=null&&(n<min||n>max);
+    return measurementKgValues(m).some(function(n){return n<min||n>max;});
   }).sort(function(a,b){return b.measurement_date.localeCompare(a.measurement_date);});
 }
 
@@ -1052,6 +1067,22 @@ async function quickLogMedication(pill,name,status,type){
 async function deleteMedicationLog(id){
   if(!confirm('Delete this medication log?'))return;
   try{await sbFetch('/rest/v1/period_medication_logs?log_id=eq.'+encodeURIComponent(id),{method:'DELETE'});closeModal('history-detail-modal');toast('Medication log deleted');loadData();}catch(e){toast('Error: '+e.message);}
+}
+
+async function stopMedicationDefinition(id){
+  if(!id||!confirm('Stop showing this medication from today? Existing history will be kept.'))return;
+  var end=new Date();end.setDate(end.getDate()-1);
+  try{await sbFetch('/rest/v1/period_medication_definitions?medication_id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify({end_datetime:end.toISOString()})});toast('Medication marked inactive');loadData();}catch(e){toast('Error: '+e.message);}
+}
+
+async function reactivateMedicationDefinition(id){
+  if(!id)return;
+  try{await sbFetch('/rest/v1/period_medication_definitions?medication_id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify({end_datetime:null})});toast('Medication reactivated');loadData();}catch(e){toast('Error: '+e.message);}
+}
+
+async function deleteMedicationDefinition(id){
+  if(!id||!confirm('Delete this medication from the tracker? Existing medication history will be kept.'))return;
+  try{await sbFetch('/rest/v1/period_medication_definitions?medication_id=eq.'+encodeURIComponent(id),{method:'DELETE'});toast('Medication removed from tracker');loadData();}catch(e){toast('Error: '+e.message);}
 }
 
 function entriesForCycle(c){
@@ -1346,7 +1377,7 @@ function renderReports(){
       '<div class="report-row"><span>Suspicious measurements</span><strong>'+suspicious.length+'</strong></div>'+
       '<div class="report-row"><span>Hidden code-only imports</span><strong>'+audit.codeOnly+'</strong></div>'+
       '<div class="report-row"><span>Intentional excluded ranges</span><strong>'+exclusions.length+'</strong></div>'+
-      '<div class="quality-actions"><button onclick="scrollToQualitySection(\'quality-duplicates\')">Review duplicates</button><button onclick="scrollToQualitySection(\'quality-measurements\')">Review measurements</button><button onclick="scrollToQualitySection(\'quality-imports\')">Import audit</button><button onclick="scrollToQualitySection(\'quality-exclusions\')">Excluded ranges</button></div>'+
+      '<div class="quality-actions"><button onclick="scrollToQualitySection(\'quality-duplicates\')">Review duplicates</button><button onclick="scrollToQualitySection(\'quality-measurements\')">Review measurements</button><button onclick="scrollToQualitySection(\'quality-medications\')">Review medications</button><button onclick="scrollToQualitySection(\'medication-manager\')">Manage medicines</button><button onclick="scrollToQualitySection(\'quality-imports\')">Import audit</button><button onclick="scrollToQualitySection(\'quality-exclusions\')">Excluded ranges</button></div>'+
       (qualityIssues===0?'<div class="empty-log" style="padding:12px">No data-quality problems detected</div>':'')+
     '</div>'+
     '<div class="report-list" id="quality-imports"><h3>Import Audit</h3>'+
@@ -1403,6 +1434,14 @@ function renderReports(){
       '<div class="report-row"><span>Suspicious weight entries outside range</span><strong>'+suspicious.length+'</strong></div>'+
       (suspicious.length?suspicious.map(function(m){return '<div class="note-card"><div class="note-date">'+fmtFullDate(m.measurement_date)+'</div><div class="note-meta">'+esc(measurementTitle(m))+' · '+esc(measurementDetail(m))+'</div><button class="btn btn-secondary" onclick="openMeasurementModal(\''+m.measurement_id+'\')">Edit Entry</button><button class="btn btn-secondary" style="color:var(--red)" onclick="deleteMeasurement(\''+m.measurement_id+'\')">Delete Entry</button></div>';}).join(''):'<div class="empty-log" style="padding:12px">No suspicious weight entries in this range</div>')+
     '</div>':'<div id="quality-measurements"></div>')+
+    '<div class="report-list" id="medication-manager"><h3>Medication Manager</h3>'+
+      (periodMedDefs.length?periodMedDefs.map(function(d){var inactive=!!(d.end_datetime&&d.end_datetime.slice(0,10)<todayKey());return '<div class="note-card"><div class="note-date">'+esc(d.name||'Unnamed medication')+'</div><div class="note-meta">'+(inactive?'Inactive since '+fmtDate(d.end_datetime.slice(0,10)):'Active in Today tracker')+'</div><div class="quality-actions">'+(inactive?'<button onclick="reactivateMedicationDefinition(\''+d.medication_id+'\')">Reactivate</button>':'<button onclick="stopMedicationDefinition(\''+d.medication_id+'\')">Stop showing</button>')+'<button style="color:var(--red)" onclick="deleteMedicationDefinition(\''+d.medication_id+'\')">Remove tracker</button></div></div>';}).join(''):'<div class="empty-log" style="padding:12px">No medication definitions imported</div>')+
+      '<div style="font-size:11px;color:var(--muted);line-height:1.4">Stopping or removing a tracker does not delete its historical medication logs.</div>'+
+    '</div>'+
+    '<div class="report-list" id="quality-medications"><h3>Medication Log Review</h3>'+
+      (periodMedLogs.length?periodMedLogs.slice().sort(function(a,b){return b.log_date.localeCompare(a.log_date);}).slice(0,250).map(function(m){return '<div class="note-card"><div class="note-date">'+fmtFullDate(m.log_date)+' · '+esc(m.name||'Medication')+'</div><div class="note-meta">'+esc(medicationDetail(m))+'</div><div class="quality-actions"><button onclick="openMedicationLogModal(\''+m.log_id+'\')">Edit entry</button><button style="color:var(--red)" onclick="deleteMedicationLog(\''+m.log_id+'\')">Delete entry</button></div></div>';}).join(''):'<div class="empty-log" style="padding:12px">No medication logs to review</div>')+
+      (periodMedLogs.length>250?'<div style="font-size:11px;color:var(--muted)">Showing the newest 250 entries.</div>':'')+
+    '</div>'+
     (medAdherence.length?'<div class="report-list"><h3>Medication Adherence</h3>'+medAdherence.slice(0,18).map(function(m){return '<div class="report-row"><span>'+esc(m.month)+' · '+esc(m.name)+'<br><small style="color:var(--muted)">taken '+m.taken+' · missed/unknown '+m.missed+'</small></span><strong>'+m.total+'</strong></div>';}).join('')+'</div>':'')+
     (medRows.length?'<div class="report-list"><h3>Medication logs</h3>'+medRows.map(function(k){return '<div class="report-row"><span>'+esc(k)+'</span><strong>'+medCounts[k]+'</strong></div>';}).join('')+'</div>':'')+
     '<div class="report-list"><h3>Flow</h3>'+
