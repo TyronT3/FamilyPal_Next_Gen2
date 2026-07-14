@@ -39,6 +39,15 @@
   .month-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;}
   .month-title{font-size:17px;font-weight:800;}
   .nav-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:18px;cursor:pointer;}
+  .analytics-nav{display:flex;gap:8px;padding:14px 16px 4px;max-width:760px;margin:0 auto;}
+  .analytics-nav button{flex:1;border:1px solid var(--border);background:var(--surface);color:var(--muted);padding:10px 12px;border-radius:12px;font-weight:700;cursor:pointer;}
+  .analytics-nav button.active{background:var(--primary);border-color:var(--primary);color:#fff;}
+  .today-summary{margin:14px 16px 2px;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);}
+  .today-heading{font-size:18px;font-weight:800;margin-bottom:3px;}
+  .today-context{font-size:12px;color:var(--muted);margin-bottom:12px;}
+  .today-entries{display:grid;gap:7px;}
+  .quality-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px;}
+  .quality-actions button{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:10px;padding:9px;font-weight:700;cursor:pointer;}
   .weekdays,.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;}
   .weekday{text-align:center;font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding-bottom:3px;}
   .day{aspect-ratio:1;border-radius:10px;border:1px solid var(--border);background:var(--surface);padding:5px;position:relative;cursor:pointer;overflow:hidden;min-width:0;}
@@ -141,9 +150,8 @@
 
   <div class="tabs">
     <div class="tab active" onclick="switchTab('calendar',this)">Calendar</div>
-    <div class="tab" onclick="switchTab('log',this)">Log</div>
-    <div class="tab" onclick="switchTab('history',this)">History</div>
-    <div class="tab" onclick="switchTab('reports',this)">Reports</div>
+    <div class="tab" onclick="switchTab('log',this)">Today</div>
+    <div class="tab" onclick="switchTab('analytics',this)">Analytics</div>
   </div>
 
   <div class="hero-strip">
@@ -176,20 +184,30 @@
   </div>
 
   <div id="tab-log" style="display:none">
+    <div id="today-summary" class="today-summary"><div class="loading"><span class="spinner"></span></div></div>
     <div class="quicklog-grid">
       <div class="ql-btn rose" onclick="quickStartPeriod()"><div class="ql-icon">🩸</div><div class="ql-label">Started Today</div><div class="ql-sub">One tap period start</div></div>
       <div class="ql-btn coral" onclick="quickEndPeriod()"><div class="ql-icon">✅</div><div class="ql-label">Ended Today</div><div class="ql-sub">Close current period</div></div>
       <div class="ql-btn blue" onclick="openCycleModal()"><div class="ql-icon">✏️</div><div class="ql-label">Add / Edit Period</div><div class="ql-sub">Dates, flow, symptoms</div></div>
       <div class="ql-btn yellow" onclick="openEventModal(null,todayKey(),'symptom')"><div class="ql-icon">✨</div><div class="ql-label">Symptom / Mood</div><div class="ql-sub">Named daily entry</div></div>
-      <div class="ql-btn yellow" onclick="openIntimacyModal()"><div class="ql-icon">🛡️</div><div class="ql-label">Pregnancy Risk</div><div class="ql-sub">Log intimacy privately</div></div>
-      <div class="ql-btn coral" onclick="exportPeriodPalData()"><div class="ql-icon">💾</div><div class="ql-label">Export Backup</div><div class="ql-sub">Download JSON history</div></div>
-      <div class="ql-btn coral" onclick="switchTab('reports',document.querySelectorAll('.tab')[3])"><div class="ql-icon">🧹</div><div class="ql-label">Review Import</div><div class="ql-sub">Clean odd entries</div></div>
-      <div class="ql-btn blue" style="grid-column:1/-1" onclick="openImportModal()"><div class="ql-icon">📥</div><div class="ql-label">Import Old Data</div><div class="ql-sub">Paste past period dates for better predictions</div></div>
+      <div class="ql-btn yellow" style="grid-column:1/-1" onclick="openIntimacyModal()"><div class="ql-icon">🛡️</div><div class="ql-label">Pregnancy Risk</div><div class="ql-sub">Log intimacy privately</div></div>
     </div>
   </div>
 
-  <div id="tab-history" style="display:none"><div id="history-content"><div class="loading"><span class="spinner"></span></div></div></div>
-  <div id="tab-reports" style="display:none"><div id="reports-content"><div class="loading"><span class="spinner"></span></div></div></div>
+  <div id="tab-analytics" style="display:none">
+    <div class="analytics-nav" aria-label="Analytics sections">
+      <button id="analytics-insights-btn" class="active" onclick="switchAnalyticsView('insights')">Insights &amp; Cleanup</button>
+      <button id="analytics-timeline-btn" onclick="switchAnalyticsView('timeline')">Timeline</button>
+    </div>
+    <div id="analytics-insights">
+      <div class="quicklog-grid">
+        <div class="ql-btn blue" onclick="openImportModal()"><div class="ql-icon">📥</div><div class="ql-label">Import Old Data</div><div class="ql-sub">Add or restore past records</div></div>
+        <div class="ql-btn coral" onclick="exportPeriodPalData()"><div class="ql-icon">💾</div><div class="ql-label">Export Backup</div><div class="ql-sub">Download JSON history</div></div>
+      </div>
+      <div id="reports-content"><div class="loading"><span class="spinner"></span></div></div>
+    </div>
+    <div id="analytics-timeline" style="display:none"><div id="history-content"><div class="loading"><span class="spinner"></span></div></div></div>
+  </div>
 
   <button class="log-fab" onclick="openLogPicker()">+ Log</button>
 </div>

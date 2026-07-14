@@ -494,3 +494,35 @@ Docs:
 - Existing imported staging data.
 - No-seed-data policy.
 - The ability to test changes before committing.
+
+## Latest PeriodPal Session — 2026-07-14
+
+Completed in this session:
+
+- Simplified PeriodPal navigation to Calendar, Today, and Analytics.
+- Moved reporting, timeline, import/export, and cleanup tools into Analytics.
+- Added a Today summary with the current cycle day/phase and editable entries already logged today.
+- Added a Data Quality Centre for duplicate period starts, suspicious measurements, hidden code-only imports, and excluded ranges.
+- Added a late-period assistant that appears after the estimated period date. It shows days late, relevant fertile-window risk notes, recent pregnancy tests, and quick actions to log a test or start the period. It deliberately presents estimates rather than medical conclusions.
+- Improved medication tracking by loading medication definitions, showing active medicines on Today, adding one-tap Taken/Missed updates, and allowing new manual medication logs with Taken/Missed/Skipped statuses.
+
+Implementation notes:
+
+- The late-period assistant uses the existing frontend cycle model and existing `period_events` pregnancy-test records; no schema migration was needed.
+- Medication tracking uses the existing `period_medication_definitions` and `period_medication_logs` tables; no schema migration was needed.
+- Medication definitions active on the current date are treated as today's medicines. If definitions are absent, distinct names from historical medication logs are offered as fallbacks.
+- PeriodPal remains plain global JavaScript in `assets/js/periodpal.js` with page markup/styles in `periodpal.html`.
+
+Good candidates for the next session:
+
+1. Add a separate privacy PIN/app lock for PeriodPal. This needs a deliberate security design; do not present a frontend-only PIN as strong encryption.
+2. Add symptom-pattern insights by cycle day, but only show a pattern after enough observations exist.
+3. Add pregnancy mode to pause ordinary period forecasts after a confirmed positive test, followed later by a conservative postpartum recovery mode.
+4. Add human-readable CSV export alongside the existing JSON backup.
+5. Consider proper medication schedules/reminder times if the current daily active-medication assumption is too broad.
+
+Next-session verification:
+
+- Test PeriodPal on the deployed GitHub Pages staging site after the 2026-07-14 push.
+- Confirm Today loads medication definitions from Supabase and that Taken/Missed updates the existing same-day record rather than creating duplicates.
+- Confirm a pregnancy-test entry created from the late-period assistant appears in Today, Timeline, and pregnancy-related Analytics reports.
