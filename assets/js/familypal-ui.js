@@ -43,13 +43,14 @@
         }
         if (next !== text) textNode.nodeValue = next;
       });
-      document.querySelectorAll('[data-household-name]').forEach(function (el) { el.textContent = profile.householdName; });
-      document.querySelectorAll('[data-baby-name]').forEach(function (el) { el.textContent = profile.babyName; });
-      document.querySelectorAll('[data-person-1]').forEach(function (el) { el.textContent = profile.person1Name; });
-      document.querySelectorAll('[data-person-2]').forEach(function (el) { el.textContent = profile.person2Name; });
+      document.querySelectorAll('[data-household-name]').forEach(function (el) { if (el.textContent !== profile.householdName) el.textContent = profile.householdName; });
+      document.querySelectorAll('[data-baby-name]').forEach(function (el) { if (el.textContent !== profile.babyName) el.textContent = profile.babyName; });
+      document.querySelectorAll('[data-person-1]').forEach(function (el) { if (el.textContent !== profile.person1Name) el.textContent = profile.person1Name; });
+      document.querySelectorAll('[data-person-2]').forEach(function (el) { if (el.textContent !== profile.person2Name) el.textContent = profile.person2Name; });
       document.querySelectorAll('[placeholder]').forEach(function (el) {
         var value = el.getAttribute('placeholder') || '';
-        el.setAttribute('placeholder', value.replace(/Geomé/g, profile.babyName).replace(/Tyron/g, profile.person1Name).replace(/Ansonette/g, profile.person2Name));
+        var personalizedValue = value.replace(/Geomé/g, profile.babyName).replace(/Tyron/g, profile.person1Name).replace(/Ansonette/g, profile.person2Name);
+        if (personalizedValue !== value) el.setAttribute('placeholder', personalizedValue);
       });
       document.title = document.title.replace(/Geomé/g, profile.babyName).replace(/Tyron/g, profile.person1Name).replace(/Ansonette/g, profile.person2Name);
     } finally {
