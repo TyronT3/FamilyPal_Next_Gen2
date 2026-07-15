@@ -6,11 +6,11 @@
 <title>FamilyPal — Home</title>
 <meta name="description" content="Your FamilyPal household dashboard.">
 <script src="assets/js/familypal-theme.js?v=20260715.10"></script>
-<link rel="stylesheet" href="assets/css/familypal.css?v=20260715.10">
+<link rel="stylesheet" href="assets/css/familypal.css?v=20260715.12">
 <style>
   body{min-height:100vh;}
 </style>
-<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260715.10">
+<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260715.12">
 </head>
 <body data-app="home">
 <main class="home-shell">
@@ -97,50 +97,67 @@ function calcPantryStatus(item){var s=item.qty_stocked||0,o=item.qty_open||0;if(
 
 async function loadDashboard(){
   var r=todayRange();
-  try{
-    var results=await Promise.all([
-      sbFetch('/rest/v1/baby_feeds?logged_at=gte.'+r.start+'&logged_at=lte.'+r.end+'&order=logged_at.desc&select=logged_at,feed_type,amount_ml,duration_mins&limit=20'),
-      sbFetch('/rest/v1/baby_diapers?logged_at=gte.'+r.start+'&logged_at=lte.'+r.end+'&select=id&limit=30'),
-      sbFetch('/rest/v1/chore_logs?completed_at=gte.'+r.start+'&completed_at=lte.'+r.end+'&select=id,completed_by,shared&limit=100'),
-      sbFetch('/rest/v1/items?select=qty_stocked,qty_open,min_stock,priority,rating')
-    ]);
-    var feeds=results[0],diapers=results[1],choreLogs=results[2],items=results[3];
+  var results=await Promise.allSettled([
+    sbFetch('/rest/v1/baby_feeds?logged_at=gte.'+r.start+'&logged_at=lte.'+r.end+'&order=logged_at.desc&select=logged_at,feed_type,amount_ml,duration_mins&limit=20'),
+    sbFetch('/rest/v1/baby_diapers?logged_at=gte.'+r.start+'&logged_at=lte.'+r.end+'&select=id&limit=30'),
+    sbFetch('/rest/v1/chore_logs?completed_at=gte.'+r.start+'&completed_at=lte.'+r.end+'&select=id,completed_by,shared&limit=100'),
+    sbFetch('/rest/v1/items?select=qty_stocked,qty_open,min_stock,priority,rating')
+  ]);
+  var feeds=results[0].status==='fulfilled'?results[0].value:null;
+  var diapers=results[1].status==='fulfilled'?results[1].value:null;
+  var choreLogs=results[2].status==='fulfilled'?results[2].value:null;
+  var items=results[3].status==='fulfilled'?results[3].value:null;
+
+  if(feeds||diapers){
+    feeds=feeds||[];diapers=diapers||[];
     var lastFeed=feeds[0];
     var feedDetail=lastFeed?(lastFeed.feed_type==='bottle'?((lastFeed.amount_ml||0)+' ml bottle'):((lastFeed.duration_mins||0)+' min breastfeed')):'No feeds logged today';
     document.getElementById('home-baby-value').textContent=lastFeed?'Last feed '+timeAgo(lastFeed.logged_at):'Nothing logged yet';
     document.getElementById('home-baby-detail').textContent=feedDetail+' · '+diapers.length+' diaper'+(diapers.length===1?'':'s')+' today';
+  }else{
+    document.getElementById('home-baby-value').textContent='Open today’s log';
+    document.getElementById('home-baby-detail').textContent='Baby status is temporarily unavailable';
+  }
 
+  if(items){
     var urgent=items.filter(function(item){return(item.priority||item.rating==='love')&&calcPantryStatus(item)==='empty';}).length;
     var low=items.filter(function(item){return calcPantryStatus(item)==='low';}).length;
     document.getElementById('home-pantry-value').textContent=urgent?urgent+' item'+(urgent===1?'':'s')+' to buy':'Pantry is in good shape';
     document.getElementById('home-pantry-detail').textContent=urgent?'Priority items are out':low?low+' item'+(low===1?' is':'s are')+' running low':'No urgent shopping';
     document.getElementById('home-pantry-action').textContent=urgent?'Open shopping list →':'Open pantry →';
+  }else{
+    document.getElementById('home-pantry-value').textContent='Open your pantry';
+    document.getElementById('home-pantry-detail').textContent='Pantry status is temporarily unavailable';
+  }
 
+  if(choreLogs){
     document.getElementById('home-chores-value').textContent=choreLogs.length?choreLogs.length+' completed today':'No chores logged yet';
     document.getElementById('home-chores-detail').textContent=choreLogs.length?'Household progress is underway':'Open the list to get started';
-
-    if(FamilyPal.profile&&!FamilyPal.profile.hidePeriodDetails){
-      try{
-        var cycles=await sbFetch('/rest/v1/period_cycles?order=start_date.desc&select=start_date,end_date&limit=12');
-        if(cycles.length){
-          var latest=new Date(cycles[0].start_date+'T00:00:00');
-          var day=Math.max(1,Math.floor((Date.now()-latest.getTime())/86400000)+1);
-          var gaps=[];
-          for(var i=0;i<cycles.length-1;i++)gaps.push(Math.round((new Date(cycles[i].start_date)-new Date(cycles[i+1].start_date))/86400000));
-          var avg=gaps.length?Math.round(gaps.reduce(function(sum,n){return sum+n;},0)/gaps.length):28;
-          var next=new Date(latest);next.setDate(next.getDate()+avg);
-          document.getElementById('home-period-value').textContent='Cycle day '+day;
-          document.getElementById('home-period-detail').textContent='Next period estimated around '+next.toLocaleDateString([],{day:'numeric',month:'short'});
-        }else{
-          document.getElementById('home-period-value').textContent='Set up your calendar';
-          document.getElementById('home-period-detail').textContent='Add a period to start predictions';
-        }
-      }catch(e){}
-    }
-  }catch(e){
-    document.getElementById('home-pantry-value').textContent='Open your pantry';
-    document.getElementById('home-baby-value').textContent='Open today’s log';
+  }else{
     document.getElementById('home-chores-value').textContent='Open today’s chores';
+    document.getElementById('home-chores-detail').textContent='Chore status is temporarily unavailable';
+  }
+
+  if(FamilyPal.profile&&!FamilyPal.profile.hidePeriodDetails){
+    try{
+      var cycles=await sbFetch('/rest/v1/period_cycles?order=start_date.desc&select=start_date,end_date&limit=12');
+      if(cycles.length){
+        var latest=new Date(cycles[0].start_date+'T00:00:00');
+        var day=Math.max(1,Math.floor((Date.now()-latest.getTime())/86400000)+1);
+        var gaps=[];
+        for(var i=0;i<cycles.length-1;i++)gaps.push(Math.round((new Date(cycles[i].start_date)-new Date(cycles[i+1].start_date))/86400000));
+        var avg=gaps.length?Math.round(gaps.reduce(function(sum,n){return sum+n;},0)/gaps.length):28;
+        var next=new Date(latest);next.setDate(next.getDate()+avg);
+        document.getElementById('home-period-value').textContent='Cycle day '+day;
+        document.getElementById('home-period-detail').textContent='Next period estimated around '+next.toLocaleDateString([],{day:'numeric',month:'short'});
+      }else{
+        document.getElementById('home-period-value').textContent='Set up your calendar';
+        document.getElementById('home-period-detail').textContent='Add a period to start predictions';
+      }
+    }catch(e){
+      document.getElementById('home-period-value').textContent='Open private calendar';
+      document.getElementById('home-period-detail').textContent='Cycle status is temporarily unavailable';
+    }
   }
   document.getElementById('home-modules').setAttribute('aria-busy','false');
 }

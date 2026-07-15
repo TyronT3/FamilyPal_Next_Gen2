@@ -6,7 +6,7 @@
 <title>PeriodPal — FamilyPal</title>
 <meta name="description" content="Private cycle tracking, daily records, forecasts, medication logs and personal analytics.">
 <script src="assets/js/familypal-theme.js?v=20260715.10"></script>
-<link rel="stylesheet" href="assets/css/familypal.css?v=20260715.10">
+<link rel="stylesheet" href="assets/css/familypal.css?v=20260715.12">
 <style>
   :root{
     --bg:#111217;--surface:#1b1d26;--card:#242634;--accent:#d9468f;--accent2:#f9737b;
@@ -25,6 +25,9 @@
   .fc-blue .fc-val{color:var(--blue);}
   .fc-yellow .fc-val{color:var(--yellow);}
   .trust-note{margin-top:10px;font-size:12px;color:var(--muted);line-height:1.4;background:rgba(243,156,18,.08);border:1px solid rgba(243,156,18,.28);border-radius:12px;padding:10px 12px;}
+  .comfort-supply-card{margin-top:10px;}
+  .comfort-supply-card.warning{border-color:color-mix(in srgb,var(--orange) 55%,var(--border));background:color-mix(in srgb,var(--orange) 8%,var(--card));}
+  .comfort-supply-card.ready{border-color:color-mix(in srgb,var(--green) 40%,var(--border));}
   .quicklog-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:12px 16px;}
   .ql-btn{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 12px;text-align:center;cursor:pointer;transition:transform .15s;}
   .ql-btn:active{transform:scale(.96);}
@@ -135,7 +138,7 @@
     .tag-dot{width:5px;height:5px;}
   }
 </style>
-<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260715.10">
+<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260715.12">
 </head>
 <body data-app="period">
 <div id="period-screen" class="app-screen">
@@ -148,9 +151,9 @@
   </header>
 
   <div class="tabs">
-    <div class="tab active" onclick="switchTab('calendar',this)">Calendar</div>
-    <div class="tab" onclick="switchTab('log',this)">Today</div>
-    <div class="tab" onclick="switchTab('analytics',this)">Insights</div>
+    <button type="button" class="tab active" onclick="switchTab('calendar',this)">Calendar</button>
+    <button type="button" class="tab" onclick="switchTab('log',this)">Today</button>
+    <button type="button" class="tab" onclick="switchTab('analytics',this)">Analytics</button>
   </div>
 
   <div class="hero-strip">
@@ -185,11 +188,11 @@
   <div id="tab-log" style="display:none">
     <div id="today-summary" class="today-summary"><div class="loading"><span class="spinner"></span></div></div>
     <div class="quicklog-grid">
-      <div class="ql-btn rose" onclick="quickStartPeriod()"><div class="ql-icon">🩸</div><div class="ql-label">Started Today</div><div class="ql-sub">One tap period start</div></div>
-      <div class="ql-btn coral" onclick="quickEndPeriod()"><div class="ql-icon">✅</div><div class="ql-label">Ended Today</div><div class="ql-sub">Close current period</div></div>
-      <div class="ql-btn blue" onclick="openCycleModal()"><div class="ql-icon">✏️</div><div class="ql-label">Add / Edit Period</div><div class="ql-sub">Dates, flow, symptoms</div></div>
-      <div class="ql-btn yellow" onclick="openEventModal(null,todayKey(),'symptom')"><div class="ql-icon">✨</div><div class="ql-label">Symptom / Mood</div><div class="ql-sub">Named daily entry</div></div>
-      <div class="ql-btn yellow" style="grid-column:1/-1" onclick="openIntimacyModal()"><div class="ql-icon">🛡️</div><div class="ql-label">Pregnancy Risk</div><div class="ql-sub">Log intimacy privately</div></div>
+      <button type="button" class="ql-btn rose" onclick="quickStartPeriod()"><span class="ql-icon">🩸</span><span class="ql-label">Started Today</span><span class="ql-sub">One tap period start</span></button>
+      <button type="button" class="ql-btn coral" onclick="quickEndPeriod()"><span class="ql-icon">✅</span><span class="ql-label">Ended Today</span><span class="ql-sub">Close current period</span></button>
+      <button type="button" class="ql-btn blue" onclick="openCycleModal()"><span class="ql-icon">✏️</span><span class="ql-label">Add / Edit Period</span><span class="ql-sub">Dates, flow, symptoms</span></button>
+      <button type="button" class="ql-btn yellow" onclick="openEventModal(null,todayKey(),'symptom')"><span class="ql-icon">✨</span><span class="ql-label">Symptom / Mood</span><span class="ql-sub">Named daily entry</span></button>
+      <button type="button" class="ql-btn yellow" style="grid-column:1/-1" onclick="openIntimacyModal()"><span class="ql-icon">🛡️</span><span class="ql-label">Pregnancy Risk</span><span class="ql-sub">Log intimacy privately</span></button>
     </div>
   </div>
 
@@ -226,11 +229,11 @@
     <button class="modal-close" onclick="closeModal('log-picker-modal')">✕</button>
     <h2>What are you logging?</h2>
     <div class="quicklog-grid" style="padding:0">
-      <div class="ql-btn rose" onclick="closeModal('log-picker-modal');quickStartPeriod()"><div class="ql-icon">🩸</div><div class="ql-label">Period Start</div></div>
-      <div class="ql-btn coral" onclick="closeModal('log-picker-modal');quickEndPeriod()"><div class="ql-icon">✅</div><div class="ql-label">Period End</div></div>
-      <div class="ql-btn blue" onclick="closeModal('log-picker-modal');openCycleModal()"><div class="ql-icon">✏️</div><div class="ql-label">Period Details</div></div>
-      <div class="ql-btn yellow" onclick="closeModal('log-picker-modal');openEventModal(null,todayKey(),'symptom')"><div class="ql-icon">✨</div><div class="ql-label">Symptom / Mood</div></div>
-      <div class="ql-btn yellow" onclick="closeModal('log-picker-modal');openIntimacyModal()"><div class="ql-icon">🛡️</div><div class="ql-label">Intimacy</div></div>
+      <button type="button" class="ql-btn rose" onclick="closeModal('log-picker-modal');quickStartPeriod()"><span class="ql-icon">🩸</span><span class="ql-label">Period Start</span></button>
+      <button type="button" class="ql-btn coral" onclick="closeModal('log-picker-modal');quickEndPeriod()"><span class="ql-icon">✅</span><span class="ql-label">Period End</span></button>
+      <button type="button" class="ql-btn blue" onclick="closeModal('log-picker-modal');openCycleModal()"><span class="ql-icon">✏️</span><span class="ql-label">Period Details</span></button>
+      <button type="button" class="ql-btn yellow" onclick="closeModal('log-picker-modal');openEventModal(null,todayKey(),'symptom')"><span class="ql-icon">✨</span><span class="ql-label">Symptom / Mood</span></button>
+      <button type="button" class="ql-btn yellow" onclick="closeModal('log-picker-modal');openIntimacyModal()"><span class="ql-icon">🛡️</span><span class="ql-label">Intimacy</span></button>
     </div>
   </div>
 </div>
@@ -368,6 +371,6 @@
 <div id="toast"></div>
 <script src="assets/js/familypal-core.js?v=20260715.10"></script>
 <script src="assets/js/familypal-ui.js?v=20260715.11"></script>
-<script src="assets/js/periodpal.js?v=20260715.10"></script>
+<script src="assets/js/periodpal.js?v=20260715.12"></script>
 </body>
 </html>

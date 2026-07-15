@@ -6,7 +6,7 @@
 <title>PantryPal — FamilyPal</title>
 <meta name="description" content="Track household pantry stock, shopping needs, expiry dates and purchase history.">
 <script src="assets/js/familypal-theme.js?v=20260715.10"></script>
-<link rel="stylesheet" href="assets/css/familypal.css?v=20260715.10">
+<link rel="stylesheet" href="assets/css/familypal.css?v=20260715.12">
 <style>
   /* ── COLOURS — edit these to change the app theme ──────
      Change any value to update colours throughout the app  */
@@ -27,7 +27,7 @@
   }
   #app-screen{display:none;}
   .header-title{font-weight:700;}
-  .toolbar{padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;}
+  .toolbar{padding:10px 16px;background:color-mix(in srgb,var(--surface) 96%,transparent);border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:64px;z-index:9;backdrop-filter:blur(16px);}
   .search-wrap{flex:1;min-width:150px;position:relative;}
   .search-wrap input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:9px 42px 9px 34px;color:var(--text);font-size:14px;outline:none;}
   .search-wrap input:focus{border-color:var(--accent);}
@@ -192,7 +192,7 @@
   @media print{body{background:#fff;color:#000;}#app-screen,header,.toolbar,.stats,.fab,#toast{display:none!important;}#print-area{display:block!important;}.print-item{padding:6px 0;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;font-size:13px;}.print-section{margin-bottom:16px;}.print-section h3{font-size:14px;font-weight:700;margin-bottom:6px;border-bottom:2px solid #000;padding-bottom:4px;}}
   #print-area{display:none;}
 </style>
-<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260715.10">
+<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260715.12">
 </head>
 <body data-app="pantry">
 <div id="app-screen" class="app-screen">
@@ -340,7 +340,7 @@
     <div class="modal-handle"></div><button class="modal-close" onclick="closeModal('shop-modal');stopShopScanner()">✕</button>
     <h2>🛒 Shopping Mode</h2>
     <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Tap an item to mark it bought and add one to pantry stock. Untap it to reverse the stock change.</p>
-    <div class="sync-banner" id="sync-banner">⏳ <span id="sync-count">0</span> updates pending…</div>
+    <div class="sync-banner" id="sync-banner" role="status" aria-live="polite"><strong id="sync-state">Offline</strong> · <span id="sync-summary">Changes will sync when connected</span></div>
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
       <button class="btn btn-primary" style="font-size:13px;margin-top:0" onclick="startShopScan()">📷 Scan</button>
       <button class="btn btn-secondary" style="font-size:13px" onclick="shareWhatsApp()">💬 WhatsApp</button>
@@ -428,6 +428,6 @@
 
 <script src="assets/js/familypal-core.js?v=20260715.10"></script>
 <script src="assets/js/familypal-ui.js?v=20260715.11"></script>
-<script src="assets/js/pantrypal.js?v=20260715.10"></script>
+<script src="assets/js/pantrypal.js?v=20260715.12"></script>
 </body>
 </html>

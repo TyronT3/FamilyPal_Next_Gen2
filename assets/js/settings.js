@@ -1,10 +1,11 @@
 function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
+var settingsPantryItems=[];
 
 async function loadSettingsPage(){
   document.getElementById('settings-screen').style.display='flex';
   document.getElementById('account-email').textContent=FamilyPal.getEmail()||'';
   syncThemeButtons();
-  await Promise.all([loadHouseholdSettings(),loadDiaperOptions(),loadPrivacySettings()]);
+  await Promise.all([loadHouseholdSettings(),loadConnectedInventory(),loadPrivacySettings()]);
 }
 
 async function loadHouseholdSettings(){
@@ -55,13 +56,28 @@ async function savePrivacySettings(button){
   finally{FamilyPalUI.setBusy(button,false);}
 }
 
-async function loadDiaperOptions(){
+function parseComfortSupplyIds(value){
+  try{var ids=JSON.parse(value||'[]');return Array.isArray(ids)?ids.map(String):[];}catch(e){return[];}
+}
+
+async function loadConnectedInventory(){
   try{
-    var current=await FamilyPal.getDiaperItemId();
-    var items=await sbFetch('/rest/v1/items?order=name.asc&select=id,name,brand,qty_stocked,min_stock');
-    document.getElementById('setting-diaper-item').innerHTML='<option value="">No pantry item selected</option>'+items.map(function(i){
+    var results=await Promise.allSettled([
+      FamilyPal.getDiaperItemId(),
+      FamilyPal.getSetting('period_comfort_item_ids'),
+      sbFetch('/rest/v1/items?order=name.asc&select=id,name,brand,qty_stocked,qty_open,min_stock')
+    ]);
+    if(results[2].status!=='fulfilled')throw results[2].reason;
+    var current=results[0].status==='fulfilled'?results[0].value:'';
+    var selected=parseComfortSupplyIds(results[1].status==='fulfilled'?results[1].value:null);
+    settingsPantryItems=results[2].value||[];
+    document.getElementById('setting-diaper-item').innerHTML='<option value="">No pantry item selected</option>'+settingsPantryItems.map(function(i){
       return '<option value="'+esc(i.id)+'" '+(i.id===current?'selected':'')+'>'+esc(i.name)+(i.brand?' — '+esc(i.brand):'')+' ('+(i.qty_stocked||0)+' left)</option>';
     }).join('');
+    document.getElementById('comfort-supply-list').innerHTML=settingsPantryItems.length?settingsPantryItems.map(function(i){
+      var detail=(i.brand?i.brand+' · ':'')+(i.qty_stocked||0)+' sealed'+((i.qty_open||0)?' · '+i.qty_open+' open':'');
+      return '<label class="comfort-option"><input type="checkbox" value="'+esc(i.id)+'" '+(selected.indexOf(String(i.id))>=0?'checked':'')+'><span>'+esc(i.name)+'<small>'+esc(detail)+'</small></span></label>';
+    }).join(''):'<div class="settings-note">Add items in PantryPal before choosing comfort supplies.</div>';
   }catch(e){toast('Could not load pantry items: '+e.message);}
 }
 
@@ -71,6 +87,16 @@ async function saveDiaperSetting(button){
     await FamilyPal.setDiaperItemId(document.getElementById('setting-diaper-item').value);
     toast('Diaper item saved');
   }catch(e){toast('Could not save diaper item: '+e.message);}
+  finally{FamilyPalUI.setBusy(button,false);}
+}
+
+async function saveComfortSupplies(button){
+  var selected=Array.from(document.querySelectorAll('#comfort-supply-list input[type="checkbox"]:checked')).map(function(input){return input.value;});
+  FamilyPalUI.setBusy(button,true,'Saving…');
+  try{
+    await FamilyPal.setSetting('period_comfort_item_ids',JSON.stringify(selected));
+    toast(selected.length?selected.length+' comfort suppl'+(selected.length===1?'y':'ies')+' saved':'Comfort supply reminders turned off');
+  }catch(e){toast('Could not save comfort supplies: '+e.message);}
   finally{FamilyPalUI.setBusy(button,false);}
 }
 

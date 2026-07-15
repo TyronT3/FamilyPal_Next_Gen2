@@ -374,7 +374,7 @@ function loadOfflineQueue(){try{offlineQueue=JSON.parse(localStorage.getItem('pp
 function saveOfflineQueue(){localStorage.setItem('pp_queue',JSON.stringify(offlineQueue));}
 function saveUnknownScans(){localStorage.setItem('pp_unknown',JSON.stringify(unknownScans));}
 async function syncOfflineQueue(){
-  if(!offlineQueue.length)return;
+  if(!navigator.onLine||!offlineQueue.length){updateSyncBanner();return;}
   const latestByItem=new Map();offlineQueue.forEach(function(op){latestByItem.set(op.item_id,op);});
   const toSync=[...latestByItem.values()];
   const succeeded=[];
@@ -397,7 +397,15 @@ async function syncOfflineQueue(){
   }
   saveOfflineQueue();updateSyncBanner();
 }
-function updateSyncBanner(){const b=document.getElementById('sync-banner');if(offlineQueue.length>0){b.style.display='block';document.getElementById('sync-count').textContent=offlineQueue.length;}else{b.style.display='none';}}
+function updateSyncBanner(){
+  const b=document.getElementById('sync-banner');if(!b)return;
+  const waiting=offlineQueue.length;
+  if(!navigator.onLine||waiting>0){
+    b.style.display='block';
+    document.getElementById('sync-state').textContent=navigator.onLine?'Syncing':'Offline';
+    document.getElementById('sync-summary').textContent=waiting?waiting+' change'+(waiting===1?'':'s')+' waiting':'Changes will sync when connected';
+  }else b.style.display='none';
+}
 function buildShopItems(){const list=[];items.forEach(item=>{const st=calcStatus(item);const isEmpty=st==='empty',isLowItem=st==='low';if(!isEmpty&&!isLowItem&&!item.priority)return;const tag=isEmpty?'buy-now':isLowItem?'buy-soon':'priority-tag';const label=isEmpty?'BUY NOW':isLowItem?'BUY SOON':'PRIORITY';list.push({item,tag,label,isPriority:!!item.priority});});return list;}
 function openShoppingMode(){document.getElementById('shop-modal').style.display='flex';updateSyncBanner();renderUnknownList();renderShopList();}
 function renderShopList(){const all=buildShopItems();const priority=all.filter(x=>x.isPriority),other=all.filter(x=>!x.isPriority);const renderItem=({item,tag,label})=>{const ticked=!!shopTicked[item.id];return`<div class="shop-list-item ${ticked?'ticked':''}" onclick="tickShopItem('${item.id}')"><div class="shop-tick">${ticked?'✓':''}</div><div class="shop-item-emoji">${item.emoji||'🥫'}</div><div class="shop-item-info"><div class="shop-item-name">${esc(item.name)}</div><div class="shop-item-brand">${esc(item.brand||'')}${catName(item.category_id)?' · '+catName(item.category_id):''}</div></div><span class="shop-tag ${tag}">${label}</span></div>`;};let html='';if(priority.length)html+=`<div class="shop-section-title">⭐ Priority (${priority.length})</div>${priority.map(renderItem).join('')}`;if(other.length)html+=`<div class="shop-section-title">📋 Also Needed (${other.length})</div>${other.map(renderItem).join('')}`;if(!priority.length&&!other.length)html=`<div style="text-align:center;padding:40px;color:var(--muted)">🎉 Nothing to buy!</div>`;document.getElementById('shop-list-content').innerHTML=html;}
@@ -615,4 +623,5 @@ function closeModal(id){document.getElementById(id).style.display='none';if(id==
 function closeItemModal(e){if(e.target===e.currentTarget)closeModal(e.currentTarget.id);}
 let toastTimer;
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2500);}
-window.addEventListener('online',()=>{syncOfflineQueue();toast('Back online — syncing…');});
+window.addEventListener('online',()=>{updateSyncBanner();syncOfflineQueue();toast('Back online — syncing…');});
+window.addEventListener('offline',()=>{updateSyncBanner();toast('Offline — pantry changes will wait to sync');});

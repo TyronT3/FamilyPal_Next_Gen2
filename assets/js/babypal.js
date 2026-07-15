@@ -70,17 +70,12 @@ function startSleepTimer(){
 }
 function updateSleepUI(){
   var banner=document.getElementById('sleep-banner');
-  var icon=document.getElementById('sleep-btn-icon'),label=document.getElementById('sleep-btn-label'),sub=document.getElementById('sleep-btn-sub');
   var lpIcon=document.getElementById('lp-sleep-icon'),lpLabel=document.getElementById('lp-sleep-label');
   if(sleepStart){
     if(banner)banner.style.display='flex';
-    var btn=document.getElementById('sleep-btn');if(btn)btn.className='ql-btn sleep-active';
-    if(icon)icon.textContent='☀️';if(label)label.textContent='End sleep';if(sub)sub.textContent='Finish the active session';
     if(lpIcon)lpIcon.textContent='☀️';if(lpLabel)lpLabel.textContent='End sleep';
   }else{
     if(banner)banner.style.display='none';
-    var btn2=document.getElementById('sleep-btn');if(btn2)btn2.className='ql-btn green';
-    if(icon)icon.textContent='😴';if(label)label.textContent='Start sleep';if(sub)sub.textContent='Begin a sleep timer';
     if(lpIcon)lpIcon.textContent='😴';if(lpLabel)lpLabel.textContent='Start sleep';
   }
 }

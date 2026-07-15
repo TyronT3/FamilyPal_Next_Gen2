@@ -9,10 +9,10 @@ FamilyPal is a private, mobile-first household organiser for pantry stock, baby 
 - **PantryPal** — inventory, shopping lists, expiry dates, price history, barcode scanning and Open Food Facts lookup.
 - **BabyPal** — feeds, diapers, sleep, pumping, health logs, trends and school-day batch entry.
 - **ChoresPal** — recurring chores, shared completion, points, goals, streaks and history.
-- **PeriodPal** — cycle calendar, daily logging, forecasts, medication records, analytics, import and data-quality tools.
+- **PeriodPal** — cycle calendar, daily logging, forecasts, medication records, analytics, import, data-quality tools and PantryPal comfort-supply reminders.
 - **WellbeingPal** — shared structured mood, energy, stress, sleep, symptom, medication and household-context tracking with personal pattern insights.
 - **JournalPal** — a separate per-account journal whose titles, dates and entry text are encrypted in the browser before storage.
-- **Household settings** — display names, pronouns, privacy preferences, diaper-stock linking, theme and account controls.
+- **Household settings** — display names, pronouns, privacy preferences, diaper-stock linking, comfort supplies, theme and account controls.
 
 ## Architecture
 
@@ -40,7 +40,7 @@ python -m http.server 8000
 
 Then open `http://localhost:8000/`. Camera-based barcode scanning requires a secure context, so test it on HTTPS or the deployed GitHub Pages site.
 
-There is no dependency installation or compilation step.
+There are no runtime dependencies or compilation steps. The optional repository validation uses Node.js only and requires no package installation.
 
 ## Supabase setup
 
@@ -74,12 +74,14 @@ This is suitable for the current single-household deployment, but a multi-househ
 
 ## Verification
 
-Run JavaScript syntax checks before committing:
+Run the complete no-dependency validation before committing:
 
 ```powershell
-Get-ChildItem assets/js -Filter *.js | ForEach-Object { node --check $_.FullName }
+npm test
 git diff --check
 ```
+
+The same validation runs automatically in GitHub Actions on pushes and pull requests. It checks JavaScript syntax, duplicate HTML IDs, local asset references, cache-version consistency, zoom restrictions and accidental native confirmation dialogs.
 
 The manual release checklist is in [MAINTAINING.md](MAINTAINING.md).
 
@@ -91,7 +93,7 @@ Application data lives in Supabase and is not changed by a GitHub Pages deployme
 
 ## Current limitations
 
-- No automated end-to-end test suite.
+- No authenticated browser end-to-end test suite; CI currently covers static regression checks.
 - No service worker or full offline mode; PantryPal only queues supported shopping scans.
 - Page-specific CSS still lives inside some HTML files.
 - Scripts use browser globals rather than ES modules.

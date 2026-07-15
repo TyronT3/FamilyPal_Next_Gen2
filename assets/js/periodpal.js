@@ -8,7 +8,7 @@ function fmtDate(s){return parseDay(s).toLocaleDateString([],{year:'numeric',mon
 function fmtFullDate(s){return parseDay(s).toLocaleDateString([],{weekday:'long',year:'numeric',month:'long',day:'numeric'});}
 function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
 
-var cycles=[],intimacy=[],exclusions=[],periodEvents=[],periodNotes=[],periodMeasurements=[],periodMedDefs=[],periodMedLogs=[],viewMonth=new Date(),activeTab='calendar',analyticsView='insights';
+var cycles=[],intimacy=[],exclusions=[],periodEvents=[],periodNotes=[],periodMeasurements=[],periodMedDefs=[],periodMedLogs=[],comfortSupplies=null,viewMonth=new Date(),activeTab='calendar',analyticsView='insights';
 var model={avgCycle:28,avgPeriod:5,lastStart:null,nextStart:null,periodEnd:null,ovulation:null,fertileStart:null,fertileEnd:null,confidence:'low'};
 var importRows=[],jsonImportData=null;
 var sexFilterStart='',sexFilterEnd='';
@@ -73,6 +73,7 @@ async function loadData(){
     renderCalendar();
     if(activeTab==='log')renderToday();
     if(activeTab==='analytics')switchAnalyticsView(analyticsView);
+    loadComfortSupplies().then(function(){renderForecast();}).catch(function(){});
   }catch(e){
     document.getElementById('forecast-content').innerHTML='<div class="loading" style="color:var(--red)">Error: '+esc(e.message)+'</div>';
   }
@@ -124,7 +125,41 @@ function renderForecast(){
     '<div class="forecast-card fc-blue"><div class="fc-lbl">Fertile window</div><div class="fc-val">'+esc(fertileText)+'</div><div class="fc-sub">Ovulation estimate '+fmtDate(model.ovulation)+'</div></div>'+
     '<div class="forecast-card fc-coral"><div class="fc-lbl">Period length</div><div class="fc-val">'+model.avgPeriod+' days</div><div class="fc-sub">Based on completed logs</div></div>'+
       '<div class="forecast-card fc-yellow"><div class="fc-lbl">Confidence</div><div class="fc-val">'+conf+'</div><div class="fc-sub">'+(model.confidence==='good'?'3+ cycles logged':model.confidence==='medium'?'More cycles will improve this':'Using 28 day default')+'</div></div>'+
-    '</div><div class="trust-note">Estimates use cycle history, a roughly 14 day luteal phase, and a fertile window around the 5 days before ovulation through about 1 day after. Calendar-only estimates can be wrong, especially with irregular cycles.</div>';
+    '</div><div class="trust-note">Estimates use cycle history, a roughly 14 day luteal phase, and a fertile window around the 5 days before ovulation through about 1 day after. Calendar-only estimates can be wrong, especially with irregular cycles.</div>'+comfortSupplyWarning();
+}
+
+function parseComfortSupplyIds(value){
+  try{var ids=JSON.parse(value||'[]');return Array.isArray(ids)?ids.map(String):[];}catch(e){return[];}
+}
+
+async function loadComfortSupplies(){
+  var selected=parseComfortSupplyIds(await FamilyPal.getSetting('period_comfort_item_ids'));
+  if(!selected.length){comfortSupplies=[];return;}
+  var pantryItems=await sbFetch('/rest/v1/items?order=name.asc&select=id,name,brand,qty_stocked,qty_open,min_stock');
+  comfortSupplies=(pantryItems||[]).filter(function(item){return selected.indexOf(String(item.id))>=0;});
+}
+
+function comfortSupplyStatus(item){
+  var sealed=Number(item.qty_stocked)||0,open=Number(item.qty_open)||0,min=Number(item.min_stock)||0;
+  if(sealed===0&&open===0)return'empty';
+  if((min>0&&sealed<min)||(sealed===1&&open===0))return'low';
+  return'ready';
+}
+
+function comfortSupplyWarning(){
+  if(!model.nextStart)return'';
+  var daysTo=daysBetween(todayKey(),model.nextStart);
+  if(daysTo < -7 || daysTo > 7)return'';
+  if(comfortSupplies===null)return'';
+  if(!comfortSupplies.length){
+    return '<div class="note-card comfort-supply-card"><div class="note-date">Comfort supplies</div><div class="note-meta">The expected period is near. Choose PantryPal items in Settings to receive low-stock reminders.</div><div class="quality-actions"><button type="button" onclick="window.location.href=\'settings.html\'">Choose supplies</button></div></div>';
+  }
+  var low=comfortSupplies.filter(function(item){return comfortSupplyStatus(item)!=='ready';});
+  if(!low.length){
+    return '<div class="note-card comfort-supply-card ready"><div class="note-date">Comfort supplies ready</div><div class="note-meta">Selected PantryPal items are stocked for the expected period around '+fmtDate(model.nextStart)+'.</div></div>';
+  }
+  var names=low.map(function(item){return esc(item.name)+(comfortSupplyStatus(item)==='empty'?' — out':' — low');}).join('<br>');
+  return '<div class="note-card comfort-supply-card warning"><div class="note-date">Comfort supplies running low</div><div class="note-meta">The next period is estimated around '+fmtDate(model.nextStart)+'. Low and empty items already appear in PantryPal shopping.</div><div class="log-detail">'+names+'</div><div class="quality-actions"><button type="button" onclick="window.location.href=\'pantrypal.html\'">Open PantryPal</button><button type="button" onclick="window.location.href=\'settings.html\'">Manage supplies</button></div></div>';
 }
 
 function avgCycleRange(){

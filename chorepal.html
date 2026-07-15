@@ -6,7 +6,7 @@
 <title>ChoresPal — FamilyPal</title>
 <meta name="description" content="Coordinate recurring household chores, shared completion, points, goals and history.">
 <script src="assets/js/familypal-theme.js?v=20260715.10"></script>
-<link rel="stylesheet" href="assets/css/familypal.css?v=20260715.10">
+<link rel="stylesheet" href="assets/css/familypal.css?v=20260715.12">
 <style>
   /* ── COLOURS ── */
   :root{
@@ -152,7 +152,7 @@
   .who-btn.ansonette{border-color:var(--ansonette);background:rgba(233,30,140,.15);color:var(--ansonette);}
   .who-btn.both{border-color:var(--accent);background:rgba(0,200,150,.15);color:var(--accent);}
   .who-btn:active{opacity:.75;}
-  .diaper-option{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border:2px solid var(--border);border-radius:12px;background:var(--card);cursor:pointer;margin-bottom:8px;font-size:14px;font-weight:600;}
+  .diaper-option{display:flex;justify-content:space-between;align-items:center;width:100%;padding:14px 16px;border:2px solid var(--border);border-radius:12px;background:var(--card);cursor:pointer;margin-bottom:8px;font-family:inherit;font-size:14px;font-weight:600;text-align:left;}
   .diaper-option:active{opacity:.75;}
   .fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#fff;font-size:24px;cursor:pointer;box-shadow:0 4px 20px rgba(0,200,150,.4);display:flex;align-items:center;justify-content:center;z-index:50;}
   .an-section{margin-bottom:18px;}
@@ -178,7 +178,7 @@
   .an-chip-b{background:rgba(100,180,140,.18);color:#3E8B7B;}
   .an-empty{font-size:13px;color:var(--muted);padding:10px 0;}
 </style>
-<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260715.10">
+<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260715.12">
 </head>
 <body data-app="chores">
 
@@ -192,10 +192,10 @@
   </header>
 
   <div class="tabs">
-    <div class="tab active" data-tab="today" onclick="switchTab('today',this)">Today</div>
-    <div class="tab" data-tab="goals" onclick="switchTab('goals',this)">Goals</div>
-    <div class="tab" data-tab="history" onclick="switchTab('history',this)">History</div>
-    <div class="tab" data-tab="analytics" onclick="switchTab('analytics',this)">Insights</div>
+    <button type="button" class="tab active" data-tab="today" onclick="switchTab('today',this)">Today</button>
+    <button type="button" class="tab" data-tab="goals" onclick="switchTab('goals',this)">Goals</button>
+    <button type="button" class="tab" data-tab="history" onclick="switchTab('history',this)">History</button>
+    <button type="button" class="tab" data-tab="analytics" onclick="switchTab('analytics',this)">Insights</button>
   </div>
 
   <div id="tab-today">
@@ -293,18 +293,18 @@
     <button class="modal-close" onclick="closeModal('diaper-modal')">✕</button>
     <h2>🚿 What type of diaper?</h2>
     <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Points are based on type. Also logs in BabyPal.</p>
-    <div class="diaper-option" onclick="completeDiaperLog('light','wet')" style="border-color:#a78bfa;color:#a78bfa">
+    <button type="button" class="diaper-option" onclick="completeDiaperLog('light','wet')" style="border-color:#a78bfa;color:#a78bfa">
       <span>💛 Light diaper</span><span style="font-size:12px">1 pt</span>
-    </div>
-    <div class="diaper-option" onclick="completeDiaperLog('wet','wet')" style="border-color:var(--tyron);color:var(--tyron)">
+    </button>
+    <button type="button" class="diaper-option" onclick="completeDiaperLog('wet','wet')" style="border-color:var(--tyron);color:var(--tyron)">
       <span>💧 Wet diaper</span><span style="font-size:12px">2 pts</span>
-    </div>
-    <div class="diaper-option" onclick="completeDiaperLog('soiled','soiled')" style="border-color:var(--yellow);color:var(--yellow)">
+    </button>
+    <button type="button" class="diaper-option" onclick="completeDiaperLog('soiled','soiled')" style="border-color:var(--yellow);color:var(--yellow)">
       <span>💩 Soiled diaper</span><span style="font-size:12px">5 pts</span>
-    </div>
-    <div class="diaper-option" onclick="completeDiaperLog('blowout','soiled')" style="border-color:var(--red);color:var(--red)">
+    </button>
+    <button type="button" class="diaper-option" onclick="completeDiaperLog('blowout','soiled')" style="border-color:var(--red);color:var(--red)">
       <span>💥 Blowout</span><span style="font-size:12px">10 pts 🏆</span>
-    </div>
+    </button>
     <button class="btn btn-secondary" onclick="completeDiaperLog('wet','wet')">Skip type — log as wet</button>
   </div>
 </div>

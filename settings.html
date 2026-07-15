@@ -6,15 +6,20 @@
 <title>FamilyPal — Settings</title>
 <meta name="description" content="Manage FamilyPal household names, privacy, appearance, linked stock and account settings.">
 <script src="assets/js/familypal-theme.js?v=20260715.10"></script>
-<link rel="stylesheet" href="assets/css/familypal.css?v=20260715.10">
+<link rel="stylesheet" href="assets/css/familypal.css?v=20260715.12">
 <style>
   #settings-screen{display:none;}
   .privacy-row{display:flex;align-items:flex-start;gap:12px;padding:4px 0;cursor:pointer;}
   .privacy-row input{width:18px;height:18px;margin-top:2px;accent-color:var(--accent);}
   .privacy-row strong{display:block;font-size:14px;}
   .privacy-row span{display:block;margin-top:3px;color:var(--muted);font-size:12px;line-height:1.45;}
+  .comfort-list{display:grid;gap:7px;max-height:260px;overflow:auto;margin-bottom:14px;padding-right:3px;}
+  .comfort-option{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);cursor:pointer;}
+  .comfort-option input{width:18px;height:18px;accent-color:var(--accent);flex:0 0 auto;}
+  .comfort-option span{min-width:0;font-size:13px;line-height:1.35;}
+  .comfort-option small{display:block;color:var(--muted);font-size:11px;margin-top:2px;}
 </style>
-<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260715.10">
+<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260715.12">
 </head>
 <body data-app="settings">
 <div id="settings-screen" class="app-screen">
@@ -53,6 +58,13 @@
       <button class="btn btn-primary" id="save-diaper" type="button" onclick="saveDiaperSetting(this)">Save diaper item</button>
     </section>
 
+    <section class="settings-card" aria-labelledby="comfort-heading">
+      <h2 id="comfort-heading">Comfort supplies</h2>
+      <p class="settings-note">Choose existing PantryPal items you would like available around the expected period. PeriodPal will warn when selected items are running low.</p>
+      <div class="comfort-list" id="comfort-supply-list"><div class="settings-note">Loading pantry items…</div></div>
+      <button class="btn btn-primary" id="save-comfort-supplies" type="button" onclick="saveComfortSupplies(this)">Save comfort supplies</button>
+    </section>
+
     <div class="settings-section-label">Appearance</div>
     <section class="settings-card" aria-labelledby="theme-heading">
       <h2 id="theme-heading">Theme</h2>
@@ -80,6 +92,6 @@
 <div id="toast" class="toast"></div>
 <script src="assets/js/familypal-core.js?v=20260715.10"></script>
 <script src="assets/js/familypal-ui.js?v=20260715.11"></script>
-<script src="assets/js/settings.js?v=20260715.10"></script>
+<script src="assets/js/settings.js?v=20260715.12"></script>
 </body>
 </html>

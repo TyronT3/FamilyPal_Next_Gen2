@@ -55,12 +55,15 @@ The `settings` table stores:
 - `baby_pronouns`
 - `hide_period_details`
 - `diaper_item_id`
+- `period_comfort_item_ids` — JSON array of existing PantryPal item IDs selected for near-period stock reminders
 
 Profile text replacement is display-only. Existing ChoresPal records use the original internal person values, so changing a display name must not rewrite historical database values.
 
 ## Cross-feature behaviour
 
 BabyPal and ChoresPal can both decrement the PantryPal item selected as `diaper_item_id`.
+
+PeriodPal reads `period_comfort_item_ids` separately from its core cycle queries. Keep that lookup non-blocking: a PantryPal or settings failure must not prevent the calendar, forecasts or daily logging from loading. Comfort-supply reminders are advisory and must never change stock automatically.
 
 When a ChoresPal diaper task is completed, it writes both a `chore_logs` record and a `baby_diapers` record. Undo must restore both the log and linked pantry stock where applicable.
 
@@ -121,7 +124,7 @@ WellbeingPal follows the user's explicit single-household sharing rule: both aut
 
 ## Cache versioning
 
-All HTML pages reference shared assets with the same query version, for example `?v=20260715.10`. Increment it when CSS or JavaScript changes and update every HTML entry point together.
+All HTML pages reference shared assets with the same query version, for example `?v=20260715.12`. Increment it when CSS or JavaScript changes and update every HTML entry point together.
 
 The query is only a cache key; it is not an application release number.
 
@@ -130,10 +133,12 @@ The query is only a cache key; it is not an application release number.
 ### Static checks
 
 ```powershell
-Get-ChildItem assets/js -Filter *.js | ForEach-Object { node --check $_.FullName }
+npm test
 git diff --check
 git status --short
 ```
+
+`npm test` has no external dependencies. GitHub Actions runs the same command for every push and pull request.
 
 ### Authentication and navigation
 

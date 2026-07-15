@@ -6,7 +6,7 @@
 <title>FamilyPal — WellbeingPal</title>
 <meta name="description" content="Shared structured wellbeing, symptoms, medication adherence and household pattern insights.">
 <script src="assets/js/familypal-theme.js?v=20260715.10"></script>
-<link rel="stylesheet" href="assets/css/familypal.css?v=20260715.10">
+<link rel="stylesheet" href="assets/css/familypal.css?v=20260715.12">
 <style>
   #wellbeing-screen{display:none;}
   .wellbeing-main{padding:16px 16px 110px;max-width:760px;margin:0 auto;width:100%;}
@@ -61,7 +61,7 @@
   .wb-empty{text-align:center;padding:28px;color:var(--muted);font-size:12px;}
   @media(max-width:520px){.wb-context-grid{grid-template-columns:1fr}.wb-private-cta{align-items:flex-start;flex-direction:column}.wb-private-cta .btn{width:100%}.wb-grid{grid-template-columns:1fr}.wb-med-row{align-items:flex-start;flex-wrap:wrap}.wb-med-actions{width:100%}.wb-med-actions button{flex:1}}
 </style>
-<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260715.10">
+<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260715.12">
 </head>
 <body data-app="wellbeing">
 <div id="wellbeing-screen" class="app-screen">
@@ -70,9 +70,9 @@
   </header>
 
   <div class="tabs" id="wellbeing-tabs" style="display:none">
-    <div class="tab active" onclick="switchWellbeingTab('today',this)">Today</div>
-    <div class="tab" onclick="switchWellbeingTab('meds',this)">Medication</div>
-    <div class="tab" onclick="switchWellbeingTab('insights',this)">Insights</div>
+    <button type="button" class="tab active" onclick="switchWellbeingTab('today',this)">Today</button>
+    <button type="button" class="tab" onclick="switchWellbeingTab('meds',this)">Medication</button>
+    <button type="button" class="tab" onclick="switchWellbeingTab('insights',this)">Insights</button>
   </div>
 
   <main class="wellbeing-main">

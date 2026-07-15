@@ -464,8 +464,12 @@ body[data-app="home"] { padding: 0; align-items: stretch; }
   background: var(--card) !important;
   border: 1px solid var(--border) !important;
   box-shadow: var(--shadow-sm);
+  color: var(--text);
+  font: inherit;
 }
 .ql-btn:hover, .lp-btn:hover { border-color: var(--border-strong) !important; }
+.ql-btn .ql-icon, .ql-btn .ql-label, .ql-btn .ql-sub,
+.lp-btn .lp-icon, .lp-btn .lp-label { display: block; }
 .ql-icon, .lp-icon, .summary-card .s-icon, .item-emoji { filter: saturate(.65); }
 .summary-card .s-lbl, .stat-chip .lbl, .forecast-card .fc-lbl, .report-card .lbl,
 .report-card .r-lbl, .insight-title, .streak-label {
