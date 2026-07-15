@@ -1,51 +1,88 @@
-# FamilyPal Next Gen
+# FamilyPal
 
-FamilyPal is a GitHub Pages household organizer backed by Supabase. This staging repo is the safe refactor workspace for the existing live FamilyPal site.
+FamilyPal is a private, mobile-first household organiser for pantry stock, baby care, chores and cycle tracking. It is a static web app built with plain HTML, CSS and JavaScript, with Supabase providing authentication and data storage.
 
-## Pages
+**Live app:** [tyront3.github.io/FamilyPal_Next_Gen2](https://tyront3.github.io/FamilyPal_Next_Gen2/)
 
-- `index.html` - login and account creation
-- `home.html` - FamilyPal app launcher
-- `settings.html` - shared household settings
-- `pantrypal.html` - PantryPal inventory, shopping, barcode scanning, and Open Food Facts lookup
-- `babypal.html` - BabyPal feeds, diapers, sleep, pumping, health, undo, and diaper stock tracking
-- `chorepal.html` - ChoresPal chores, points, goals, streaks, and BabyPal diaper-log integration
+## What is included
 
-## Shared Assets
+- **PantryPal** — inventory, shopping lists, expiry dates, price history, barcode scanning and Open Food Facts lookup.
+- **BabyPal** — feeds, diapers, sleep, pumping, health logs, trends and school-day batch entry.
+- **ChoresPal** — recurring chores, shared completion, points, goals, streaks and history.
+- **PeriodPal** — cycle calendar, daily logging, forecasts, medication records, analytics, import and data-quality tools.
+- **Household settings** — display names, pronouns, privacy preferences, diaper-stock linking, theme and account controls.
 
-- `assets/js/familypal-core.js` - shared Supabase config, REST helper, auth guard, login, signup, and sign-out helpers
-- `assets/js/familypal-theme.js` - shared light/dark theme persistence and toggle behavior
-- `assets/js/familypal-ui.js` - shared navigation, household personalisation, accessible dialogs, keyboard behavior, confirmations, and undo feedback
-- `assets/css/familypal-refined.css` - refined design tokens, responsive app shell, dashboard, navigation, and component overrides
-- `assets/js/settings.js` - shared household settings page behavior
-- `assets/js/pantrypal.js` - PantryPal app behavior extracted from `pantrypal.html`
-- `assets/js/babypal.js` - BabyPal app behavior extracted from `babypal.html`
-- `assets/js/chorepal.js` - ChoresPal app behavior extracted from `chorepal.html`
+## Architecture
 
-## Current Architecture
+FamilyPal has no framework or build step. GitHub Pages serves the files directly, and the browser talks to Supabase through its REST and Auth APIs.
 
-The app is plain HTML/CSS/JS and is intended to run as static files on GitHub Pages. Supabase provides auth and database storage. The anon key is public by design for login/signup and REST requests, but normal app data requests now attach the signed-in user's Supabase access token.
+| Area | Files |
+| --- | --- |
+| Entry and dashboard | `index.html`, `home.html` |
+| Feature pages | `pantrypal.html`, `babypal.html`, `chorepal.html`, `periodpal.html` |
+| Settings and utilities | `settings.html`, `priceseeder.html` |
+| Shared runtime | `assets/js/familypal-core.js`, `familypal-ui.js`, `familypal-theme.js` |
+| Feature logic | `assets/js/pantrypal.js`, `babypal.js`, `chorepal.js`, `periodpal.js`, `settings.js` |
+| Styling | `assets/css/familypal.css`, `familypal-refined.css` |
+| Database history | `supabase/migrations/` |
 
-Authentication stores `fp_email`, `fp_access_token`, `fp_refresh_token`, and `fp_token_expires_at` in `localStorage`. Any legacy `fp_pass` value is cleared immediately when `familypal-core.js` loads. All app pages start a 30-minute background token refresh after login so sessions stay alive during extended idle use.
+`index.html` is intentionally the GitHub Pages entry point and contains sign-in. A successful sign-in opens `home.html`, the authenticated dashboard.
 
-The Quagga.js barcode scanning library (~300 KB) is loaded on demand the first time the scanner is opened, not on page load.
+## Local development
 
-The migration `supabase/migrations/20260612010000_enable_authenticated_rls.sql` enables Row Level Security and allows only authenticated users to manage the current shared household tables. This blocks anonymous table access, but it is not yet per-household isolation because the schema does not have household/user ownership columns.
+Serve the repository root with any static file server. For example:
 
-## Refactor Path
+```powershell
+python -m http.server 8000
+```
 
-1. Preserve current behavior.
-2. Keep GitHub Pages filenames and links normalized.
-3. Document the staging project.
-4. Extract shared CSS and JavaScript.
-5. Centralize Supabase, auth, and client helpers.
-6. Refactor one app at a time: PantryPal, BabyPal, then ChoresPal.
-7. Test locally before pushing to the staging repo.
+Then open `http://localhost:8000/`. Camera-based barcode scanning requires a secure context, so test it on HTTPS or the deployed GitHub Pages site.
 
-## Local Testing
+There is no dependency installation or compilation step.
 
-These files can be opened directly in a browser, or served with any static file server from the repository root. Barcode scanning generally requires a secure context, so camera testing should happen on HTTPS GitHub Pages or a local secure setup.
+## Supabase setup
 
-## Older Notes
+1. Create a Supabase project.
+2. Run every SQL file in `supabase/migrations/` in filename order.
+3. Put the project URL and public anon key in `assets/js/familypal-core.js`.
+4. Configure Supabase Auth redirect URLs for the local and GitHub Pages addresses you use.
+5. Deploy the repository root through GitHub Pages.
 
-`pantrypal-docs (2).md` contains older setup and feature notes. Treat it as historical reference until it is reviewed and merged into current documentation.
+The initial-schema migration reflects the historical starting state and is followed immediately by the authenticated-RLS migration. Do not run only the initial migration on an existing secured database.
+
+The browser-visible anon key is expected in a static app. Never place a Supabase service-role key in this repository or in client-side JavaScript.
+
+## Security model
+
+- Supabase Auth manages user sessions.
+- Access and refresh tokens are stored in browser `localStorage`; passwords are not stored.
+- Data requests include the signed-in user's bearer token.
+- Row Level Security blocks anonymous table access.
+- Current policies allow any authenticated FamilyPal account to use the shared tables. The schema does not yet isolate data by household.
+
+This is suitable for the current single-household deployment, but a multi-household version must add household ownership columns and household-scoped RLS policies.
+
+## Verification
+
+Run JavaScript syntax checks before committing:
+
+```powershell
+Get-ChildItem assets/js -Filter *.js | ForEach-Object { node --check $_.FullName }
+git diff --check
+```
+
+The manual release checklist is in [MAINTAINING.md](MAINTAINING.md).
+
+## Deployment
+
+GitHub Pages deploys from `main` at the repository root. After changing a shared CSS or JavaScript asset, update the common `?v=` query value in every HTML page so existing installations do not reuse stale browser caches.
+
+Application data lives in Supabase and is not changed by a GitHub Pages deployment.
+
+## Current limitations
+
+- No automated end-to-end test suite.
+- No service worker or full offline mode; PantryPal only queues supported shopping scans.
+- Page-specific CSS still lives inside some HTML files.
+- Scripts use browser globals rather than ES modules.
+- RLS is authenticated-wide rather than household-scoped.

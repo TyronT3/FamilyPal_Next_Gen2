@@ -38,14 +38,8 @@ body{
   min-height:100vh;
 }
 
-.logo{font-size:56px;margin-bottom:8px;}
-.app-title{font-size:30px;font-weight:800;background:linear-gradient(135deg,#6c63ff,#e91e8c);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px;}
-.app-sub{color:var(--muted);font-size:14px;margin-bottom:28px;}
-
 html[data-theme="light"] .auth-box,
-html[data-theme="light"] .app-card,
 html[data-theme="light"] .modal,
-html[data-theme="light"] .surface-card,
 html[data-theme="light"] .item-card,
 html[data-theme="light"] .summary-card,
 html[data-theme="light"] .chore-card,
@@ -53,10 +47,6 @@ html[data-theme="light"] .log-item{
   box-shadow:0 8px 24px rgba(18,29,47,.08);
 }
 
-html[data-theme="light"] .app-card.pantry{background:linear-gradient(135deg,#ffffff,#f1f0ff);border-color:#d9d6ff;}
-html[data-theme="light"] .app-card.baby{background:linear-gradient(135deg,#ffffff,#fff0f7);border-color:#f3c4de;}
-html[data-theme="light"] .app-card.chores{background:linear-gradient(135deg,#ffffff,#ecfbf6);border-color:#bceadd;}
-html[data-theme="light"] .app-card.period{background:linear-gradient(135deg,#ffffff,#fff0f5);border-color:#f4c4d7;}
 html[data-theme="light"] .count-stocked,
 html[data-theme="light"] .action-btn.green,
 html[data-theme="light"] .rating-opt.selected-love{background:#e7f7ef;}
@@ -109,7 +99,6 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);}
 .field textarea{resize:vertical;min-height:80px;}
 
-.surface-card,
 .item-card,
 .summary-card,
 .chore-card,

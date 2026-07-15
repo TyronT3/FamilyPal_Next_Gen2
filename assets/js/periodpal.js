@@ -45,11 +45,6 @@ function switchAnalyticsView(view){
   else renderHistory();
 }
 
-function openAnalytics(view){
-  switchTab('analytics',document.querySelectorAll('.tab')[2]);
-  switchAnalyticsView(view||'insights');
-}
-
 async function loadData(){
   try{
     var start=new Date();start.setMonth(start.getMonth()-14);
@@ -835,12 +830,6 @@ function measurementDetail(m){
   return [primary,normalized,m.raw_value].filter(Boolean).join(' · ');
 }
 
-function measurementNumber(m){
-  if(m.normalized_value!=null&&!isNaN(Number(m.normalized_value)))return Number(m.normalized_value);
-  if(m.value!=null&&!isNaN(Number(m.value)))return Number(m.value);
-  return null;
-}
-
 function measurementKgValues(m){
   var values=[];
   if(m.value!=null&&!isNaN(Number(m.value))){
@@ -882,11 +871,6 @@ function applyMeasurementFilter(){
 
 function medicationDetail(m){
   return ['status '+(m.take_status_code||'unknown'),m.pill_type_code?'type '+m.pill_type_code:'',m.raw_value].filter(Boolean).join(' · ');
-}
-
-function dateTimeLabel(date,datetime){
-  if(!datetime)return fmtFullDate(date);
-  try{return new Date(datetime).toLocaleString([],{weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return fmtFullDate(date);}
 }
 
 function openExclusionModal(id){

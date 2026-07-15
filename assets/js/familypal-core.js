@@ -23,10 +23,6 @@
     return localStorage.getItem('fp_email');
   }
 
-  function getPassword() {
-    return localStorage.getItem('fp_pass');
-  }
-
   function getAccessToken() {
     return localStorage.getItem('fp_access_token');
   }
@@ -95,14 +91,6 @@
     localStorage.removeItem('fp_access_token');
     localStorage.removeItem('fp_refresh_token');
     localStorage.removeItem('fp_token_expires_at');
-  }
-
-  function requireAuth() {
-    if (!getEmail()) {
-      window.location.href = 'index.html';
-      return false;
-    }
-    return true;
   }
 
   async function requireSession() {
@@ -291,10 +279,7 @@
       await refreshSession();
       return true;
     }
-    var password = getPassword();
-    if (!password) return false;
-    await signIn(email, password);
-    return true;
+    return false;
   }
 
   async function signUp(email, password) {
@@ -333,7 +318,6 @@
     setSetting: setSetting,
     getDiaperItemId: getDiaperItemId,
     setDiaperItemId: setDiaperItemId,
-    requireAuth: requireAuth,
     requireSession: requireSession,
     authJson: authJson,
     refreshSession: refreshSession,
@@ -352,9 +336,5 @@
     stopTokenRefresh: stopTokenRefresh
   };
 
-  global.SB_URL = config.supabaseUrl;
-  global.SB_KEY = config.supabaseAnonKey;
-  global.SUPABASE_URL = config.supabaseUrl;
-  global.SUPABASE_KEY = config.supabaseAnonKey;
   global.sbFetch = requestJson;
 })(window);

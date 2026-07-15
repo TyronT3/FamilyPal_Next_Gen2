@@ -421,9 +421,6 @@ async function logBreastFeed(){
   var side=document.getElementById('breast-side').value,time=document.getElementById('breast-time').value||nowLocal(),notes=document.getElementById('breast-notes').value.trim();
   try{var rows=await sbFetch('/rest/v1/baby_feeds',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({feed_type:'breast',duration_mins:mins,breast_side:side,logged_at:new Date(time).toISOString(),notes:notes||null})});closeModal('breast-modal');offerBabyUndo('baby_feeds',rows,mins+' min breastfeed logged');if(activeTab==='today')loadToday();}catch(e){toast('Error: '+e.message);}
 }
-async function logDiaper(type){
-  try{var rows=await sbFetch('/rest/v1/baby_diapers',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({diaper_type:type,logged_at:new Date().toISOString()})});var stock=await consumeDiaperStock('BabyPal');offerBabyUndo('baby_diapers',rows,(type==='wet'?'Wet diaper logged':'Soiled diaper logged')+stock.message,stock.changed);if(activeTab==='today')loadToday();}catch(e){toast('Error: '+e.message);}
-}
 async function logPump(){
   var ml=parseInt(document.getElementById('pump-ml').value);if(!ml||ml<1){toast('Enter amount');return;}
   var mins=parseInt(document.getElementById('pump-mins').value)||null,time=document.getElementById('pump-time').value||nowLocal(),notes=document.getElementById('pump-notes').value.trim();
