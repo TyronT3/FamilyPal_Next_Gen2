@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FamilyPal — Settings</title>
 <meta name="description" content="Manage FamilyPal household names, privacy, appearance, linked stock and account settings.">
-<script src="assets/js/familypal-theme.js?v=20260715.7"></script>
-<link rel="stylesheet" href="assets/css/familypal.css?v=20260715.7">
+<script src="assets/js/familypal-theme.js?v=20260715.8"></script>
+<link rel="stylesheet" href="assets/css/familypal.css?v=20260715.8">
 <style>
   #settings-screen{display:none;}
   .privacy-row{display:flex;align-items:flex-start;gap:12px;padding:4px 0;cursor:pointer;}
@@ -14,7 +14,7 @@
   .privacy-row strong{display:block;font-size:14px;}
   .privacy-row span{display:block;margin-top:3px;color:var(--muted);font-size:12px;line-height:1.45;}
 </style>
-<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260715.7">
+<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260715.8">
 </head>
 <body data-app="settings">
 <div id="settings-screen" class="app-screen">
@@ -26,11 +26,12 @@
     <div class="settings-section-label">Household</div>
     <section class="settings-card" aria-labelledby="household-heading">
       <h2 id="household-heading">Names and personalisation</h2>
+      <p class="settings-note">These names identify each partner throughout FamilyPal, including ChoresPal scores, goals and history.</p>
       <div class="field"><label for="setting-household-name">Household name</label><input id="setting-household-name" type="text" placeholder="Our household" autocomplete="organization"></div>
       <div class="field"><label for="setting-baby-name">Baby name</label><input id="setting-baby-name" type="text" placeholder="Baby"></div>
       <div class="field"><label for="setting-baby-pronouns">Baby pronouns</label><select id="setting-baby-pronouns"><option value="she">She / her</option><option value="he">He / him</option><option value="they">They / them</option></select></div>
-      <div class="field"><label for="setting-person-1">Person 1</label><input id="setting-person-1" type="text" placeholder="Person 1" autocomplete="name"></div>
-      <div class="field"><label for="setting-person-2">Person 2</label><input id="setting-person-2" type="text" placeholder="Person 2" autocomplete="name"></div>
+      <div class="field"><label for="setting-person-1">Husband</label><input id="setting-person-1" type="text" placeholder="Husband's name" autocomplete="name"></div>
+      <div class="field"><label for="setting-person-2">Wife</label><input id="setting-person-2" type="text" placeholder="Wife's name" autocomplete="name"></div>
       <button class="btn btn-primary" id="save-household" type="button" onclick="saveHouseholdSettings(this)">Save household</button>
     </section>
 
@@ -77,8 +78,8 @@
   </main>
 </div>
 <div id="toast" class="toast"></div>
-<script src="assets/js/familypal-core.js?v=20260715.7"></script>
-<script src="assets/js/familypal-ui.js?v=20260715.7"></script>
-<script src="assets/js/settings.js?v=20260715.7"></script>
+<script src="assets/js/familypal-core.js?v=20260715.8"></script>
+<script src="assets/js/familypal-ui.js?v=20260715.8"></script>
+<script src="assets/js/settings.js?v=20260715.8"></script>
 </body>
 </html>

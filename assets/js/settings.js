@@ -19,13 +19,17 @@ async function loadHouseholdSettings(){
 }
 
 async function saveHouseholdSettings(button){
+  var husbandName=document.getElementById('setting-person-1').value.trim();
+  var wifeName=document.getElementById('setting-person-2').value.trim();
+  if(!husbandName||!wifeName){toast('Enter both the husband and wife names');return;}
+  if(husbandName.toLocaleLowerCase()===wifeName.toLocaleLowerCase()){toast('Use a different name for each partner');return;}
   FamilyPalUI.setBusy(button,true,'Saving…');
   try{
     await Promise.all([
       FamilyPal.setSetting('household_name',document.getElementById('setting-household-name').value.trim()),
       FamilyPal.setSetting('baby_name',document.getElementById('setting-baby-name').value.trim()),
-      FamilyPal.setSetting('person_1_name',document.getElementById('setting-person-1').value.trim()),
-      FamilyPal.setSetting('person_2_name',document.getElementById('setting-person-2').value.trim()),
+      FamilyPal.setSetting('person_1_name',husbandName),
+      FamilyPal.setSetting('person_2_name',wifeName),
       FamilyPal.setSetting('baby_pronouns',document.getElementById('setting-baby-pronouns').value)
     ]);
     await FamilyPalUI.loadProfile(true);

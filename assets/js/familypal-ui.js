@@ -21,6 +21,14 @@
     return { subject: 'she', Subject: 'She', object: 'her', possessive: 'her' };
   }
 
+  function replaceProfileTokens(value) {
+    return String(value || '').replace(/Geomé|Tyron|Ansonette/g, function (token) {
+      if (token === 'Geomé') return profile.babyName;
+      if (token === 'Tyron') return profile.person1Name;
+      return profile.person2Name;
+    });
+  }
+
   function applyProfileToText(root) {
     if (!root || personalizing) return;
     personalizing = true;
@@ -34,10 +42,7 @@
         var parent = textNode.parentElement;
         if (!parent || /^(SCRIPT|STYLE|TEXTAREA)$/.test(parent.tagName)) return;
         var text = textNode.nodeValue;
-        var next = text
-          .replace(/Geomé/g, profile.babyName)
-          .replace(/Tyron/g, profile.person1Name)
-          .replace(/Ansonette/g, profile.person2Name);
+        var next = replaceProfileTokens(text);
         if (document.body && document.body.dataset.app === 'baby') {
           next = next.replace(/\bShe\b/g, p.Subject).replace(/\bshe\b/g, p.subject);
         }
@@ -49,10 +54,10 @@
       document.querySelectorAll('[data-person-2]').forEach(function (el) { if (el.textContent !== profile.person2Name) el.textContent = profile.person2Name; });
       document.querySelectorAll('[placeholder]').forEach(function (el) {
         var value = el.getAttribute('placeholder') || '';
-        var personalizedValue = value.replace(/Geomé/g, profile.babyName).replace(/Tyron/g, profile.person1Name).replace(/Ansonette/g, profile.person2Name);
+        var personalizedValue = replaceProfileTokens(value);
         if (personalizedValue !== value) el.setAttribute('placeholder', personalizedValue);
       });
-      document.title = document.title.replace(/Geomé/g, profile.babyName).replace(/Tyron/g, profile.person1Name).replace(/Ansonette/g, profile.person2Name);
+      document.title = replaceProfileTokens(document.title);
     } finally {
       personalizing = false;
     }
