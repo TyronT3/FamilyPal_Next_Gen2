@@ -92,11 +92,13 @@
     if (root.matches && root.matches('div[onclick], span[onclick]')) elements.push(root);
     if (root.querySelectorAll) elements = elements.concat(Array.from(root.querySelectorAll('div[onclick], span[onclick]')));
     elements.forEach(function (el) {
+      if (el.classList.contains('modal-overlay')) return;
       if (el.hasAttribute('data-fp-keyboard')) return;
       el.setAttribute('data-fp-keyboard', 'true');
       el.setAttribute('role', 'button');
       if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
       el.addEventListener('keydown', function (event) {
+        if (event.target !== el) return;
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           el.click();
