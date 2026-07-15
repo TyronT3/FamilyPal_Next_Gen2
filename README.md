@@ -1,6 +1,6 @@
 # FamilyPal
 
-FamilyPal is a private, mobile-first household organiser for pantry stock, baby care, chores and cycle tracking. It is a static web app built with plain HTML, CSS and JavaScript, with Supabase providing authentication and data storage.
+FamilyPal is a private, mobile-first household organiser for pantry stock, baby care, chores, cycle tracking and personal encrypted journals. It is a static web app built with plain HTML, CSS and JavaScript, with Supabase providing authentication and data storage.
 
 **Live app:** [tyront3.github.io/FamilyPal_Next_Gen2](https://tyront3.github.io/FamilyPal_Next_Gen2/)
 
@@ -10,6 +10,7 @@ FamilyPal is a private, mobile-first household organiser for pantry stock, baby 
 - **BabyPal** — feeds, diapers, sleep, pumping, health logs, trends and school-day batch entry.
 - **ChoresPal** — recurring chores, shared completion, points, goals, streaks and history.
 - **PeriodPal** — cycle calendar, daily logging, forecasts, medication records, analytics, import and data-quality tools.
+- **JournalPal** — a separate per-account journal whose titles, dates and entry text are encrypted in the browser before storage.
 - **Household settings** — display names, pronouns, privacy preferences, diaper-stock linking, theme and account controls.
 
 ## Architecture
@@ -19,10 +20,10 @@ FamilyPal has no framework or build step. GitHub Pages serves the files directly
 | Area | Files |
 | --- | --- |
 | Entry and dashboard | `index.html`, `home.html` |
-| Feature pages | `pantrypal.html`, `babypal.html`, `chorepal.html`, `periodpal.html` |
+| Feature pages | `pantrypal.html`, `babypal.html`, `chorepal.html`, `periodpal.html`, `journalpal.html` |
 | Settings and utilities | `settings.html`, `priceseeder.html` |
 | Shared runtime | `assets/js/familypal-core.js`, `familypal-ui.js`, `familypal-theme.js` |
-| Feature logic | `assets/js/pantrypal.js`, `babypal.js`, `chorepal.js`, `periodpal.js`, `settings.js` |
+| Feature logic | `assets/js/pantrypal.js`, `babypal.js`, `chorepal.js`, `periodpal.js`, `journalpal.js`, `settings.js` |
 | Styling | `assets/css/familypal.css`, `familypal-refined.css` |
 | Database history | `supabase/migrations/` |
 
@@ -59,6 +60,11 @@ The browser-visible anon key is expected in a static app. Never place a Supabase
 - Data requests include the signed-in user's bearer token.
 - Row Level Security blocks anonymous table access.
 - Current policies allow any authenticated FamilyPal account to use the shared tables. The schema does not yet isolate data by household.
+- JournalPal is the exception: its vault and entries are owner-scoped with `auth.uid()`, and journal content is encrypted client-side with AES-256-GCM.
+
+Each JournalPal user must have a separate Supabase Auth account. The journal passphrase and unwrapped journal key are never stored or sent to Supabase. Losing the passphrase makes the journal unrecoverable. A database administrator can see ciphertext, record sizes and timestamps, and can delete or corrupt records, but cannot decrypt a strong-passphrase journal from the database alone.
+
+Because the GitHub Pages application delivers the encryption code, a malicious future deployment could capture a passphrase when it is entered. JournalPal protects against database reading and accidental cross-account access; it cannot protect against a compromised browser, device or deliberately malicious application update.
 
 This is suitable for the current single-household deployment, but a multi-household version must add household ownership columns and household-scoped RLS policies.
 
@@ -86,3 +92,4 @@ Application data lives in Supabase and is not changed by a GitHub Pages deployme
 - Page-specific CSS still lives inside some HTML files.
 - Scripts use browser globals rather than ES modules.
 - RLS is authenticated-wide rather than household-scoped.
+- JournalPal has no passphrase recovery by design.

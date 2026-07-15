@@ -40,7 +40,7 @@
       var p = pronouns();
       nodes.forEach(function (textNode) {
         var parent = textNode.parentElement;
-        if (!parent || /^(SCRIPT|STYLE|TEXTAREA)$/.test(parent.tagName)) return;
+        if (!parent || /^(SCRIPT|STYLE|TEXTAREA)$/.test(parent.tagName) || parent.closest('[data-private-content]')) return;
         var text = textNode.nodeValue;
         var next = replaceProfileTokens(text);
         if (document.body && document.body.dataset.app === 'baby') {
@@ -53,6 +53,7 @@
       document.querySelectorAll('[data-person-1]').forEach(function (el) { if (el.textContent !== profile.person1Name) el.textContent = profile.person1Name; });
       document.querySelectorAll('[data-person-2]').forEach(function (el) { if (el.textContent !== profile.person2Name) el.textContent = profile.person2Name; });
       document.querySelectorAll('[placeholder]').forEach(function (el) {
+        if (el.closest('[data-private-content]')) return;
         var value = el.getAttribute('placeholder') || '';
         var personalizedValue = replaceProfileTokens(value);
         if (personalizedValue !== value) el.setAttribute('placeholder', personalizedValue);
@@ -160,7 +161,7 @@
     ];
     nav.innerHTML = items.map(function (item) {
       return '<a class="fp-nav-item ' + (app === item.id ? 'active' : '') + '" ' + (app === item.id ? 'aria-current="page" ' : '') + 'href="' + item.href + '"><span class="fp-nav-symbol" aria-hidden="true">' + item.symbol + '</span><span>' + item.label + '</span></a>';
-    }).join('') + '<button class="fp-nav-item ' + (app === 'period' || app === 'settings' || app === 'price' ? 'active' : '') + '" type="button" data-fp-more><span class="fp-nav-symbol" aria-hidden="true">•••</span><span>More</span></button>';
+    }).join('') + '<button class="fp-nav-item ' + (app === 'period' || app === 'journal' || app === 'settings' || app === 'price' ? 'active' : '') + '" type="button" data-fp-more><span class="fp-nav-symbol" aria-hidden="true">•••</span><span>More</span></button>';
     document.body.appendChild(nav);
     injectMoreSheet();
     nav.querySelector('[data-fp-more]').addEventListener('click', openMoreSheet);
@@ -172,7 +173,7 @@
     overlay.id = 'fp-more-sheet';
     overlay.className = 'modal-overlay fp-more-sheet';
     overlay.style.display = 'none';
-    overlay.innerHTML = '<div class="modal"><div class="modal-handle"></div><button class="modal-close" type="button" data-fp-close aria-label="Close">×</button><h2>More from FamilyPal</h2><div class="fp-more-grid"><button class="fp-more-action" type="button" data-href="periodpal.html"><strong>PeriodPal</strong><span>Private cycle calendar and health records</span></button><button class="fp-more-action" type="button" data-href="settings.html"><strong>Settings</strong><span>Household, appearance and account</span></button></div></div>';
+    overlay.innerHTML = '<div class="modal"><div class="modal-handle"></div><button class="modal-close" type="button" data-fp-close aria-label="Close">×</button><h2>More from FamilyPal</h2><div class="fp-more-grid"><button class="fp-more-action" type="button" data-href="periodpal.html"><strong>PeriodPal</strong><span>Private cycle calendar and health records</span></button><button class="fp-more-action" type="button" data-href="journalpal.html"><strong>JournalPal</strong><span>Your personal encrypted journal</span></button><button class="fp-more-action" type="button" data-href="settings.html"><strong>Settings</strong><span>Household, appearance and account</span></button></div></div>';
     document.body.appendChild(overlay);
     overlay.addEventListener('click', function (event) { if (event.target === overlay) closeMoreSheet(); });
     overlay.querySelector('[data-fp-close]').addEventListener('click', closeMoreSheet);

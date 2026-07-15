@@ -42,6 +42,8 @@ Feature keys:
 
 The legacy `fp_pass` key is deleted when the shared runtime loads. Never reintroduce password persistence.
 
+JournalPal deliberately stores neither its passphrase nor its unwrapped vault key in browser storage. The key exists only in memory while `journalpal.html` is unlocked and is discarded on lock, inactivity or page exit.
+
 ## Shared settings
 
 The `settings` table stores:
@@ -76,8 +78,22 @@ For a fresh project, run the files in chronological filename order. The sequence
 4. Shared settings and BabyPal health records.
 5. Pantry unit-price support.
 6. PeriodPal tables, exclusions and import history.
+7. Per-user JournalPal vaults and encrypted entry storage.
 
 The current RLS model is intentionally single-household: anonymous access is blocked, but authenticated accounts share the same rows. Household isolation requires a dedicated schema and policy migration.
+
+JournalPal does not follow the shared-table model. `journal_vaults` and `journal_entries` must remain scoped to `(select auth.uid()) = owner_id`. Never replace those policies with authenticated-wide access.
+
+## JournalPal encryption contract
+
+- Encrypt only JournalPal payloads; do not silently extend journal encryption to any other FamilyPal table.
+- Use a random 256-bit vault key for entries and AES-GCM with a new random 96-bit IV for every encryption.
+- Wrap the vault key with AES-GCM using a key derived from the journal passphrase by PBKDF2-HMAC-SHA256 at 600,000 iterations and a random 128-bit salt.
+- Keep entry titles, entry dates and bodies together inside the encrypted JSON payload.
+- Bind entry ciphertext to its row ID using authenticated additional data.
+- Never store, log, transmit or add recovery for the journal passphrase or unwrapped vault key without an explicit security redesign.
+- Keep `[data-private-content]` excluded from shared profile text replacement so journal text is never modified after decryption.
+- Separate journals require separate Supabase Auth accounts. Shared sign-in credentials cannot identify two people securely.
 
 ## UI conventions
 
@@ -92,7 +108,7 @@ The current RLS model is intentionally single-household: anonymous access is blo
 
 ## Cache versioning
 
-All HTML pages reference shared assets with the same query version, for example `?v=20260715.7`. Increment it when CSS or JavaScript changes and update every HTML entry point together.
+All HTML pages reference shared assets with the same query version, for example `?v=20260715.9`. Increment it when CSS or JavaScript changes and update every HTML entry point together.
 
 The query is only a cache key; it is not an application release number.
 
@@ -121,6 +137,7 @@ git status --short
 - BabyPal: log and undo a feed or diaper; start and stop sleep.
 - ChoresPal: complete and undo a normal and shared chore.
 - PeriodPal: open Calendar, Today and Analytics; save one reversible entry.
+- JournalPal: create or unlock a test vault, save/edit/delete an entry, lock it, confirm a wrong passphrase fails, and verify the database contains ciphertext only.
 - Settings: save household names, privacy and diaper-stock selection.
 
 ### Deployment

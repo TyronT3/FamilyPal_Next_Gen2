@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FamilyPal — JournalPal</title>
+<meta name="description" content="A personal end-to-end encrypted journal inside FamilyPal.">
+<script src="assets/js/familypal-theme.js?v=20260715.9"></script>
+<link rel="stylesheet" href="assets/css/familypal.css?v=20260715.9">
+<style>
+  #journal-screen{display:none;}
+  .journal-main{padding:20px 16px 110px;max-width:720px;margin:0 auto;width:100%;}
+  .journal-intro{margin-bottom:18px;}
+  .journal-intro h1{font-size:25px;letter-spacing:-.03em;margin-bottom:5px;}
+  .journal-intro p{color:var(--muted);font-size:13px;line-height:1.5;}
+  .journal-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;box-shadow:var(--shadow-sm);}
+  .journal-card h2{font-size:18px;margin-bottom:7px;}
+  .journal-card>p{color:var(--muted);font-size:13px;line-height:1.55;margin-bottom:18px;}
+  .journal-security{display:flex;gap:10px;align-items:flex-start;background:color-mix(in srgb,var(--accent) 8%,var(--card));border:1px solid color-mix(in srgb,var(--accent) 26%,var(--border));border-radius:12px;padding:12px;margin:14px 0;font-size:12px;line-height:1.5;color:var(--muted);}
+  .journal-security strong{display:block;color:var(--text);font-size:13px;margin-bottom:2px;}
+  .journal-account{font-size:12px;color:var(--muted);margin:0 0 16px;word-break:break-word;}
+  .journal-account strong{color:var(--text);}
+  .journal-check{display:flex;align-items:flex-start;gap:10px;margin:12px 0 18px;color:var(--muted);font-size:12px;line-height:1.45;}
+  .journal-check input{width:18px;height:18px;margin-top:1px;accent-color:var(--accent);flex:0 0 auto;}
+  .journal-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:15px;}
+  .journal-toolbar h2{font-size:20px;margin:0;}
+  .journal-toolbar p{font-size:12px;color:var(--muted);margin-top:3px;}
+  .journal-toolbar .btn{width:auto;margin:0;white-space:nowrap;}
+  .journal-entry{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:15px;margin-bottom:10px;color:var(--text);cursor:pointer;box-shadow:var(--shadow-sm);}
+  .journal-entry:hover{border-color:var(--border-strong);}
+  .journal-entry-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:5px;}
+  .journal-entry-title{font-size:15px;font-weight:750;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .journal-entry-date{font-size:11px;color:var(--muted);white-space:nowrap;}
+  .journal-entry-preview{font-size:13px;color:var(--muted);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-wrap;}
+  .journal-failed{border-color:color-mix(in srgb,var(--red) 35%,var(--border));cursor:default;}
+  .journal-failed .journal-entry-title{color:var(--red);}
+  .journal-loading{text-align:center;padding:30px;color:var(--muted);font-size:13px;}
+  .journal-error{color:var(--red);font-size:12px;min-height:18px;margin-top:8px;}
+  .journal-modal textarea{min-height:220px;line-height:1.55;}
+  .journal-modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .journal-modal-actions .btn{margin:0;}
+  .journal-delete{margin-top:10px!important;color:var(--red)!important;}
+  @media(max-width:420px){.journal-toolbar{align-items:flex-start}.journal-toolbar .btn{padding:10px 13px}.journal-modal-actions{grid-template-columns:1fr}}
+</style>
+<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260715.9">
+</head>
+<body data-app="journal">
+<div id="journal-screen" class="app-screen">
+  <header>
+    <div class="header-left"><span class="header-logo" aria-hidden="true">◆</span><span class="header-title">JournalPal</span></div>
+    <div class="header-actions">
+      <button class="icon-btn header-text-btn" id="journal-lock-button" type="button" onclick="lockJournal()" style="display:none"><span class="label">Lock</span><span aria-hidden="true">⌁</span></button>
+    </div>
+  </header>
+
+  <main class="journal-main">
+    <section class="journal-intro" aria-labelledby="journal-heading">
+      <h1 id="journal-heading">Your private space</h1>
+      <p>Journal entries are encrypted on this device before they are saved. Other FamilyPal data is not encrypted or changed.</p>
+    </section>
+
+    <div id="journal-loading" class="journal-card journal-loading"><span class="spinner"></span><div style="margin-top:10px">Opening your private journal…</div></div>
+
+    <section id="journal-setup" class="journal-card" style="display:none" aria-labelledby="journal-setup-heading">
+      <h2 id="journal-setup-heading">Create your encrypted journal</h2>
+      <p>This creates a private vault for the FamilyPal account shown below. Use a unique passphrase of at least 16 characters—four unrelated words work well.</p>
+      <div class="journal-account">Signed in as <strong data-journal-email></strong></div>
+      <div class="field"><label for="journal-new-passphrase">Journal passphrase</label><input id="journal-new-passphrase" type="password" autocomplete="new-password" minlength="16" placeholder="Four or more unrelated words"></div>
+      <div class="field"><label for="journal-confirm-passphrase">Confirm passphrase</label><input id="journal-confirm-passphrase" type="password" autocomplete="new-password" minlength="16" placeholder="Repeat the journal passphrase"></div>
+      <div class="journal-security"><span aria-hidden="true">◇</span><div><strong>No password recovery</strong>If this passphrase is forgotten, neither FamilyPal, Supabase nor the database administrator can recover the journal.</div></div>
+      <label class="journal-check"><input id="journal-no-recovery" type="checkbox"><span>I understand that losing this passphrase permanently locks these entries.</span></label>
+      <button class="btn btn-primary" type="button" onclick="createJournalVault(this)">Create private journal</button>
+      <div class="journal-error" id="journal-setup-error" role="alert"></div>
+    </section>
+
+    <section id="journal-unlock" class="journal-card" style="display:none" aria-labelledby="journal-unlock-heading">
+      <h2 id="journal-unlock-heading">Unlock your journal</h2>
+      <p>Your journal key exists only in this tab while the journal is unlocked. It is never stored in FamilyPal or sent to Supabase.</p>
+      <div class="journal-account">Signed in as <strong data-journal-email></strong></div>
+      <div class="field"><label for="journal-passphrase">Journal passphrase</label><input id="journal-passphrase" type="password" autocomplete="current-password" placeholder="Enter your journal passphrase" onkeydown="if(event.key==='Enter')unlockJournal(this.closest('section').querySelector('button'))"></div>
+      <button class="btn btn-primary" type="button" onclick="unlockJournal(this)">Unlock journal</button>
+      <div class="journal-error" id="journal-unlock-error" role="alert"></div>
+    </section>
+
+    <section id="journal-open" style="display:none" aria-labelledby="journal-list-heading">
+      <div class="journal-toolbar">
+        <div><h2 id="journal-list-heading">Journal entries</h2><p>Locks automatically after 10 minutes of inactivity.</p></div>
+        <button class="btn btn-primary" type="button" onclick="openJournalEntry()">New entry</button>
+      </div>
+      <div id="journal-entries" data-private-content></div>
+    </section>
+  </main>
+</div>
+
+<div class="modal-overlay journal-modal" id="journal-entry-modal" style="display:none" onclick="closeJournalModalClick(event)" data-private-content>
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" type="button" onclick="closeJournalEntry()" aria-label="Close">×</button>
+    <h2 id="journal-entry-heading">New journal entry</h2>
+    <input id="journal-entry-id" type="hidden">
+    <div class="field"><label for="journal-entry-date">Date</label><input id="journal-entry-date" type="date"></div>
+    <div class="field"><label for="journal-entry-title">Title</label><input id="journal-entry-title" type="text" maxlength="180" placeholder="Optional title" autocomplete="off"></div>
+    <div class="field"><label for="journal-entry-body">Entry</label><textarea id="journal-entry-body" maxlength="50000" placeholder="Write privately…"></textarea></div>
+    <div class="journal-modal-actions">
+      <button class="btn btn-secondary" type="button" onclick="closeJournalEntry()">Cancel</button>
+      <button class="btn btn-primary" id="journal-save-button" type="button" onclick="saveJournalEntry(this)">Save entry</button>
+    </div>
+    <button class="btn btn-secondary journal-delete" id="journal-delete-button" type="button" style="display:none" onclick="deleteJournalEntry()">Delete entry</button>
+    <div class="journal-error" id="journal-entry-error" role="alert"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<script src="assets/js/familypal-core.js?v=20260715.9"></script>
+<script src="assets/js/familypal-ui.js?v=20260715.9"></script>
+<script src="assets/js/journalpal.js?v=20260715.9"></script>
+</body>
+</html>
