@@ -2,6 +2,18 @@
   // Clear any legacy plaintext password stored by older app versions
   localStorage.removeItem('fp_pass');
 
+  // Sessions created while refresh requests were racing can contain a stale
+  // access/refresh-token pair. Reset those sessions once so the app can recover
+  // at the sign-in screen instead of leaving every dashboard request pending.
+  var sessionStorageVersion = '20260715.4';
+  if (localStorage.getItem('fp_session_version') !== sessionStorageVersion) {
+    localStorage.removeItem('fp_email');
+    localStorage.removeItem('fp_access_token');
+    localStorage.removeItem('fp_refresh_token');
+    localStorage.removeItem('fp_token_expires_at');
+    localStorage.setItem('fp_session_version', sessionStorageVersion);
+  }
+
   var config = {
     supabaseUrl: 'https://dcevozgqpemuivhakgro.supabase.co',
     supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjZXZvemdxcGVtdWl2aGFrZ3JvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyMzQxNjIsImV4cCI6MjA5NjgxMDE2Mn0.ocqU2aqmpDo74G-GbaFBwCjY5avws-48DeXyoeyjGOg'
@@ -144,9 +156,11 @@
     var token = getAccessToken();
     if (token && !tokenExpiresSoon()) return token;
     try {
-      return await refreshSession() || token;
+      var refreshedToken = await refreshSession();
+      if (refreshedToken) return refreshedToken;
+      clearCredentials();
+      return null;
     } catch (e) {
-      if (token) return token;
       clearCredentials();
       return null;
     }
@@ -177,6 +191,11 @@
       }, opts.headers || {})
     }), 12000);
     var data = await response.json().catch(function () { return {}; });
+    if (response.status === 401) {
+      clearCredentials();
+      if (!/index\.html$/.test(window.location.pathname)) window.location.replace('index.html?session=expired');
+      throw new Error('Your session expired. Please sign in again.');
+    }
     if (!response.ok) throw new Error(data.message || data.error || response.status);
     return data;
   }
