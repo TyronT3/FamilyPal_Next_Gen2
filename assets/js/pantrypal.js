@@ -1,6 +1,7 @@
 window.onload=async()=>{
   if(!await FamilyPal.requireSession())return;
   FamilyPal.startTokenRefresh();
+  FamilyPalUI.loadProfile();
   document.getElementById('app-screen').style.display='flex';
   var searchTimer;
   document.getElementById('search-input').oninput=function(){clearTimeout(searchTimer);searchTimer=setTimeout(renderItems,200);};

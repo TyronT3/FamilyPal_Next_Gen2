@@ -28,6 +28,16 @@
     return rows && rows[0] ? rows[0].value || '' : null;
   }
 
+  async function getSettings(keys) {
+    keys = Array.isArray(keys) ? keys.filter(Boolean) : [];
+    if (!keys.length) return {};
+    var rows = await requestJson('/rest/v1/settings?key=in.(' + keys.map(encodeURIComponent).join(',') + ')&select=key,value');
+    var values = {};
+    keys.forEach(function (key) { values[key] = null; });
+    (rows || []).forEach(function (row) { values[row.key] = row.value || ''; });
+    return values;
+  }
+
   async function setSetting(key, value) {
     var body = { key: key, value: value || '', updated_at: new Date().toISOString() };
     var rows = await requestJson('/rest/v1/settings?on_conflict=key', {
@@ -106,16 +116,25 @@
     return !expiresAt || Date.now() > expiresAt - 60000;
   }
 
+  var _refreshPromise = null;
   async function refreshSession() {
+    if (_refreshPromise) return _refreshPromise;
     var refreshToken = getRefreshToken();
     if (!refreshToken) return null;
     var email = getEmail();
-    var data = await authJson('/auth/v1/token?grant_type=refresh_token', {
-      method: 'POST',
-      body: JSON.stringify({ refresh_token: refreshToken })
-    });
-    rememberSession(email || '', data);
-    return data.access_token;
+    _refreshPromise = (async function () {
+      var data = await authJson('/auth/v1/token?grant_type=refresh_token', {
+        method: 'POST',
+        body: JSON.stringify({ refresh_token: refreshToken })
+      });
+      rememberSession(email || '', data);
+      return data.access_token;
+    })();
+    try {
+      return await _refreshPromise;
+    } finally {
+      _refreshPromise = null;
+    }
   }
 
   async function getAuthToken() {
@@ -266,6 +285,7 @@
     getAccessToken: getAccessToken,
     getRefreshToken: getRefreshToken,
     getSetting: getSetting,
+    getSettings: getSettings,
     setSetting: setSetting,
     getDiaperItemId: getDiaperItemId,
     setDiaperItemId: setDiaperItemId,

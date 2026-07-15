@@ -68,6 +68,7 @@ var diaperLogging=false; // guard against double-firing
 window.onload = async function(){
   if (!await FamilyPal.requireSession()) return;
   FamilyPal.startTokenRefresh();
+  FamilyPalUI.loadProfile();
   document.getElementById('chore-screen').style.display='flex';
   loadAll();
   renderStarterPack();

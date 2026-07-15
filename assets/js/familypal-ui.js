@@ -62,21 +62,14 @@
     profileReady = (async function () {
       if (!global.FamilyPal || !FamilyPal.getEmail || !FamilyPal.getEmail()) return profile;
       try {
-        var values = await Promise.all([
-          FamilyPal.getSetting('household_name'),
-          FamilyPal.getSetting('baby_name'),
-          FamilyPal.getSetting('person_1_name'),
-          FamilyPal.getSetting('person_2_name'),
-          FamilyPal.getSetting('baby_pronouns'),
-          FamilyPal.getSetting('hide_period_details')
-        ]);
-        profile.householdName = values[0] || profile.householdName;
-        profile.babyName = values[1] || profile.babyName;
-        profile.person1Name = values[2] || profile.person1Name;
-        profile.person2Name = values[3] || profile.person2Name;
-        profile.babyPronouns = values[4] || profile.babyPronouns;
-        profile.hidePeriodDetails = values[5] === null || values[5] === '' ? true : values[5] === 'true';
-        profile.isConfigured = !!(values[0] && values[1] && values[2] && values[3]);
+        var values = await FamilyPal.getSettings(['household_name','baby_name','person_1_name','person_2_name','baby_pronouns','hide_period_details']);
+        profile.householdName = values.household_name || profile.householdName;
+        profile.babyName = values.baby_name || profile.babyName;
+        profile.person1Name = values.person_1_name || profile.person1Name;
+        profile.person2Name = values.person_2_name || profile.person2Name;
+        profile.babyPronouns = values.baby_pronouns || profile.babyPronouns;
+        profile.hidePeriodDetails = values.hide_period_details === null || values.hide_period_details === '' ? true : values.hide_period_details === 'true';
+        profile.isConfigured = !!(values.household_name && values.baby_name && values.person_1_name && values.person_2_name);
         if (global.FamilyPal) FamilyPal.profile = profile;
         applyProfileToText(document.body);
         document.dispatchEvent(new CustomEvent('familypal:profile', { detail: profile }));
@@ -314,8 +307,6 @@
     enhanceModals(document.body);
     injectBottomNav();
     injectConfirmDialog();
-    loadProfile();
-
     document.addEventListener('click', function (event) { setTimeout(function () { setActiveTab(event.target); }, 0); });
     document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape') { event.preventDefault(); closeTopModal(); }

@@ -8,14 +8,14 @@ async function loadSettingsPage(){
 }
 
 async function loadHouseholdSettings(){
-  var keys=['household_name','baby_name','person_1_name','person_2_name','baby_pronouns'];
-  var ids=['setting-household-name','setting-baby-name','setting-person-1','setting-person-2','setting-baby-pronouns'];
-  for(var i=0;i<keys.length;i++){
-    try{
-      var val=await FamilyPal.getSetting(keys[i]);
-      if(val)document.getElementById(ids[i]).value=val;
-    }catch(e){}
-  }
+  try{
+    var values=await FamilyPal.getSettings(['household_name','baby_name','person_1_name','person_2_name','baby_pronouns']);
+    if(values.household_name)document.getElementById('setting-household-name').value=values.household_name;
+    if(values.baby_name)document.getElementById('setting-baby-name').value=values.baby_name;
+    if(values.person_1_name)document.getElementById('setting-person-1').value=values.person_1_name;
+    if(values.person_2_name)document.getElementById('setting-person-2').value=values.person_2_name;
+    if(values.baby_pronouns)document.getElementById('setting-baby-pronouns').value=values.baby_pronouns;
+  }catch(e){}
 }
 
 async function saveHouseholdSettings(button){

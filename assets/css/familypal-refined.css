@@ -500,6 +500,8 @@ body[data-app="home"] { padding: 0; align-items: stretch; }
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 
+.onboarding-card[hidden] { display: none !important; }
+
 .visually-hidden {
   position: absolute !important;
   width: 1px !important;

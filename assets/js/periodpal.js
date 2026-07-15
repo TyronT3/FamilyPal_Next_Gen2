@@ -1506,6 +1506,7 @@ function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.c
 window.onload=async function(){
   if(!await FamilyPal.requireSession())return;
   FamilyPal.startTokenRefresh();
+  FamilyPalUI.loadProfile();
   viewMonth=new Date();
   loadData();
 };
