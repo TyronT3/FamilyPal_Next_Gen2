@@ -5,7 +5,7 @@
   function preferredTheme() {
     var saved = localStorage.getItem(storageKey);
     if (saved === 'light' || saved === 'dark') return saved;
-    return 'dark';
+    return global.matchMedia && global.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
 
   function applyTheme(theme) {
@@ -18,7 +18,7 @@
     var buttons = document.querySelectorAll('[data-theme-toggle]');
     buttons.forEach(function (button) {
       var next = theme === 'light' ? 'dark' : 'light';
-      button.textContent = theme === 'light' ? '🌙' : '☀️';
+      button.textContent = '◐';
       button.setAttribute('aria-label', 'Switch to ' + next + ' mode');
       button.setAttribute('title', 'Switch to ' + next + ' mode');
     });

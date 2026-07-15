@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PantryPal</title>
 <script src="assets/js/familypal-theme.js"></script>
 <link rel="stylesheet" href="assets/css/familypal.css">
@@ -171,34 +171,29 @@
   @media print{body{background:#fff;color:#000;}#app-screen,header,.toolbar,.stats,.fab,#toast{display:none!important;}#print-area{display:block!important;}.print-item{padding:6px 0;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;font-size:13px;}.print-section{margin-bottom:16px;}.print-section h3{font-size:14px;font-weight:700;margin-bottom:6px;border-bottom:2px solid #000;padding-bottom:4px;}}
   #print-area{display:none;}
 </style>
+<link rel="stylesheet" href="assets/css/familypal-refined.css">
 </head>
-<body>
+<body data-app="pantry">
 <div id="app-screen" class="app-screen">
   <header>
     <div class="header-left"><span class="header-logo">🥫</span><span class="header-title">PantryPal</span></div>
-    <div class="header-actions is-dense">
-      <button class="icon-btn" title="Inventory" aria-label="Inventory" onclick="openInventoryModal()">📋</button>
-      <button class="icon-btn" title="Priority items" aria-label="Priority items" onclick="openPriorityModal()">⭐</button>
-      <button class="icon-btn" title="Table view" aria-label="Table view" onclick="openTableView()">📊</button>
-      <button class="icon-btn" title="Reports" aria-label="Reports" onclick="openReportModal()">📈</button>
-      <button class="icon-btn" title="Shopping mode" aria-label="Shopping mode" onclick="openShoppingMode()">🛒</button>
-      <button class="icon-btn" title="Scan barcode" aria-label="Scan barcode" onclick="openScanModal()">📷</button>
-      <button class="icon-btn" title="Categories" aria-label="Categories" onclick="openCatModal()">🏷️</button>
-      <button class="icon-btn theme-toggle" data-theme-toggle onclick="FamilyPalTheme.toggleTheme()" type="button">☀️</button>
-      <button class="icon-btn" title="Home" aria-label="Home" onclick="window.location.href='home.html'">🏠</button>
+    <div class="header-actions">
+      <button class="icon-btn header-text-btn primary" title="Shopping list" aria-label="Shopping list" onclick="openShoppingMode()"><span aria-hidden="true">✓</span><span class="label">Shopping</span></button>
+      <button class="icon-btn" title="Scan barcode" aria-label="Scan barcode" onclick="openScanModal()">⌁</button>
+      <button class="icon-btn" title="More pantry tools" aria-label="More pantry tools" onclick="document.getElementById('pantry-actions-modal').style.display='flex'">•••</button>
     </div>
   </header>
   <div class="toolbar">
     <div class="search-wrap"><span class="search-icon">🔍</span><input type="text" id="search-input" placeholder="Search items..." oninput="renderItems()"><button class="search-clear" id="search-clear" type="button" aria-label="Clear search" onclick="clearSearch()">×</button></div>
     <div class="filters">
       <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
-      <button class="filter-btn" onclick="setFilter('stocked',this)">🟢</button>
-      <button class="filter-btn" onclick="setFilter('low',this)">🟠</button>
-      <button class="filter-btn" onclick="setFilter('open',this)">🟡</button>
-      <button class="filter-btn" onclick="setFilter('empty',this)">🔴</button>
-      <button class="filter-btn" onclick="setFilter('expiring',this)">⚠️</button>
-      <button class="filter-btn" onclick="setFilter('priority',this)">⭐</button>
-      <button class="sort-btn" id="cat-sort-btn" onclick="toggleCatSort()">🏷️ By Category</button>
+      <button class="filter-btn" onclick="setFilter('stocked',this)">Stocked</button>
+      <button class="filter-btn" onclick="setFilter('low',this)">Low</button>
+      <button class="filter-btn" onclick="setFilter('open',this)">Open</button>
+      <button class="filter-btn" onclick="setFilter('empty',this)">Empty</button>
+      <button class="filter-btn" onclick="setFilter('expiring',this)">Expiring</button>
+      <button class="filter-btn" onclick="setFilter('priority',this)">Priority</button>
+      <button class="sort-btn" id="cat-sort-btn" onclick="toggleCatSort()">Group by category</button>
     </div>
   </div>
   <div class="stats">
@@ -209,7 +204,22 @@
     <button class="stat-chip" type="button" data-stat-filter="all" onclick="setFilterByName('all')"><div class="num" id="stat-total">0</div><div class="lbl">Total</div></button>
   </div>
   <div class="items-grid" id="items-grid"><div class="loading-screen"><span class="spinner"></span> Loading pantry…</div></div>
-  <button class="fab" onclick="openAddModal()">+</button>
+  <button class="fab" onclick="openAddModal()">+ Add item</button>
+</div>
+
+<div class="modal-overlay" id="pantry-actions-modal" style="display:none" onclick="closeItemModal(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeModal('pantry-actions-modal')" aria-label="Close">×</button>
+    <h2>Pantry tools</h2>
+    <div class="fp-more-grid">
+      <button class="fp-more-action" onclick="closeModal('pantry-actions-modal');openInventoryModal()"><strong>Quick inventory</strong><span>Adjust several quantities quickly</span></button>
+      <button class="fp-more-action" onclick="closeModal('pantry-actions-modal');openPriorityModal()"><strong>Priority items</strong><span>Choose essentials for the shopping list</span></button>
+      <button class="fp-more-action" onclick="closeModal('pantry-actions-modal');openTableView()"><strong>Table view</strong><span>Edit detailed item information</span></button>
+      <button class="fp-more-action" onclick="closeModal('pantry-actions-modal');openReportModal()"><strong>Reports</strong><span>Review stock value and activity</span></button>
+      <button class="fp-more-action" onclick="closeModal('pantry-actions-modal');openCatModal()"><strong>Categories</strong><span>Rename, merge and organise categories</span></button>
+    </div>
+  </div>
 </div>
 
 <!-- Add/Edit Modal -->
@@ -308,7 +318,7 @@
   <div class="modal">
     <div class="modal-handle"></div><button class="modal-close" onclick="closeModal('shop-modal');stopShopScanner()">✕</button>
     <h2>🛒 Shopping Mode</h2>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Tap an item to mark it bought — adds +1 to your pantry stock automatically. Untap to undo the tick (stock is not reversed).</p>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Tap an item to mark it bought and add one to pantry stock. Untap it to reverse the stock change.</p>
     <div class="sync-banner" id="sync-banner">⏳ <span id="sync-count">0</span> updates pending…</div>
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
       <button class="btn btn-primary" style="font-size:13px;margin-top:0" onclick="startShopScan()">📷 Scan</button>
@@ -396,6 +406,7 @@
 <div id="toast"></div>
 
 <script src="assets/js/familypal-core.js"></script>
+<script src="assets/js/familypal-ui.js"></script>
 <script src="assets/js/pantrypal.js"></script>
 </body>
 </html>

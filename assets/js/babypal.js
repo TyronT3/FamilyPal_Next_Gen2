@@ -28,10 +28,10 @@ async function loadDiaperItemOptions(){
 async function consumeDiaperStock(source){
   try{
     var result=await FamilyPal.decrementDiaperStock(source);
-    if(result.skipped)return '';
-    if(result.previousQty<1)return ' Diaper stock already 0.';
-    return ' '+result.name+' now '+result.qty_stocked+'.';
-  }catch(e){return ' Diaper logged, but pantry stock was not updated.';}
+    if(result.skipped)return {message:'',changed:false};
+    if(result.previousQty<1)return {message:' Diaper stock already 0.',changed:false};
+    return {message:' '+result.name+' now '+result.qty_stocked+'.',changed:true};
+  }catch(e){return {message:' Diaper logged, but pantry stock was not updated.',changed:false};}
 }
 async function diaperStockInsight(){
   try{
@@ -75,13 +75,13 @@ function updateSleepUI(){
   if(sleepStart){
     if(banner)banner.style.display='flex';
     var btn=document.getElementById('sleep-btn');if(btn)btn.className='ql-btn sleep-active';
-    if(icon)icon.textContent='☀️';if(label)label.textContent='She woke up!';if(sub)sub.textContent='Stop sleep timer';
-    if(lpIcon)lpIcon.textContent='☀️';if(lpLabel)lpLabel.textContent='She woke up!';
+    if(icon)icon.textContent='☀️';if(label)label.textContent='End sleep';if(sub)sub.textContent='Finish the active session';
+    if(lpIcon)lpIcon.textContent='☀️';if(lpLabel)lpLabel.textContent='End sleep';
   }else{
     if(banner)banner.style.display='none';
     var btn2=document.getElementById('sleep-btn');if(btn2)btn2.className='ql-btn green';
-    if(icon)icon.textContent='😴';if(label)label.textContent='She fell asleep';if(sub)sub.textContent='Start sleep timer';
-    if(lpIcon)lpIcon.textContent='😴';if(lpLabel)lpLabel.textContent='She fell asleep';
+    if(icon)icon.textContent='😴';if(label)label.textContent='Start sleep';if(sub)sub.textContent='Begin a sleep timer';
+    if(lpIcon)lpIcon.textContent='😴';if(lpLabel)lpLabel.textContent='Start sleep';
   }
 }
 
@@ -89,7 +89,7 @@ function handleSleepBtn(){
   if(sleepStart){wakeUp();}
   else{
     sleepStart=new Date();saveSleepState();startSleepTimer();updateSleepUI();
-    toast('😴 Sleep timer started!');
+    toast('Sleep timer started');
     if(activeTab==='today')loadToday();
   }
 }
@@ -97,7 +97,7 @@ function handleSleepBtn(){
 function wakeUp(){
   if(!sleepStart){openSleepListModal();return;}
   // open sleep edit modal pre-filled with active session
-  document.getElementById('sleep-edit-title').textContent='☀️ She woke up!';
+  document.getElementById('sleep-edit-title').textContent='Finish sleep session';
   document.getElementById('sleep-edit-id').value='';
   document.getElementById('sleep-edit-start').value=toLocalInput(sleepStart);
   document.getElementById('sleep-edit-end').value=nowLocal();
@@ -125,10 +125,10 @@ async function saveSleepEdit(){
       await sbFetch('/rest/v1/baby_sleep?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});
       toast('😴 Session updated');
     }else{
-      await sbFetch('/rest/v1/baby_sleep',{method:'POST',body:JSON.stringify(payload)});
+      var sleepRows=await sbFetch('/rest/v1/baby_sleep',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});
       // clear active timer
       if(sleepStart){clearInterval(sleepTimerInterval);sleepTimerInterval=null;sleepStart=null;saveSleepState();updateSleepUI();}
-      toast(diffMins!==null?'😴 '+Math.floor(diffMins/60)+'h '+(diffMins%60)+'m logged':'😴 Session saved');
+      offerBabyUndo('baby_sleep',sleepRows,diffMins!==null?Math.floor(diffMins/60)+'h '+(diffMins%60)+'m sleep logged':'Sleep session saved');
     }
     closeModal('sleep-edit-modal');closeModal('sleep-list-modal');
     if(activeTab==='today')loadToday();
@@ -138,7 +138,7 @@ async function saveSleepEdit(){
 
 async function deleteSleepSession(){
   var id=document.getElementById('sleep-edit-id').value;
-  if(!id||!confirm('Delete this sleep session?'))return;
+  if(!id||!(await FamilyPalUI.confirm('This sleep session will be permanently removed.',{title:'Delete sleep session?',confirmLabel:'Delete'})))return;
   try{
     await sbFetch('/rest/v1/baby_sleep?id=eq.'+id,{method:'DELETE'});
     toast('Sleep session deleted');
@@ -400,10 +400,35 @@ async function loadTrends(days){
 }
 
 // ── Log functions ─────────────────────────────────────────
-async function logBottleFeed(){var ml=parseInt(document.getElementById('feed-ml').value);if(!ml||ml<1){toast('Enter amount in ml');return;}var time=document.getElementById('feed-time').value||nowLocal();var notes=document.getElementById('feed-notes').value.trim();try{await sbFetch('/rest/v1/baby_feeds',{method:'POST',body:JSON.stringify({feed_type:'bottle',amount_ml:ml,logged_at:new Date(time).toISOString(),notes:notes||null})});closeModal('feed-modal');toast('🍼 '+ml+'ml logged!');if(activeTab==='today')loadToday();}catch(e){toast('Error: '+e.message);}}
-async function logBreastFeed(){var mins=parseInt(document.getElementById('breast-mins').value);if(!mins||mins<1){toast('Enter duration');return;}var side=document.getElementById('breast-side').value;var time=document.getElementById('breast-time').value||nowLocal();var notes=document.getElementById('breast-notes').value.trim();try{await sbFetch('/rest/v1/baby_feeds',{method:'POST',body:JSON.stringify({feed_type:'breast',duration_mins:mins,breast_side:side,logged_at:new Date(time).toISOString(),notes:notes||null})});closeModal('breast-modal');toast('🤱 '+mins+'min logged!');if(activeTab==='today')loadToday();}catch(e){toast('Error: '+e.message);}}
-async function logDiaper(type){try{await sbFetch('/rest/v1/baby_diapers',{method:'POST',body:JSON.stringify({diaper_type:type,logged_at:new Date().toISOString()})});var stockMsg=await consumeDiaperStock('BabyPal');toast((type==='wet'?'💧 Wet diaper logged!':'💩 Soiled diaper logged!')+stockMsg);if(activeTab==='today')loadToday();}catch(e){toast('Error: '+e.message);}}
-async function logPump(){var ml=parseInt(document.getElementById('pump-ml').value);if(!ml||ml<1){toast('Enter amount');return;}var mins=parseInt(document.getElementById('pump-mins').value)||null;var time=document.getElementById('pump-time').value||nowLocal();var notes=document.getElementById('pump-notes').value.trim();try{await sbFetch('/rest/v1/baby_pumping',{method:'POST',body:JSON.stringify({amount_ml:ml,duration_mins:mins,logged_at:new Date(time).toISOString(),notes:notes||null})});closeModal('pump-modal');toast('🥛 '+ml+'ml logged!');if(activeTab==='today')loadToday();}catch(e){toast('Error: '+e.message);}}
+function offerBabyUndo(table,rows,message,restoreDiaper){
+  var row=Array.isArray(rows)?rows[0]:rows;
+  if(!row||!row.id){toast(message);return;}
+  FamilyPalUI.offerUndo(message,async function(){
+    await sbFetch('/rest/v1/'+table+'?id=eq.'+encodeURIComponent(row.id),{method:'DELETE'});
+    if(restoreDiaper)try{await FamilyPal.incrementDiaperStock('BabyPal undo');}catch(e){}
+    if(activeTab==='today')loadToday();
+    if(activeTab==='history')loadHistory();
+  });
+}
+
+async function logBottleFeed(){
+  var ml=parseInt(document.getElementById('feed-ml').value);if(!ml||ml<1){toast('Enter amount in ml');return;}
+  var time=document.getElementById('feed-time').value||nowLocal(),notes=document.getElementById('feed-notes').value.trim();
+  try{var rows=await sbFetch('/rest/v1/baby_feeds',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({feed_type:'bottle',amount_ml:ml,logged_at:new Date(time).toISOString(),notes:notes||null})});closeModal('feed-modal');offerBabyUndo('baby_feeds',rows,ml+' ml bottle logged');if(activeTab==='today')loadToday();}catch(e){toast('Error: '+e.message);}
+}
+async function logBreastFeed(){
+  var mins=parseInt(document.getElementById('breast-mins').value);if(!mins||mins<1){toast('Enter duration');return;}
+  var side=document.getElementById('breast-side').value,time=document.getElementById('breast-time').value||nowLocal(),notes=document.getElementById('breast-notes').value.trim();
+  try{var rows=await sbFetch('/rest/v1/baby_feeds',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({feed_type:'breast',duration_mins:mins,breast_side:side,logged_at:new Date(time).toISOString(),notes:notes||null})});closeModal('breast-modal');offerBabyUndo('baby_feeds',rows,mins+' min breastfeed logged');if(activeTab==='today')loadToday();}catch(e){toast('Error: '+e.message);}
+}
+async function logDiaper(type){
+  try{var rows=await sbFetch('/rest/v1/baby_diapers',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({diaper_type:type,logged_at:new Date().toISOString()})});var stock=await consumeDiaperStock('BabyPal');offerBabyUndo('baby_diapers',rows,(type==='wet'?'Wet diaper logged':'Soiled diaper logged')+stock.message,stock.changed);if(activeTab==='today')loadToday();}catch(e){toast('Error: '+e.message);}
+}
+async function logPump(){
+  var ml=parseInt(document.getElementById('pump-ml').value);if(!ml||ml<1){toast('Enter amount');return;}
+  var mins=parseInt(document.getElementById('pump-mins').value)||null,time=document.getElementById('pump-time').value||nowLocal(),notes=document.getElementById('pump-notes').value.trim();
+  try{var rows=await sbFetch('/rest/v1/baby_pumping',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({amount_ml:ml,duration_mins:mins,logged_at:new Date(time).toISOString(),notes:notes||null})});closeModal('pump-modal');offerBabyUndo('baby_pumping',rows,ml+' ml pumping session logged');if(activeTab==='today')loadToday();}catch(e){toast('Error: '+e.message);}
+}
 function healthTitle(h){
   var value=h.value_numeric!==null&&h.value_numeric!==undefined?h.value_numeric:'';
   var unit=h.unit||'';
@@ -424,10 +449,10 @@ async function saveDiaperLog(){
   var time=document.getElementById('diaper-time').value||nowLocal();
   var notes=document.getElementById('diaper-notes').value.trim();
   try{
-    await sbFetch('/rest/v1/baby_diapers',{method:'POST',body:JSON.stringify({diaper_type:type,logged_at:new Date(time).toISOString(),notes:notes||null})});
+    var rows=await sbFetch('/rest/v1/baby_diapers',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({diaper_type:type,logged_at:new Date(time).toISOString(),notes:notes||null})});
     closeModal('diaper-log-modal');
-    var stockMsg=await consumeDiaperStock('BabyPal');
-    toast((type==='wet'?'Wet diaper logged':'Soiled diaper logged')+stockMsg);
+    var stock=await consumeDiaperStock('BabyPal');
+    offerBabyUndo('baby_diapers',rows,(type==='wet'?'Wet diaper logged':'Soiled diaper logged')+stock.message,stock.changed);
     if(activeTab==='today')loadToday();
     if(activeTab==='history')loadHistory();
   }catch(e){toast('Error: '+e.message);}
@@ -525,7 +550,7 @@ async function loadHealth(){
 }
 
 async function deleteBabyLog(table,id,label){
-  if(!confirm('Delete this '+label+'?'))return;
+  if(!(await FamilyPalUI.confirm('This '+label+' entry will be permanently removed.',{title:'Delete '+label+'?',confirmLabel:'Delete'})))return;
   try{
     await sbFetch('/rest/v1/'+table+'?id=eq.'+id,{method:'DELETE'});
     if(table==='baby_diapers'){

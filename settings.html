@@ -2,65 +2,82 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>FamilyPal Settings</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FamilyPal — Settings</title>
 <script src="assets/js/familypal-theme.js"></script>
 <link rel="stylesheet" href="assets/css/familypal.css">
 <style>
-  #settings-screen{display:none;padding-bottom:36px;}
-  .settings-wrap{padding:16px;}
-  .settings-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;}
-  .settings-card h2{font-size:15px;margin-bottom:12px;}
-  .settings-note{font-size:12px;color:var(--muted);line-height:1.45;margin-top:8px;}
-  .settings-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
-  .settings-actions .btn{flex:1;min-width:150px;}
+  #settings-screen{display:none;}
+  .privacy-row{display:flex;align-items:flex-start;gap:12px;padding:4px 0;cursor:pointer;}
+  .privacy-row input{width:18px;height:18px;margin-top:2px;accent-color:var(--accent);}
+  .privacy-row strong{display:block;font-size:14px;}
+  .privacy-row span{display:block;margin-top:3px;color:var(--muted);font-size:12px;line-height:1.45;}
 </style>
+<link rel="stylesheet" href="assets/css/familypal-refined.css">
 </head>
-<body>
+<body data-app="settings">
 <div id="settings-screen" class="app-screen">
   <header>
-    <div class="header-left"><span class="header-logo">⚙️</span><span class="header-title">FamilyPal Settings</span></div>
-    <div class="header-actions">
-      <button class="icon-btn theme-toggle" data-theme-toggle onclick="FamilyPalTheme.toggleTheme()" type="button">☀️</button>
-      <button class="icon-btn" title="Home" aria-label="Home" onclick="window.location.href='home.html'">🏠</button>
-    </div>
+    <div class="header-left"><span class="header-logo">Settings</span><span class="header-title">Settings</span></div>
   </header>
 
-  <div class="settings-wrap">
-    <div class="settings-card">
-      <h2>Household</h2>
-      <div class="field"><label>Household name</label><input id="setting-household-name" type="text" placeholder="FamilyPal"></div>
-      <div class="field"><label>Baby name</label><input id="setting-baby-name" type="text" placeholder="Geomé"></div>
-      <div class="field"><label>Person 1</label><input id="setting-person-1" type="text" placeholder="Tyron"></div>
-      <div class="field"><label>Person 2</label><input id="setting-person-2" type="text" placeholder="Ansonette"></div>
-      <button class="btn btn-primary" onclick="saveHouseholdSettings()">Save Household Settings</button>
-      <div class="settings-note">Names are saved centrally now so future roll-out work can stop relying on hardcoded labels.</div>
-    </div>
+  <main class="settings-wrap">
+    <div class="settings-section-label">Household</div>
+    <section class="settings-card" aria-labelledby="household-heading">
+      <h2 id="household-heading">Names and personalisation</h2>
+      <div class="field"><label for="setting-household-name">Household name</label><input id="setting-household-name" type="text" placeholder="Our household" autocomplete="organization"></div>
+      <div class="field"><label for="setting-baby-name">Baby name</label><input id="setting-baby-name" type="text" placeholder="Baby"></div>
+      <div class="field"><label for="setting-baby-pronouns">Baby pronouns</label><select id="setting-baby-pronouns"><option value="she">She / her</option><option value="he">He / him</option><option value="they">They / them</option></select></div>
+      <div class="field"><label for="setting-person-1">Person 1</label><input id="setting-person-1" type="text" placeholder="Person 1" autocomplete="name"></div>
+      <div class="field"><label for="setting-person-2">Person 2</label><input id="setting-person-2" type="text" placeholder="Person 2" autocomplete="name"></div>
+      <button class="btn btn-primary" id="save-household" type="button" onclick="saveHouseholdSettings(this)">Save household</button>
+    </section>
 
-    <div class="settings-card">
-      <h2>Diaper Stock</h2>
-      <div class="field"><label>Pantry item used for diapers</label><select id="setting-diaper-item"><option value="">No pantry item selected</option></select></div>
-      <button class="btn btn-primary" onclick="saveDiaperSetting()">Save Diaper Item</button>
-      <div class="settings-note">This same shared setting is used by BabyPal and ChoresPal on both phones.</div>
-    </div>
+    <div class="settings-section-label">Privacy</div>
+    <section class="settings-card" aria-labelledby="privacy-heading">
+      <h2 id="privacy-heading">Dashboard privacy</h2>
+      <label class="privacy-row">
+        <input id="setting-hide-period" type="checkbox" checked>
+        <span><strong>Keep PeriodPal details private</strong><span>Home will show a private shortcut without cycle dates or predictions.</span></span>
+      </label>
+      <button class="btn btn-secondary" id="save-privacy" type="button" onclick="savePrivacySettings(this)">Save privacy preference</button>
+    </section>
 
-    <div class="settings-card">
-      <h2>Theme</h2>
-      <div class="settings-actions">
-        <button class="btn btn-secondary" onclick="FamilyPalTheme.setTheme('light')">Light Mode</button>
-        <button class="btn btn-secondary" onclick="FamilyPalTheme.setTheme('dark')">Dark Mode</button>
+    <div class="settings-section-label">Connected inventory</div>
+    <section class="settings-card" aria-labelledby="diaper-heading">
+      <h2 id="diaper-heading">Diaper stock</h2>
+      <div class="field"><label for="setting-diaper-item">Pantry item used for diapers</label><select id="setting-diaper-item"><option value="">No pantry item selected</option></select></div>
+      <p class="field-help">BabyPal and ChoresPal update this item when a diaper is logged.</p>
+      <button class="btn btn-primary" id="save-diaper" type="button" onclick="saveDiaperSetting(this)">Save diaper item</button>
+    </section>
+
+    <div class="settings-section-label">Appearance</div>
+    <section class="settings-card" aria-labelledby="theme-heading">
+      <h2 id="theme-heading">Theme</h2>
+      <div class="segmented-control" aria-label="Colour theme">
+        <button id="theme-light" type="button" onclick="chooseTheme('light')">Light</button>
+        <button id="theme-dark" type="button" onclick="chooseTheme('dark')">Dark</button>
       </div>
-    </div>
+    </section>
 
-    <div class="settings-card">
-      <h2>💰 Price Seeder</h2>
-      <p class="settings-note">Set reference prices for pantry items. Used in PantryPal reports to estimate monthly spend and stock value.</p>
-      <button class="btn btn-secondary" style="margin-top:10px" onclick="window.location.href='priceseeder.html'">Open Price Seeder →</button>
-    </div>
-  </div>
+    <div class="settings-section-label">Pantry tools</div>
+    <section class="settings-card" aria-labelledby="prices-heading">
+      <h2 id="prices-heading">Reference prices</h2>
+      <p class="settings-note">Maintain the prices PantryPal uses for spend estimates and stock value.</p>
+      <button class="btn btn-secondary" type="button" onclick="window.location.href='priceseeder.html'">Open price manager →</button>
+    </section>
+
+    <div class="settings-section-label">Account</div>
+    <section class="settings-card" aria-labelledby="account-heading">
+      <h2 id="account-heading">Signed-in account</h2>
+      <p class="settings-note" id="account-email"></p>
+      <button class="btn btn-danger" type="button" onclick="signOutConfirm()">Sign out</button>
+    </section>
+  </main>
 </div>
-<div id="toast"></div>
+<div id="toast" class="toast"></div>
 <script src="assets/js/familypal-core.js"></script>
+<script src="assets/js/familypal-ui.js"></script>
 <script src="assets/js/settings.js"></script>
 </body>
 </html>

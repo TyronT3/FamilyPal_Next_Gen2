@@ -2,119 +2,145 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>FamilyPal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FamilyPal — Home</title>
+<meta name="description" content="Your FamilyPal household dashboard.">
 <script src="assets/js/familypal-theme.js"></script>
 <link rel="stylesheet" href="assets/css/familypal.css">
 <style>
-  :root{--radius:16px;}
-  body{display:flex;flex-direction:column;align-items:center;padding:24px 24px 40px;}
-  .apps{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;}
-  .glance-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:14px 16px;width:100%;max-width:380px;box-sizing:border-box;margin-bottom:14px;}
-  .glance-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
-  .glance-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
-  .glance-tile{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:10px 12px;text-align:center;}
-  .gt-icon{font-size:18px;margin-bottom:2px;}
-  .gt-val{font-size:16px;font-weight:800;color:var(--text);}
-  .gt-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:2px;}
-  .gt-sub{font-size:10px;color:var(--muted);margin-top:1px;}
-  .app-card{border-radius:20px;padding:24px;text-align:center;cursor:pointer;transition:transform .15s;border:1px solid var(--border);}
-  .app-card:active{transform:scale(.97);}
-  .app-card.pantry{background:linear-gradient(135deg,#1a1d27,#22263a);border-color:#2e3250;}
-  .app-card.baby{background:linear-gradient(135deg,#1a0a1e,#2a1040);border-color:#3a1a5a;}
-  .app-card.chores{background:linear-gradient(135deg,#0a1e1a,#0a2010);border-color:#1a4a30;}
-  .app-card.period{background:linear-gradient(135deg,#21131d,#351a28);border-color:#5a263e;}
-  .app-card.settings{background:linear-gradient(135deg,#1a1d27,#262a38);border-color:var(--border);}
-  .app-card-icon{font-size:44px;margin-bottom:10px;}
-  .app-card-title{font-size:22px;font-weight:800;margin-bottom:4px;}
-  .app-card.pantry .app-card-title{background:linear-gradient(135deg,#6c63ff,#ff6584);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
-  .app-card.baby .app-card-title{background:linear-gradient(135deg,#e91e8c,#9c27b0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
-  .app-card.chores .app-card-title{background:linear-gradient(135deg,#00c896,#0088ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
-  .app-card.period .app-card-title{background:linear-gradient(135deg,#d9468f,#f9737b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
-  .app-card.settings .app-card-title{background:linear-gradient(135deg,#f39c12,#6c63ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
-  .app-card-sub{font-size:12px;color:var(--muted);}
-  .signout{margin-top:20px;font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline;}
-  .theme-corner{position:fixed;top:14px;right:14px;z-index:20;}
+  body{min-height:100vh;}
 </style>
+<link rel="stylesheet" href="assets/css/familypal-refined.css">
 </head>
-<body>
-<button class="icon-btn theme-toggle theme-corner" data-theme-toggle onclick="FamilyPalTheme.toggleTheme()" type="button">☀️</button>
-<div class="logo">🌟</div>
-<div class="app-title">FamilyPal</div>
-<div class="app-sub">What would you like to do?</div>
-<div class="glance-card">
-  <div class="glance-lbl">Today at a glance</div>
-  <div id="glance-stats"><div style="color:var(--muted);font-size:13px;text-align:center;padding:8px 0">Loading…</div></div>
-</div>
-<div class="apps">
-  <div class="app-card pantry" onclick="go('pantrypal.html')">
-    <div class="app-card-icon">🥫</div>
-    <div class="app-card-title">PantryPal</div>
-    <div class="app-card-sub">Pantry tracker · Shopping list · Inventory</div>
+<body data-app="home">
+<main class="home-shell">
+  <div class="home-topbar">
+    <div class="home-brand">
+      <div class="brand-mark" aria-hidden="true"></div>
+      <div>
+        <div class="brand-name">FamilyPal</div>
+        <div class="brand-tagline" data-household-name>Your household</div>
+      </div>
+    </div>
+    <button class="icon-btn" type="button" aria-label="Open settings" title="Settings" onclick="go('settings.html')">⚙</button>
   </div>
-  <div class="app-card baby" onclick="go('babypal.html')">
-    <div class="app-card-icon">🍼</div>
-    <div class="app-card-title">BabyPal</div>
-    <div class="app-card-sub">Feeds · Diapers · Sleep · Geomé's day</div>
+
+  <section aria-labelledby="home-greeting">
+    <h1 class="home-greeting" id="home-greeting">Good day, <span data-household-name>FamilyPal</span></h1>
+    <p class="home-subtitle">Here is what needs your attention today.</p>
+  </section>
+
+  <section class="onboarding-card" id="onboarding-card" hidden>
+    <div><strong>Make FamilyPal yours</strong><span>Add your household names and connect diaper stock to finish setup.</span></div>
+    <button class="btn btn-primary" type="button" onclick="go('settings.html')">Finish setup</button>
+  </section>
+
+  <h2 class="home-section-heading">Today</h2>
+  <div class="home-modules" id="home-modules" aria-busy="true">
+    <button class="home-module pantry" type="button" onclick="go('pantrypal.html')">
+      <span class="module-kicker"><span class="module-dot"></span>PantryPal</span>
+      <strong class="module-value" id="home-pantry-value">Checking pantry…</strong>
+      <span class="module-detail" id="home-pantry-detail">Stock and shopping</span>
+      <span class="module-action" id="home-pantry-action">Open pantry →</span>
+    </button>
+
+    <button class="home-module baby" type="button" onclick="go('babypal.html')">
+      <span class="module-kicker"><span class="module-dot"></span>BabyPal</span>
+      <strong class="module-value" id="home-baby-value">Checking today…</strong>
+      <span class="module-detail" id="home-baby-detail">Feeds, diapers and sleep</span>
+      <span class="module-action">Open today →</span>
+    </button>
+
+    <button class="home-module chores" type="button" onclick="go('chorepal.html')">
+      <span class="module-kicker"><span class="module-dot"></span>ChoresPal</span>
+      <strong class="module-value" id="home-chores-value">Checking chores…</strong>
+      <span class="module-detail" id="home-chores-detail">Shared household progress</span>
+      <span class="module-action">View today →</span>
+    </button>
+
+    <button class="home-module period" type="button" onclick="go('periodpal.html')">
+      <span class="module-kicker"><span class="module-dot"></span>PeriodPal</span>
+      <strong class="module-value" id="home-period-value">Private calendar</strong>
+      <span class="module-detail" id="home-period-detail">Details stay inside PeriodPal</span>
+      <span class="module-action">Open privately →</span>
+    </button>
   </div>
-  <div class="app-card chores" onclick="go('chorepal.html')">
-    <div class="app-card-icon">🧹</div>
-    <div class="app-card-title">ChoresPal</div>
-    <div class="app-card-sub">Daily chores · Points · Tyron vs Ansonette</div>
+
+  <div class="home-account">
+    <span>Signed in as <strong id="user-email"></strong></span>
+    <button class="auth-link" type="button" onclick="go('settings.html')">Account settings</button>
   </div>
-  <div class="app-card period" onclick="go('periodpal.html')">
-    <div class="app-card-icon">🌙</div>
-    <div class="app-card-title">PeriodPal</div>
-    <div class="app-card-sub">Cycle calendar · Fertile window · Risk notes</div>
-  </div>
-  <div class="app-card settings" onclick="go('settings.html')">
-    <div class="app-card-icon">⚙️</div>
-    <div class="app-card-title">Settings</div>
-    <div class="app-card-sub">Household · Diaper stock · Theme</div>
-  </div>
-</div>
-<div style="margin-top:20px;font-size:12px;color:var(--muted);text-align:center">Signed in as <span id="user-email" style="font-weight:600"></span></div>
-<div class="signout" onclick="signOut()">Sign out</div>
+</main>
+
+<div id="toast" class="toast"></div>
 <script src="assets/js/familypal-core.js"></script>
+<script src="assets/js/familypal-ui.js"></script>
 <script>
-  function todayRange(){var s=new Date();s.setHours(0,0,0,0);var e=new Date();e.setHours(23,59,59,999);return{start:s.toISOString(),end:e.toISOString()};}
-  function timeAgo(ts){var m=Math.floor((Date.now()-new Date(ts))/60000);if(m<1)return'just now';if(m<60)return m+'m ago';var h=Math.floor(m/60);return h+'h '+(m%60)+'m ago';}
-  function isPantryLow(item){var s=item.qty_stocked||0,o=item.qty_open||0,m=item.min_stock||0;if(m>0)return s<m;return s===1&&o===0;}
-  function calcPantryStatus(item){var s=item.qty_stocked||0,o=item.qty_open||0;if(s===0&&o===0)return'empty';if(isPantryLow(item))return'low';if(s>0)return'stocked';return'open';}
-  async function loadGlance(){
-    var r=todayRange();
-    try{
-      var results=await Promise.all([
-        sbFetch('/rest/v1/baby_feeds?logged_at=gte.'+r.start+'&logged_at=lte.'+r.end+'&order=logged_at.desc&select=logged_at,feed_type,amount_ml,duration_mins&limit=20'),
-        sbFetch('/rest/v1/baby_diapers?logged_at=gte.'+r.start+'&logged_at=lte.'+r.end+'&select=id&limit=30'),
-        sbFetch('/rest/v1/chore_logs?completed_at=gte.'+r.start+'&completed_at=lte.'+r.end+'&select=completed_by,shared&limit=50'),
-        sbFetch('/rest/v1/items?select=qty_stocked,qty_open,min_stock,priority,rating')
-      ]);
-      var feeds=results[0],diapers=results[1],choreLogs=results[2],items=results[3];
-      var lastFeed=feeds[0];
-      var lastFeedStr=lastFeed?timeAgo(lastFeed.logged_at):'None yet';
-      var lastFeedSub=lastFeed?(lastFeed.feed_type==='bottle'?(lastFeed.amount_ml+'ml bottle'):(lastFeed.duration_mins+'min breast')):'—';
-      var tPts=0,aPts=0;
-      choreLogs.forEach(function(l){if(l.shared){tPts++;aPts++;}else if(l.completed_by==='Tyron')tPts++;else aPts++;});
-      var urgentCount=items.filter(function(i){return (i.priority||i.rating==='love')&&calcPantryStatus(i)==='empty';}).length;
-      document.getElementById('glance-stats').innerHTML=
-        '<div class="glance-grid">'+
-          '<div class="glance-tile"><div class="gt-icon">🍼</div><div class="gt-val">'+lastFeedStr+'</div><div class="gt-lbl">Last feed</div><div class="gt-sub">'+lastFeedSub+'</div></div>'+
-          '<div class="glance-tile"><div class="gt-icon">💩</div><div class="gt-val">'+diapers.length+'</div><div class="gt-lbl">Diapers today</div></div>'+
-          '<div class="glance-tile"><div class="gt-icon">🧹</div><div class="gt-val" style="font-size:13px">👨 '+tPts+' · 👩 '+aPts+'</div><div class="gt-lbl">Chores today</div></div>'+
-          (urgentCount>0?'<div class="glance-tile" style="border-color:#e74c3c;cursor:pointer" onclick="go(\'pantrypal.html?filter=urgent-empty\')" title="Open empty priority or loved pantry items"><div class="gt-icon">⚠️</div><div class="gt-val" style="color:#e74c3c">'+urgentCount+'</div><div class="gt-lbl">Buy now</div><div class="gt-sub">Priority or loved</div></div>':'<div class="glance-tile" style="cursor:pointer" onclick="go(\'pantrypal.html\')" title="Open PantryPal"><div class="gt-icon">✅</div><div class="gt-val" style="font-size:13px">No urgent buys</div><div class="gt-lbl">Pantry</div></div>')+
-        '</div>';
-    }catch(e){document.getElementById('glance-stats').innerHTML='';}
+function todayRange(){var s=new Date();s.setHours(0,0,0,0);var e=new Date();e.setHours(23,59,59,999);return{start:s.toISOString(),end:e.toISOString()};}
+function timeAgo(ts){var m=Math.floor((Date.now()-new Date(ts))/60000);if(m<1)return'Just now';if(m<60)return m+' min ago';var h=Math.floor(m/60);if(h<24)return h+' hr'+(h===1?'':'s')+' ago';return new Date(ts).toLocaleDateString();}
+function isPantryLow(item){var s=item.qty_stocked||0,o=item.qty_open||0,m=item.min_stock||0;if(m>0)return s<m;return s===1&&o===0;}
+function calcPantryStatus(item){var s=item.qty_stocked||0,o=item.qty_open||0;if(s===0&&o===0)return'empty';if(isPantryLow(item))return'low';if(s>0)return'stocked';return'open';}
+
+async function loadDashboard(){
+  var r=todayRange();
+  try{
+    var results=await Promise.all([
+      sbFetch('/rest/v1/baby_feeds?logged_at=gte.'+r.start+'&logged_at=lte.'+r.end+'&order=logged_at.desc&select=logged_at,feed_type,amount_ml,duration_mins&limit=20'),
+      sbFetch('/rest/v1/baby_diapers?logged_at=gte.'+r.start+'&logged_at=lte.'+r.end+'&select=id&limit=30'),
+      sbFetch('/rest/v1/chore_logs?completed_at=gte.'+r.start+'&completed_at=lte.'+r.end+'&select=id,completed_by,shared&limit=100'),
+      sbFetch('/rest/v1/items?select=qty_stocked,qty_open,min_stock,priority,rating')
+    ]);
+    var feeds=results[0],diapers=results[1],choreLogs=results[2],items=results[3];
+    var lastFeed=feeds[0];
+    var feedDetail=lastFeed?(lastFeed.feed_type==='bottle'?((lastFeed.amount_ml||0)+' ml bottle'):((lastFeed.duration_mins||0)+' min breastfeed')):'No feeds logged today';
+    document.getElementById('home-baby-value').textContent=lastFeed?'Last feed '+timeAgo(lastFeed.logged_at):'Nothing logged yet';
+    document.getElementById('home-baby-detail').textContent=feedDetail+' · '+diapers.length+' diaper'+(diapers.length===1?'':'s')+' today';
+
+    var urgent=items.filter(function(item){return(item.priority||item.rating==='love')&&calcPantryStatus(item)==='empty';}).length;
+    var low=items.filter(function(item){return calcPantryStatus(item)==='low';}).length;
+    document.getElementById('home-pantry-value').textContent=urgent?urgent+' item'+(urgent===1?'':'s')+' to buy':'Pantry is in good shape';
+    document.getElementById('home-pantry-detail').textContent=urgent?'Priority items are out':low?low+' item'+(low===1?' is':'s are')+' running low':'No urgent shopping';
+    document.getElementById('home-pantry-action').textContent=urgent?'Open shopping list →':'Open pantry →';
+
+    document.getElementById('home-chores-value').textContent=choreLogs.length?choreLogs.length+' completed today':'No chores logged yet';
+    document.getElementById('home-chores-detail').textContent=choreLogs.length?'Household progress is underway':'Open the list to get started';
+
+    if(FamilyPal.profile&&!FamilyPal.profile.hidePeriodDetails){
+      try{
+        var cycles=await sbFetch('/rest/v1/period_cycles?order=start_date.desc&select=start_date,end_date&limit=12');
+        if(cycles.length){
+          var latest=new Date(cycles[0].start_date+'T00:00:00');
+          var day=Math.max(1,Math.floor((Date.now()-latest.getTime())/86400000)+1);
+          var gaps=[];
+          for(var i=0;i<cycles.length-1;i++)gaps.push(Math.round((new Date(cycles[i].start_date)-new Date(cycles[i+1].start_date))/86400000));
+          var avg=gaps.length?Math.round(gaps.reduce(function(sum,n){return sum+n;},0)/gaps.length):28;
+          var next=new Date(latest);next.setDate(next.getDate()+avg);
+          document.getElementById('home-period-value').textContent='Cycle day '+day;
+          document.getElementById('home-period-detail').textContent='Next period estimated around '+next.toLocaleDateString([],{day:'numeric',month:'short'});
+        }else{
+          document.getElementById('home-period-value').textContent='Set up your calendar';
+          document.getElementById('home-period-detail').textContent='Add a period to start predictions';
+        }
+      }catch(e){}
+    }
+  }catch(e){
+    document.getElementById('home-pantry-value').textContent='Open your pantry';
+    document.getElementById('home-baby-value').textContent='Open today’s log';
+    document.getElementById('home-chores-value').textContent='Open today’s chores';
   }
-  window.onload=async()=>{
-    if(!await FamilyPal.requireSession())return;
-    FamilyPal.startTokenRefresh();
-    var el=document.getElementById('user-email');
-    if(el)el.textContent=FamilyPal.getEmail()||'';
-    loadGlance();
-  };
-  function go(url){window.location.href=url;}
-  function signOut(){FamilyPal.signOut();}
+  document.getElementById('home-modules').setAttribute('aria-busy','false');
+}
+
+window.onload=async function(){
+  if(!await FamilyPal.requireSession())return;
+  FamilyPal.startTokenRefresh();
+  document.getElementById('user-email').textContent=FamilyPal.getEmail()||'';
+  await FamilyPalUI.loadProfile();
+  document.getElementById('onboarding-card').hidden=!!FamilyPal.profile.isConfigured;
+  loadDashboard();
+};
+
+function go(url){window.location.href=url;}
 </script>
 </body>
 </html>

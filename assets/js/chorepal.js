@@ -61,7 +61,7 @@ function calcPersonStreak(person) {
   return streak;
 }
 
-var chores=[], todayLogs=[], weekLogs=[], monthLogs=[], goals=[], activeTab='today';
+var chores=[], todayLogs=[], weekLogs=[], monthLogs=[], goals=[], activeTab='today', choreFilter='all';
 var pendingChoreId=null, pendingPerson=null, editingChoreId=null;
 var diaperLogging=false; // guard against double-firing
 
@@ -125,6 +125,12 @@ function isDueToday(chore){
   return !todayLogs.some(function(l){ return l.chore_id===chore.id && new Date(l.completed_at)>=cutoff; });
 }
 
+function setChoreFilter(filter,button){
+  choreFilter=filter;
+  document.querySelectorAll('[data-chore-filter]').forEach(function(btn){btn.classList.toggle('active',btn===button);});
+  renderToday();
+}
+
 function renderToday(){
   var ts=new Date(); ts.setHours(0,0,0,0);
   var dayLogs = todayLogs.filter(function(l){ return new Date(l.completed_at)>=ts; });
@@ -157,8 +163,14 @@ function renderToday(){
 
   renderGoalStrip();
 
-  var daily = chores.filter(function(c){ return c.frequency==='daily'; });
-  var oneshot = chores.filter(function(c){ return c.frequency!=='daily' && isDueToday(c); });
+  var visibleChores=chores.filter(function(c){
+    if(choreFilter==='person1')return c.assigned_to==='Tyron'||c.assigned_to==='rotating';
+    if(choreFilter==='person2')return c.assigned_to==='Ansonette'||c.assigned_to==='rotating';
+    if(choreFilter==='shared')return c.assigned_to==='rotating';
+    return true;
+  });
+  var daily = visibleChores.filter(function(c){ return c.frequency==='daily'; });
+  var oneshot = visibleChores.filter(function(c){ return c.frequency!=='daily' && isDueToday(c); });
   var doneOneshot = oneshot.filter(function(c){ return getLogsToday(c.id).length>0; });
   var pendingOneshot = oneshot.filter(function(c){ return getLogsToday(c.id).length===0; });
   var totalDue = daily.length+oneshot.length;
@@ -171,8 +183,8 @@ function renderToday(){
     '<span style="font-size:13px;color:var(--accent);font-weight:700">'+pct+'%</span></div>' +
     '<div class="progress-bar"><div class="progress-fill" style="width:'+pct+'%"></div></div></div>';
 
-  if (!chores.length){
-    document.getElementById('chores-today').innerHTML='<div class="empty-state"><div class="big">🧹</div><div style="font-weight:700;margin-bottom:6px">No chores yet</div><div style="font-size:13px">Go to ⚙️ Setup</div></div>';
+  if (!visibleChores.length){
+    document.getElementById('chores-today').innerHTML=chores.length?'<div class="empty-state"><div style="font-weight:700;margin-bottom:6px">No chores in this view</div><div style="font-size:13px">Choose another assignment filter.</div></div>':'<div class="empty-state"><div style="font-weight:700;margin-bottom:6px">No chores yet</div><div style="font-size:13px">Use Add chore to create the first one.</div></div>';
     return;
   }
 
@@ -280,27 +292,33 @@ async function completeDiaperLog(diaperType, babypalType){
     weekLogs.unshift(log);
     monthLogs.unshift(log);
     var stockMsg='';
+    var linkedDiaperId=null;
+    var restoreDiaperStock=false;
     if (chore && chore.babypal_link==='diaper' && babypalType){
-      await sbFetch('/rest/v1/baby_diapers',{method:'POST',body:JSON.stringify({diaper_type:babypalType, logged_at:new Date().toISOString()})});
+      var diaperRows=await sbFetch('/rest/v1/baby_diapers',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({diaper_type:babypalType, logged_at:new Date().toISOString()})});
+      var linkedDiaper=Array.isArray(diaperRows)?diaperRows[0]:diaperRows;linkedDiaperId=linkedDiaper&&linkedDiaper.id;
       try{
         var stock=await FamilyPal.decrementDiaperStock('ChoresPal');
+        restoreDiaperStock=!stock.skipped&&stock.previousQty>0;
         if(!stock.skipped) stockMsg=stock.previousQty<1?' Diaper stock already 0.':' '+stock.name+' now '+stock.qty_stocked+'.';
       }catch(stockErr){ stockMsg=' Diaper stock was not updated.'; }
     }
     var label = diaperType ? DIAPER_NAMES[diaperType] : 'Done';
-    toast((shared?'👨👩 Together! '+label+' +'+eachPts+'pts each':label+' — '+person+' +'+pts+'pt'+(pts!==1?'s':''))+stockMsg);
+    var completionMessage=(shared?'Completed together · '+eachPts+' pts each':label+' · '+person+' +'+pts+' pt'+(pts!==1?'s':''))+stockMsg;
+    FamilyPalUI.offerUndo(completionMessage,function(){return undoChore(log.id,linkedDiaperId,restoreDiaperStock,true);});
     pendingChoreId=null; pendingPerson=null; diaperLogging=false;
     renderToday();
   } catch(e){ diaperLogging=false; toast('Error: '+e.message); }
 }
 
-async function undoChore(logId){
+async function undoChore(logId,babyDiaperId,restoreStock,silent){
   try{
     await sbFetch('/rest/v1/chore_logs?id=eq.'+logId,{method:'DELETE'});
+    if(babyDiaperId){await sbFetch('/rest/v1/baby_diapers?id=eq.'+babyDiaperId,{method:'DELETE'});if(restoreStock)try{await FamilyPal.incrementDiaperStock('ChoresPal undo');}catch(e){}}
     todayLogs=todayLogs.filter(function(l){ return l.id!==logId; });
     weekLogs=weekLogs.filter(function(l){ return l.id!==logId; });
     monthLogs=monthLogs.filter(function(l){ return l.id!==logId; });
-    renderToday(); toast('↩ Undone');
+    renderToday(); if(!silent)toast('Chore completion undone');
   }catch(e){ toast('Error: '+e.message); }
 }
 
@@ -335,7 +353,7 @@ async function saveGoal(){
   var target=parseInt(document.getElementById('goal-target').value)||null;
   if(!prize){toast('Enter a prize');return;}
   var existing=goals.find(function(g){ return g.period===period; });
-  if(existing){ if(!confirm('Replace existing '+period+' goal?'))return; await sbFetch('/rest/v1/chore_goals?id=eq.'+existing.id,{method:'PATCH',body:JSON.stringify({active:false})}); goals=goals.filter(function(g){ return g.id!==existing.id; }); }
+  if(existing){ if(!(await FamilyPalUI.confirm('The current '+period+' goal will be archived and replaced.',{title:'Replace existing goal?',confirmLabel:'Replace goal'})))return; await sbFetch('/rest/v1/chore_goals?id=eq.'+existing.id,{method:'PATCH',body:JSON.stringify({active:false})}); goals=goals.filter(function(g){ return g.id!==existing.id; }); }
   var start=period==='weekly'?getWeekStart():getMonthStart();
   var end=period==='weekly'?getWeekEnd():getMonthEnd();
   // Sunday is the last day of the week — advance to next week so the goal starts fresh
@@ -349,7 +367,7 @@ async function saveGoal(){
 }
 
 async function deleteGoal(id){
-  if(!confirm('Delete this goal?'))return;
+  if(!(await FamilyPalUI.confirm('This goal will be permanently removed.',{title:'Delete goal?',confirmLabel:'Delete'})))return;
   try{ await sbFetch('/rest/v1/chore_goals?id=eq.'+id,{method:'PATCH',body:JSON.stringify({active:false})}); goals=goals.filter(function(g){ return g.id!==id; }); renderGoalsTab(); renderToday(); toast('Goal deleted'); }
   catch(e){ toast('Error: '+e.message); }
 }
@@ -430,7 +448,7 @@ async function saveChore(){
 }
 
 async function deleteChore(id){
-  if(!confirm('Delete this chore?'))return;
+  if(!(await FamilyPalUI.confirm('This chore will be permanently removed. Existing history will be kept.',{title:'Delete chore?',confirmLabel:'Delete'})))return;
   try{ await sbFetch('/rest/v1/chores?id=eq.'+id,{method:'PATCH',body:JSON.stringify({active:false})}); chores=chores.filter(function(c){ return c.id!==id; }); if(editingChoreId===id) cancelEdit(); renderSetup(); renderToday(); toast('Deleted'); }
   catch(e){ toast('Error: '+e.message); }
 }
@@ -566,7 +584,7 @@ function switchTab(tab,btn){
   if(tab==='analytics') loadAnalytics();
   if(tab==='setup') renderSetup();
 }
-function switchTabById(tab){ var idx={today:0,goals:1,history:2,analytics:3,setup:4}[tab]; if(idx!==undefined) switchTab(tab,document.querySelectorAll('.tab')[idx]); }
+function switchTabById(tab){ var target=document.querySelector('[data-tab="'+tab+'"]'); if(target) switchTab(tab,target); }
 
 function closeModal(id){ document.getElementById(id).style.display='none'; }
 function closeModalClick(e){ if(e.target===e.currentTarget) closeModal(e.currentTarget.id); }

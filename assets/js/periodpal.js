@@ -696,12 +696,12 @@ async function quickEndPeriod(){
 
 async function deleteCycle(){
   var id=document.getElementById('cycle-id').value;
-  if(!id||!confirm('Delete this period log?'))return;
+  if(!id||!(await FamilyPalUI.confirm('This period log will be permanently removed.',{title:'Delete period log?',confirmLabel:'Delete'})))return;
   try{await sbFetch('/rest/v1/period_cycles?id=eq.'+id,{method:'DELETE'});closeModal('cycle-modal');toast('Period deleted');loadData();}catch(e){toast('Error: '+e.message);}
 }
 
 async function deleteCycleById(id){
-  if(!id||!confirm('Delete this duplicate period log?'))return;
+  if(!id||!(await FamilyPalUI.confirm('This duplicate period log will be permanently removed.',{title:'Delete duplicate log?',confirmLabel:'Delete'})))return;
   try{await sbFetch('/rest/v1/period_cycles?id=eq.'+id,{method:'DELETE'});toast('Duplicate deleted');loadData();}catch(e){toast('Error: '+e.message);}
 }
 
@@ -740,7 +740,7 @@ async function saveIntimacy(){
 
 async function deleteIntimacy(){
   var id=document.getElementById('intimacy-id').value;
-  if(!id||!confirm('Delete this risk note?'))return;
+  if(!id||!(await FamilyPalUI.confirm('This private risk note will be permanently removed.',{title:'Delete risk note?',confirmLabel:'Delete'})))return;
   try{await sbFetch('/rest/v1/period_intimacy?id=eq.'+id,{method:'DELETE'});closeModal('intimacy-modal');toast('Risk note deleted');loadData();}catch(e){toast('Error: '+e.message);}
 }
 
@@ -917,7 +917,7 @@ async function saveExclusion(){
 
 async function deleteExclusion(){
   var id=document.getElementById('exclusion-id').value;
-  if(!id||!confirm('Delete this excluded range?'))return;
+  if(!id||!(await FamilyPalUI.confirm('This range will be included in predictions again.',{title:'Delete excluded range?',confirmLabel:'Delete'})))return;
   try{await sbFetch('/rest/v1/period_exclusions?id=eq.'+id,{method:'DELETE'});closeModal('exclusion-modal');toast('Exclusion deleted');loadData();}catch(e){toast('Error: '+e.message);}
 }
 
@@ -949,7 +949,7 @@ async function saveNote(id){
 }
 
 async function deleteNote(id){
-  if(!confirm('Delete this note?'))return;
+  if(!(await FamilyPalUI.confirm('This note will be permanently removed.',{title:'Delete note?',confirmLabel:'Delete'})))return;
   try{await sbFetch('/rest/v1/period_notes?note_id=eq.'+encodeURIComponent(id),{method:'DELETE'});closeModal('history-detail-modal');toast('Note deleted');loadData();}catch(e){toast('Error: '+e.message);}
 }
 
@@ -1020,7 +1020,7 @@ async function saveEvent(id){
 }
 
 async function deleteEvent(id){
-  if(!confirm('Delete this event?'))return;
+  if(!(await FamilyPalUI.confirm('This daily event will be permanently removed.',{title:'Delete event?',confirmLabel:'Delete'})))return;
   try{await sbFetch('/rest/v1/period_events?event_id=eq.'+encodeURIComponent(id),{method:'DELETE'});closeModal('history-detail-modal');toast('Event deleted');loadData();}catch(e){toast('Error: '+e.message);}
 }
 
@@ -1058,7 +1058,7 @@ async function saveMeasurement(id){
 }
 
 async function deleteMeasurement(id){
-  if(!confirm('Delete this measurement?'))return;
+  if(!(await FamilyPalUI.confirm('This measurement will be permanently removed.',{title:'Delete measurement?',confirmLabel:'Delete'})))return;
   try{await sbFetch('/rest/v1/period_measurements?measurement_id=eq.'+encodeURIComponent(id),{method:'DELETE'});closeModal('history-detail-modal');toast('Measurement deleted');loadData();}catch(e){toast('Error: '+e.message);}
 }
 
@@ -1106,12 +1106,12 @@ async function quickLogMedication(pill,name,status,type){
 }
 
 async function deleteMedicationLog(id){
-  if(!confirm('Delete this medication log?'))return;
+  if(!(await FamilyPalUI.confirm('This medication log will be permanently removed.',{title:'Delete medication log?',confirmLabel:'Delete'})))return;
   try{await sbFetch('/rest/v1/period_medication_logs?log_id=eq.'+encodeURIComponent(id),{method:'DELETE'});closeModal('history-detail-modal');toast('Medication log deleted');loadData();}catch(e){toast('Error: '+e.message);}
 }
 
 async function stopMedicationDefinition(id){
-  if(!id||!confirm('Stop showing this medication from today? Existing history will be kept.'))return;
+  if(!id||!(await FamilyPalUI.confirm('The medication will stop appearing from today. Existing history will be kept.',{title:'Stop tracking medication?',confirmLabel:'Stop tracking'})))return;
   var end=new Date();end.setDate(end.getDate()-1);
   try{await sbFetch('/rest/v1/period_medication_definitions?medication_id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify({end_datetime:end.toISOString()})});toast('Medication marked inactive');loadData();}catch(e){toast('Error: '+e.message);}
 }
@@ -1122,7 +1122,7 @@ async function reactivateMedicationDefinition(id){
 }
 
 async function deleteMedicationDefinition(id){
-  if(!id||!confirm('Delete this medication from the tracker? Existing medication history will be kept.'))return;
+  if(!id||!(await FamilyPalUI.confirm('The medication will be removed from the tracker. Existing history will be kept.',{title:'Delete medication?',confirmLabel:'Delete'})))return;
   try{await sbFetch('/rest/v1/period_medication_definitions?medication_id=eq.'+encodeURIComponent(id),{method:'DELETE'});toast('Medication removed from tracker');loadData();}catch(e){toast('Error: '+e.message);}
 }
 

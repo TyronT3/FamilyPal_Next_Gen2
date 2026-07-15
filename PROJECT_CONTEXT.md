@@ -1,6 +1,6 @@
 # FamilyPal Next Gen Project Context
 
-Last updated: 2026-06-27
+Last updated: 2026-07-15
 
 This document is the working memory for the FamilyPal staging refactor. Read it before making changes so the staging app stays coherent and the live FamilyPal app is not accidentally affected.
 
@@ -57,8 +57,10 @@ Earlier filename mapping:
 ## Shared Assets
 
 - `assets/css/familypal.css`: shared layout, app shell, cards, modals, buttons, tabs, light mode, and common mobile behavior.
+- `assets/css/familypal-refined.css`: refined visual system and responsive overrides shared by every page.
 - `assets/js/familypal-core.js`: shared Supabase config, auth, session handling, REST helper, auth guard, sign in, sign up, sign out.
 - `assets/js/familypal-theme.js`: shared light/dark theme persistence and toggle behavior.
+- `assets/js/familypal-ui.js`: shared bottom navigation, personalised display names, dialog accessibility, custom confirmations, and undo feedback.
 - `assets/js/settings.js`: shared household settings behavior.
 - `assets/js/pantrypal.js`: PantryPal behavior.
 - `assets/js/babypal.js`: BabyPal behavior.

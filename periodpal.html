@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PeriodPal</title>
 <script src="assets/js/familypal-theme.js"></script>
 <link rel="stylesheet" href="assets/css/familypal.css">
@@ -41,7 +41,7 @@
   .nav-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:18px;cursor:pointer;}
   .analytics-nav{display:flex;gap:8px;padding:14px 16px 4px;max-width:760px;margin:0 auto;}
   .analytics-nav button{flex:1;border:1px solid var(--border);background:var(--surface);color:var(--muted);padding:10px 12px;border-radius:12px;font-weight:700;cursor:pointer;}
-  .analytics-nav button.active{background:var(--primary);border-color:var(--primary);color:#fff;}
+  .analytics-nav button.active{background:var(--accent);border-color:var(--accent);color:#fff;}
   .today-summary{margin:14px 16px 2px;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);}
   .today-heading{font-size:18px;font-weight:800;margin-bottom:3px;}
   .today-context{font-size:12px;color:var(--muted);margin-bottom:12px;}
@@ -134,24 +134,22 @@
     .tag-dot{width:5px;height:5px;}
   }
 </style>
+<link rel="stylesheet" href="assets/css/familypal-refined.css">
 </head>
-<body>
+<body data-app="period">
 <div id="period-screen" class="app-screen">
   <header>
     <div class="header-left">
       <span class="header-icon">🌙</span>
       <div class="header-title"><span>Period</span>Pal</div>
     </div>
-    <div class="header-actions">
-      <button class="icon-btn theme-toggle" data-theme-toggle onclick="FamilyPalTheme.toggleTheme()" type="button">☀️</button>
-      <button class="icon-btn" title="Home" aria-label="Home" onclick="window.location.href='home.html'">🏠</button>
-    </div>
+    <div class="header-actions"><button class="icon-btn header-text-btn" onclick="document.getElementById('period-data-modal').style.display='flex'" title="Data tools"><span class="label">Data</span><span aria-hidden="true">•••</span></button></div>
   </header>
 
   <div class="tabs">
     <div class="tab active" onclick="switchTab('calendar',this)">Calendar</div>
     <div class="tab" onclick="switchTab('log',this)">Today</div>
-    <div class="tab" onclick="switchTab('analytics',this)">Analytics</div>
+    <div class="tab" onclick="switchTab('analytics',this)">Insights</div>
   </div>
 
   <div class="hero-strip">
@@ -200,16 +198,25 @@
       <button id="analytics-timeline-btn" onclick="switchAnalyticsView('timeline')">Timeline</button>
     </div>
     <div id="analytics-insights">
-      <div class="quicklog-grid">
-        <div class="ql-btn blue" onclick="openImportModal()"><div class="ql-icon">📥</div><div class="ql-label">Import Old Data</div><div class="ql-sub">Add or restore past records</div></div>
-        <div class="ql-btn coral" onclick="exportPeriodPalData()"><div class="ql-icon">💾</div><div class="ql-label">Export Backup</div><div class="ql-sub">Download JSON history</div></div>
-      </div>
       <div id="reports-content"><div class="loading"><span class="spinner"></span></div></div>
     </div>
     <div id="analytics-timeline" style="display:none"><div id="history-content"><div class="loading"><span class="spinner"></span></div></div></div>
   </div>
 
   <button class="log-fab" onclick="openLogPicker()">+ Log</button>
+</div>
+
+<div class="modal-overlay" id="period-data-modal" style="display:none" onclick="closeModalClick(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeModal('period-data-modal')" aria-label="Close">×</button>
+    <h2>PeriodPal data</h2>
+    <p class="field-help">Manage backups and imported history separately from everyday insights.</p>
+    <div class="fp-more-grid">
+      <button class="fp-more-action" onclick="closeModal('period-data-modal');openImportModal()"><strong>Import history</strong><span>Add or restore previous records</span></button>
+      <button class="fp-more-action" onclick="closeModal('period-data-modal');exportPeriodPalData()"><strong>Export backup</strong><span>Download a private JSON copy</span></button>
+    </div>
+  </div>
 </div>
 
 <div class="modal-overlay" id="log-picker-modal" style="display:none" onclick="closeModalClick(event)">
@@ -223,8 +230,6 @@
       <div class="ql-btn blue" onclick="closeModal('log-picker-modal');openCycleModal()"><div class="ql-icon">✏️</div><div class="ql-label">Period Details</div></div>
       <div class="ql-btn yellow" onclick="closeModal('log-picker-modal');openEventModal(null,todayKey(),'symptom')"><div class="ql-icon">✨</div><div class="ql-label">Symptom / Mood</div></div>
       <div class="ql-btn yellow" onclick="closeModal('log-picker-modal');openIntimacyModal()"><div class="ql-icon">🛡️</div><div class="ql-label">Intimacy</div></div>
-      <div class="ql-btn coral" onclick="closeModal('log-picker-modal');exportPeriodPalData()"><div class="ql-icon">💾</div><div class="ql-label">Export</div></div>
-      <div class="ql-btn blue" style="grid-column:1/-1" onclick="closeModal('log-picker-modal');openImportModal()"><div class="ql-icon">📥</div><div class="ql-label">Import Old Data</div></div>
     </div>
   </div>
 </div>
@@ -361,6 +366,7 @@
 
 <div id="toast"></div>
 <script src="assets/js/familypal-core.js"></script>
+<script src="assets/js/familypal-ui.js"></script>
 <script src="assets/js/periodpal.js"></script>
 </body>
 </html>

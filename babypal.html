@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BabyPal — Geomé</title>
 <script src="assets/js/familypal-theme.js"></script>
 <link rel="stylesheet" href="assets/css/familypal.css">
@@ -127,8 +127,9 @@
   .sd-remove{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);padding:7px 10px;font-size:12px;cursor:pointer;flex-shrink:0;}
   .sd-empty{font-size:13px;color:var(--muted);padding:6px 0;}
 </style>
+<link rel="stylesheet" href="assets/css/familypal-refined.css">
 </head>
-<body>
+<body data-app="baby">
 
 <div id="baby-screen" class="app-screen">
   <header>
@@ -136,18 +137,13 @@
       <span class="header-icon">🍼</span>
       <div class="header-title"><span>Baby</span>Pal — Geomé</div>
     </div>
-    <div class="header-actions">
-      <button class="icon-btn" title="Settings" aria-label="Settings" onclick="openModal('settings-modal')">⚙️</button>
-      <button class="icon-btn theme-toggle" data-theme-toggle onclick="FamilyPalTheme.toggleTheme()" type="button">☀️</button>
-      <button class="icon-btn" title="Home" aria-label="Home" onclick="window.location.href='home.html'">🏠</button>
-    </div>
+    <div class="header-actions"><button class="icon-btn" title="BabyPal settings" aria-label="BabyPal settings" onclick="openModal('settings-modal')">•••</button></div>
   </header>
 
   <div class="tabs">
-    <div class="tab active" onclick="switchTab('today',this)">📊 Today</div>
-    <div class="tab" onclick="switchTab('log',this)">➕ Log</div>
-    <div class="tab" onclick="switchTab('history',this)">📋 History</div>
-    <div class="tab" onclick="switchTab('trends',this)">📈 Trends</div>
+    <div class="tab active" onclick="switchTab('today',this)">Today</div>
+    <div class="tab" onclick="switchTab('history',this)">History</div>
+    <div class="tab" onclick="switchTab('trends',this)">Trends</div>
     <div class="tab" onclick="switchTab('health',this)">Health</div>
   </div>
 
@@ -159,7 +155,7 @@
         <div class="sleep-banner-timer" id="sleep-timer">0:00</div>
       </div>
     </div>
-    <button class="wake-btn" onclick="wakeUp()">☀️ She woke up!</button>
+    <button class="wake-btn" onclick="wakeUp()">End sleep</button>
   </div>
 
   <div id="tab-today"><div id="summary-content"><div class="loading"><span class="spinner"></span></div></div></div>
@@ -169,7 +165,7 @@
       <div class="ql-btn purple" onclick="openModal('breast-modal')"><div class="ql-icon">🤱</div><div class="ql-label">Breast Feed</div><div class="ql-sub">Duration & side</div></div>
       <div class="ql-btn blue" onclick="openDiaperModal('wet')"><div class="ql-icon">💧</div><div class="ql-label">Wet Diaper</div><div class="ql-sub">Time adjustable</div></div>
       <div class="ql-btn yellow" onclick="openDiaperModal('soiled')"><div class="ql-icon">💩</div><div class="ql-label">Soiled Diaper</div><div class="ql-sub">Time adjustable</div></div>
-      <div class="ql-btn green" id="sleep-btn" onclick="handleSleepBtn()"><div class="ql-icon" id="sleep-btn-icon">😴</div><div class="ql-label" id="sleep-btn-label">She fell asleep</div><div class="ql-sub" id="sleep-btn-sub">Start sleep timer</div></div>
+      <div class="ql-btn green" id="sleep-btn" onclick="handleSleepBtn()"><div class="ql-icon" id="sleep-btn-icon">😴</div><div class="ql-label" id="sleep-btn-label">Start sleep</div><div class="ql-sub" id="sleep-btn-sub">Begin a sleep timer</div></div>
       <div class="ql-btn teal" onclick="openModal('pump-modal')"><div class="ql-icon">🥛</div><div class="ql-label">Pump</div><div class="ql-sub">Log session</div></div>
       <div class="ql-btn purple" onclick="openHealthModal('temperature')"><div class="ql-icon">🌡️</div><div class="ql-label">Health</div><div class="ql-sub">Temp, meds, notes</div></div>
       <div class="ql-btn teal" onclick="openSleepListModal()"><div class="ql-icon">✏️</div><div class="ql-label">Edit Sleep</div><div class="ql-sub">View & edit sessions</div></div>
@@ -180,7 +176,7 @@
   <div id="tab-trends" style="display:none"><div id="trends-content"><div class="loading"><span class="spinner"></span></div></div></div>
   <div id="tab-health" style="display:none"><div id="health-content"><div class="loading"><span class="spinner"></span></div></div></div>
 
-  <button class="log-fab" onclick="openModal('log-picker-modal')">➕ Log Something</button>
+  <button class="log-fab" onclick="openModal('log-picker-modal')">+ Log</button>
 </div>
 
 <!-- School Day Modal -->
@@ -225,7 +221,7 @@
       <div class="lp-btn" onclick="closeModal('log-picker-modal');openModal('breast-modal')"><div class="lp-icon">🤱</div><div class="lp-label">Breast Feed</div></div>
       <div class="lp-btn" onclick="closeModal('log-picker-modal');openDiaperModal('wet')"><div class="lp-icon">💧</div><div class="lp-label">Wet Diaper</div></div>
       <div class="lp-btn" onclick="closeModal('log-picker-modal');openDiaperModal('soiled')"><div class="lp-icon">💩</div><div class="lp-label">Soiled Diaper</div></div>
-      <div class="lp-btn" onclick="closeModal('log-picker-modal');handleSleepBtn()"><div class="lp-icon" id="lp-sleep-icon">😴</div><div class="lp-label" id="lp-sleep-label">She fell asleep</div></div>
+      <div class="lp-btn" onclick="closeModal('log-picker-modal');handleSleepBtn()"><div class="lp-icon" id="lp-sleep-icon">😴</div><div class="lp-label" id="lp-sleep-label">Start sleep</div></div>
       <div class="lp-btn" onclick="closeModal('log-picker-modal');openModal('pump-modal')"><div class="lp-icon">🥛</div><div class="lp-label">Pump</div></div>
       <div class="lp-btn" onclick="closeModal('log-picker-modal');openHealthModal('temperature')"><div class="lp-icon">🌡️</div><div class="lp-label">Health</div></div>
       <div class="lp-btn" onclick="closeModal('log-picker-modal');openSleepListModal()"><div class="lp-icon">✏️</div><div class="lp-label">Edit Sleep</div></div>
@@ -289,7 +285,7 @@
     <h2 id="sleep-edit-title">✏️ Edit Sleep Session</h2>
     <div class="time-row"><label>Fell asleep</label><input type="datetime-local" id="sleep-edit-start"></div>
     <div class="time-row"><label>Woke up</label><input type="datetime-local" id="sleep-edit-end"></div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:16px">Leave "woke up" empty if she's still sleeping.</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px">Leave “woke up” empty while the sleep session is still active.</div>
     <div class="field"><label>Notes (optional)</label><input type="text" id="sleep-edit-notes" placeholder="e.g. slept in pram"></div>
     <input type="hidden" id="sleep-edit-id">
     <button class="btn btn-primary" onclick="saveSleepEdit()">Save Session</button>
@@ -374,6 +370,7 @@
 <div id="toast"></div>
 
 <script src="assets/js/familypal-core.js"></script>
+<script src="assets/js/familypal-ui.js"></script>
 <script src="assets/js/babypal.js"></script>
 </body>
 </html>

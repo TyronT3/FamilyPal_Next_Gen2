@@ -241,6 +241,13 @@
     });
   }
 
+  async function resetPassword(email) {
+    return authJson('/auth/v1/recover', {
+      method: 'POST',
+      body: JSON.stringify({ email: email })
+    });
+  }
+
   var _refreshInterval = null;
   function startTokenRefresh() {
     if (_refreshInterval) return;
@@ -274,6 +281,7 @@
     incrementDiaperStock: incrementDiaperStock,
     signIn: signIn,
     signUp: signUp,
+    resetPassword: resetPassword,
     signOut: signOut,
     tryStoredSignIn: tryStoredSignIn,
     startTokenRefresh: startTokenRefresh,

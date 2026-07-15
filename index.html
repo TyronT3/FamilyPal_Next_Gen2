@@ -2,69 +2,124 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>FamilyPal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FamilyPal — Sign in</title>
+<meta name="description" content="Sign in to FamilyPal, your private household organiser.">
 <script src="assets/js/familypal-theme.js"></script>
 <link rel="stylesheet" href="assets/css/familypal.css">
 <style>
-  body{display:flex;align-items:center;justify-content:center;padding:24px;}
-  .wrap{width:100%;max-width:360px;text-align:center;}
-  .auth-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;text-align:left;}
-  .auth-box h2{font-size:18px;margin-bottom:20px;}
-  .btn-primary{background:linear-gradient(135deg,#6c63ff,#8b5cf6);color:#fff;}
-  .auth-error{color:#e74c3c;font-size:13px;margin-top:10px;text-align:center;min-height:18px;}
-  .theme-corner{position:fixed;top:14px;right:14px;z-index:20;}
+  .auth-success{color:var(--green);}
 </style>
+<link rel="stylesheet" href="assets/css/familypal-refined.css">
 </head>
-<body>
-<button class="icon-btn theme-toggle theme-corner" data-theme-toggle onclick="FamilyPalTheme.toggleTheme()" type="button">☀️</button>
-<div class="wrap">
-  <div class="logo">🌟</div>
-  <div class="app-title">FamilyPal</div>
-  <div class="app-sub">Your family life, all in one place</div>
-  <form class="auth-box" id="auth-form">
-    <h2>Welcome back</h2>
-    <div class="field"><label>Email</label><input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email"></div>
-    <div class="field"><label>Password</label><input type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password"></div>
-    <button class="btn btn-primary" type="submit">Sign In</button>
-    <button class="btn btn-secondary" onclick="signUp()" type="button">Create Account</button>
-    <div class="auth-error" id="auth-error"></div>
-  </form>
-</div>
-<script src="assets/js/familypal-core.js"></script>
-<script>
-window.onload=()=>{document.getElementById('auth-form').addEventListener('submit',handleAuthSubmit);autoLogin();};
+<body data-app="auth">
+<button class="icon-btn theme-toggle theme-corner" data-theme-toggle onclick="FamilyPalTheme.toggleTheme()" type="button">Theme</button>
 
-function handleAuthSubmit(event){
+<main class="auth-layout">
+  <div class="brand-lockup" aria-label="FamilyPal">
+    <div class="brand-mark" aria-hidden="true"></div>
+    <div>
+      <div class="brand-name">FamilyPal</div>
+      <div class="brand-tagline">Your household, calmly organised</div>
+    </div>
+  </div>
+
+  <form class="auth-box" id="auth-form" novalidate>
+    <h1 class="auth-heading" id="auth-heading">Welcome back</h1>
+    <p class="auth-intro" id="auth-intro">Sign in to continue to your household.</p>
+
+    <div class="field">
+      <label for="auth-email">Email address</label>
+      <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email" required>
+    </div>
+    <div class="field password-wrap">
+      <label for="auth-password">Password</label>
+      <input type="password" id="auth-password" placeholder="Enter your password" autocomplete="current-password" minlength="6" required>
+      <button class="password-toggle" id="password-toggle" onclick="togglePassword()" type="button" aria-controls="auth-password">Show</button>
+    </div>
+
+    <div class="auth-meta" id="forgot-wrap">
+      <button class="auth-link" onclick="forgotPassword()" type="button">Forgot password?</button>
+    </div>
+
+    <button class="btn btn-primary" id="auth-submit" type="submit">Sign in</button>
+    <div class="auth-error" id="auth-error" role="status" aria-live="polite"></div>
+
+    <div class="auth-switch">
+      <span id="auth-switch-copy">New to FamilyPal?</span>
+      <button class="auth-link" id="auth-switch-button" onclick="toggleMode()" type="button">Create an account</button>
+    </div>
+  </form>
+</main>
+
+<script src="assets/js/familypal-core.js"></script>
+<script src="assets/js/familypal-ui.js"></script>
+<script>
+var authMode='signin';
+
+window.onload=function(){document.getElementById('auth-form').addEventListener('submit',handleAuthSubmit);autoLogin();};
+
+function setMessage(message,success){
+  var el=document.getElementById('auth-error');
+  el.textContent=message||'';
+  el.classList.toggle('auth-success',!!success);
+}
+
+function toggleMode(){
+  authMode=authMode==='signin'?'signup':'signin';
+  var signup=authMode==='signup';
+  document.getElementById('auth-heading').textContent=signup?'Create your account':'Welcome back';
+  document.getElementById('auth-intro').textContent=signup?'Start a private space for your household.':'Sign in to continue to your household.';
+  document.getElementById('auth-submit').textContent=signup?'Create account':'Sign in';
+  document.getElementById('auth-switch-copy').textContent=signup?'Already have an account?':'New to FamilyPal?';
+  document.getElementById('auth-switch-button').textContent=signup?'Sign in instead':'Create an account';
+  document.getElementById('forgot-wrap').style.display=signup?'none':'flex';
+  document.getElementById('auth-password').autocomplete=signup?'new-password':'current-password';
+  setMessage('');
+}
+
+function togglePassword(){
+  var input=document.getElementById('auth-password');
+  var button=document.getElementById('password-toggle');
+  var show=input.type==='password';
+  input.type=show?'text':'password';
+  button.textContent=show?'Hide':'Show';
+  button.setAttribute('aria-label',show?'Hide password':'Show password');
+}
+
+async function handleAuthSubmit(event){
   event.preventDefault();
-  signIn();
+  var email=document.getElementById('auth-email').value.trim();
+  var pass=document.getElementById('auth-password').value;
+  var submit=document.getElementById('auth-submit');
+  setMessage('');
+  if(!email){setMessage('Enter your email address.');document.getElementById('auth-email').focus();return;}
+  if(pass.length<6){setMessage('Use a password with at least 6 characters.');document.getElementById('auth-password').focus();return;}
+  FamilyPalUI.setBusy(submit,true,authMode==='signup'?'Creating account…':'Signing in…');
+  var switchToSignin=false;
+  try{
+    if(authMode==='signup'){
+      await FamilyPal.signUp(email,pass);
+      switchToSignin=true;
+    }else{
+      await FamilyPal.signIn(email,pass);
+      window.location.href='home.html';
+    }
+  }catch(e){setMessage(e.message||'We could not complete that request. Please try again.');}
+  finally{FamilyPalUI.setBusy(submit,false);if(switchToSignin){toggleMode();setMessage('Account created. Check your email if confirmation is required, then sign in.',true);}}
+}
+
+async function forgotPassword(){
+  var email=document.getElementById('auth-email').value.trim();
+  if(!email){setMessage('Enter your email address first.');document.getElementById('auth-email').focus();return;}
+  try{
+    await FamilyPal.resetPassword(email);
+    setMessage('Password reset email sent. Check your inbox.',true);
+  }catch(e){setMessage(e.message||'Could not send the reset email.');}
 }
 
 async function autoLogin(){
-  try{
-    if(await FamilyPal.tryStoredSignIn()) window.location.href='home.html';
-  }catch(e){}
-}
-
-async function signIn(){
-  const email=document.getElementById('auth-email').value.trim();
-  const pass=document.getElementById('auth-password').value;
-  document.getElementById('auth-error').textContent='';
-  try{
-    await FamilyPal.signIn(email,pass);
-    window.location.href='home.html';
-  }catch(e){document.getElementById('auth-error').textContent=e.message;}
-}
-
-async function signUp(){
-  const email=document.getElementById('auth-email').value.trim();
-  const pass=document.getElementById('auth-password').value;
-  document.getElementById('auth-error').textContent='';
-  if(pass.length<6){document.getElementById('auth-error').textContent='Password must be 6+ chars.';return;}
-  try{
-    await FamilyPal.signUp(email,pass);
-    document.getElementById('auth-error').style.color='#2ecc71';document.getElementById('auth-error').textContent='Account created! Please sign in.';
-  }catch(e){document.getElementById('auth-error').textContent=e.message||'Error';}
+  try{if(await FamilyPal.tryStoredSignIn())window.location.href='home.html';}catch(e){}
 }
 </script>
 </body>

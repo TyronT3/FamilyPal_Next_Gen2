@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ChoresPal</title>
 <script src="assets/js/familypal-theme.js"></script>
 <link rel="stylesheet" href="assets/css/familypal.css">
@@ -177,8 +177,9 @@
   .an-chip-b{background:rgba(100,180,140,.18);color:#3E8B7B;}
   .an-empty{font-size:13px;color:var(--muted);padding:10px 0;}
 </style>
+<link rel="stylesheet" href="assets/css/familypal-refined.css">
 </head>
-<body>
+<body data-app="chores">
 
 <div id="chore-screen" class="app-screen">
   <header>
@@ -186,26 +187,29 @@
       <span class="header-logo">🧹</span>
       <span class="header-title">ChoresPal</span>
     </div>
-    <div class="header-actions">
-      <button class="icon-btn theme-toggle" data-theme-toggle onclick="FamilyPalTheme.toggleTheme()" type="button">☀️</button>
-      <button class="icon-btn" title="Home" aria-label="Home" onclick="window.location.href='home.html'">🏠</button>
-    </div>
+    <div class="header-actions"><button class="icon-btn header-text-btn" data-tab="setup" onclick="switchTab('setup',this)" title="Manage chores"><span class="label">Manage</span><span aria-hidden="true">•••</span></button></div>
   </header>
 
   <div class="tabs">
-    <div class="tab active" onclick="switchTab('today',this)">✅ Today</div>
-    <div class="tab" onclick="switchTab('goals',this)">🏆 Goals</div>
-    <div class="tab" onclick="switchTab('history',this)">📋 History</div>
-    <div class="tab" onclick="switchTab('analytics',this)">📊 Analytics</div>
-    <div class="tab" onclick="switchTab('setup',this)">⚙️ Setup</div>
+    <div class="tab active" data-tab="today" onclick="switchTab('today',this)">Today</div>
+    <div class="tab" data-tab="goals" onclick="switchTab('goals',this)">Goals</div>
+    <div class="tab" data-tab="history" onclick="switchTab('history',this)">History</div>
+    <div class="tab" data-tab="analytics" onclick="switchTab('analytics',this)">Insights</div>
   </div>
 
   <div id="tab-today">
-    <div id="score-area"></div>
-    <div id="streak-area"></div>
-    <div id="goal-strip" class="goal-strip"></div>
     <div id="progress-area"></div>
+    <div class="chore-filter-bar" aria-label="Filter chores">
+      <button class="filter-btn active" type="button" data-chore-filter="all" onclick="setChoreFilter('all',this)">All</button>
+      <button class="filter-btn" type="button" data-chore-filter="person1" onclick="setChoreFilter('person1',this)">Tyron</button>
+      <button class="filter-btn" type="button" data-chore-filter="person2" onclick="setChoreFilter('person2',this)">Ansonette</button>
+      <button class="filter-btn" type="button" data-chore-filter="shared" onclick="setChoreFilter('shared',this)">Shared</button>
+    </div>
     <div class="chores-list" id="chores-today"></div>
+    <div class="section-header">Household progress</div>
+    <div id="score-area"></div>
+    <div id="goal-strip" class="goal-strip"></div>
+    <div id="streak-area"></div>
   </div>
 
   <div id="tab-goals" style="display:none">
@@ -263,7 +267,7 @@
     </div>
   </div>
 
-  <button class="fab" onclick="switchTabById('setup')">+</button>
+  <button class="fab" onclick="switchTabById('setup')">+ Add chore</button>
 </div>
 
 <!-- Who did it? -->
@@ -337,6 +341,7 @@
 <div id="toast"></div>
 
 <script src="assets/js/familypal-core.js"></script>
+<script src="assets/js/familypal-ui.js"></script>
 <script src="assets/js/chorepal.js"></script>
 </body>
 </html>
