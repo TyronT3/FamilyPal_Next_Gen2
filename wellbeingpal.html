@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FamilyPal — WellbeingPal</title>
+<meta name="description" content="Shared structured wellbeing, symptoms, medication adherence and household pattern insights.">
+<script src="assets/js/familypal-theme.js?v=20260715.10"></script>
+<link rel="stylesheet" href="assets/css/familypal.css?v=20260715.10">
+<style>
+  #wellbeing-screen{display:none;}
+  .wellbeing-main{padding:16px 16px 110px;max-width:760px;margin:0 auto;width:100%;}
+  .wb-card{background:var(--card);border:1px solid var(--border);border-radius:15px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow-sm);}
+  .wb-card h2{font-size:17px;margin-bottom:4px;}
+  .wb-card h3{font-size:14px;margin-bottom:8px;}
+  .wb-intro{color:var(--muted);font-size:12px;line-height:1.5;margin-bottom:15px;}
+  .wb-date{font-size:12px;color:var(--muted);margin-bottom:14px;}
+  .wb-metric{margin-bottom:17px;}
+  .wb-metric-head{display:flex;justify-content:space-between;gap:10px;margin-bottom:7px;font-size:12px;font-weight:750;}
+  .wb-metric-head span:last-child{color:var(--muted);font-weight:500;}
+  .wb-rating{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;}
+  .wb-rating button{min-height:40px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--muted);font-size:14px;font-weight:750;cursor:pointer;}
+  .wb-rating button.selected{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);}
+  .wb-scale-labels{display:flex;justify-content:space-between;margin-top:4px;color:var(--muted);font-size:10px;}
+  .wb-symptoms{display:flex;flex-wrap:wrap;gap:7px;}
+  .wb-symptom{position:relative;}
+  .wb-symptom input{position:absolute;opacity:0;pointer-events:none;}
+  .wb-symptom span{display:block;border:1px solid var(--border);border-radius:999px;background:var(--surface);padding:7px 10px;color:var(--muted);font-size:12px;cursor:pointer;}
+  .wb-symptom input:checked+span{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:700;}
+  .wb-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .wb-person-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:13px;}
+  .wb-person-name{font-size:13px;font-weight:800;margin-bottom:7px;}
+  .wb-person-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;color:var(--muted);}
+  .wb-person-stats strong{display:block;color:var(--text);font-size:15px;margin-top:2px;}
+  .wb-med-row{display:flex;align-items:center;gap:10px;border-top:1px solid var(--border);padding:11px 0;}
+  .wb-med-row:first-child{border-top:0;}
+  .wb-med-info{flex:1;min-width:0;}
+  .wb-med-name{font-size:13px;font-weight:750;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .wb-med-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+  .wb-med-actions{display:flex;gap:5px;}
+  .wb-med-actions button{border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--muted);padding:7px 8px;font-size:11px;cursor:pointer;}
+  .wb-med-actions button.active-taken{border-color:var(--green);color:var(--green);background:color-mix(in srgb,var(--green) 10%,var(--surface));}
+  .wb-med-actions button.active-missed{border-color:var(--red);color:var(--red);background:color-mix(in srgb,var(--red) 10%,var(--surface));}
+  .wb-context-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .wb-context-grid .field{margin:0;}
+  .wb-private-cta{display:flex;justify-content:space-between;align-items:center;gap:14px;border-color:color-mix(in srgb,#725ca8 35%,var(--border));}
+  .wb-private-cta strong{display:block;font-size:14px;}
+  .wb-private-cta span{display:block;font-size:11px;color:var(--muted);margin-top:3px;}
+  .wb-private-cta .btn{width:auto;margin:0;white-space:nowrap;}
+  .wb-role-options{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0;}
+  .wb-role-options button{border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);padding:15px;font-size:14px;font-weight:750;cursor:pointer;}
+  .wb-role-options button:disabled{opacity:.4;cursor:not-allowed;}
+  .wb-insight-selector{display:flex;gap:7px;margin-bottom:12px;}
+  .wb-insight-selector button{flex:1;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--muted);padding:9px;font-size:12px;font-weight:700;cursor:pointer;}
+  .wb-insight-selector button.selected{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);}
+  .wb-insight-card{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:14px;margin-bottom:9px;}
+  .wb-insight-card h3{font-size:13px;margin-bottom:5px;}
+  .wb-insight-result{font-size:17px;font-weight:780;margin-bottom:4px;}
+  .wb-insight-detail{font-size:11px;color:var(--muted);line-height:1.45;}
+  .wb-trust{border:1px solid color-mix(in srgb,var(--yellow) 35%,var(--border));background:color-mix(in srgb,var(--yellow) 7%,var(--card));border-radius:12px;padding:12px;color:var(--muted);font-size:11px;line-height:1.5;margin-bottom:12px;}
+  .wb-empty{text-align:center;padding:28px;color:var(--muted);font-size:12px;}
+  @media(max-width:520px){.wb-context-grid{grid-template-columns:1fr}.wb-private-cta{align-items:flex-start;flex-direction:column}.wb-private-cta .btn{width:100%}.wb-grid{grid-template-columns:1fr}.wb-med-row{align-items:flex-start;flex-wrap:wrap}.wb-med-actions{width:100%}.wb-med-actions button{flex:1}}
+</style>
+<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260715.10">
+</head>
+<body data-app="wellbeing">
+<div id="wellbeing-screen" class="app-screen">
+  <header>
+    <div class="header-left"><span class="header-logo" aria-hidden="true">◎</span><span class="header-title">WellbeingPal</span></div>
+  </header>
+
+  <div class="tabs" id="wellbeing-tabs" style="display:none">
+    <div class="tab active" onclick="switchWellbeingTab('today',this)">Today</div>
+    <div class="tab" onclick="switchWellbeingTab('meds',this)">Medication</div>
+    <div class="tab" onclick="switchWellbeingTab('insights',this)">Insights</div>
+  </div>
+
+  <main class="wellbeing-main">
+    <div id="wellbeing-loading" class="wb-card wb-empty"><span class="spinner"></span><div style="margin-top:10px">Loading shared wellbeing data…</div></div>
+
+    <section id="wellbeing-setup" class="wb-card" style="display:none" aria-labelledby="wellbeing-setup-heading">
+      <h2 id="wellbeing-setup-heading">Who is using this account?</h2>
+      <p class="wb-intro">Each partner needs a separate FamilyPal login. This connects the current login to the correct household name.</p>
+      <div class="wb-role-options">
+        <button id="wellbeing-role-husband" type="button" onclick="createWellbeingProfile('husband',this)"><span data-person-1>Husband</span><br><small>Husband</small></button>
+        <button id="wellbeing-role-wife" type="button" onclick="createWellbeingProfile('wife',this)"><span data-person-2>Wife</span><br><small>Wife</small></button>
+      </div>
+      <div id="wellbeing-setup-error" class="auth-error" role="alert"></div>
+    </section>
+
+    <div id="wellbeing-content" style="display:none" data-no-personalize>
+      <section id="wellbeing-tab-today">
+        <div class="wb-card">
+          <h2>Daily check-in</h2>
+          <div class="wb-date" id="wellbeing-today-label"></div>
+          <p class="wb-intro">Numbers and selected symptoms are shared household data. Personal writing belongs in JournalPal.</p>
+
+          <div class="wb-metric" data-rating-group="mood"><div class="wb-metric-head"><span>Mood</span><span id="mood-value-label">Choose 1–5</span></div><div class="wb-rating"></div><div class="wb-scale-labels"><span>Very low</span><span>Very good</span></div></div>
+          <div class="wb-metric" data-rating-group="energy"><div class="wb-metric-head"><span>Energy</span><span id="energy-value-label">Choose 1–5</span></div><div class="wb-rating"></div><div class="wb-scale-labels"><span>Exhausted</span><span>Energised</span></div></div>
+          <div class="wb-metric" data-rating-group="stress"><div class="wb-metric-head"><span>Stress</span><span id="stress-value-label">Choose 1–5</span></div><div class="wb-rating"></div><div class="wb-scale-labels"><span>Calm</span><span>Overwhelmed</span></div></div>
+          <div class="wb-metric" data-rating-group="sleep"><div class="wb-metric-head"><span>Sleep quality</span><span id="sleep-value-label">Choose 1–5</span></div><div class="wb-rating"></div><div class="wb-scale-labels"><span>Very poor</span><span>Excellent</span></div></div>
+          <div class="wb-metric" data-rating-group="movement"><div class="wb-metric-head"><span>Movement</span><span id="movement-value-label">Choose 1–5</span></div><div class="wb-rating"></div><div class="wb-scale-labels"><span>None</span><span>Very active</span></div></div>
+
+          <div class="wb-metric"><div class="wb-metric-head"><span>Symptoms today</span><span>Select any</span></div><div class="wb-symptoms" id="wellbeing-symptoms"></div></div>
+          <button class="btn btn-primary" type="button" onclick="saveDailyCheckin(this)">Save check-in</button>
+          <div id="wellbeing-checkin-error" class="auth-error" role="alert"></div>
+        </div>
+
+        <div class="wb-card">
+          <h2>Household context</h2>
+          <p class="wb-intro">One shared entry per day helps compare wellbeing with food choices and how the home feels.</p>
+          <div class="wb-context-grid">
+            <div class="field"><label for="wellbeing-meal-source">Meals</label><select id="wellbeing-meal-source"><option value="">Not logged</option><option value="home_cooked">Mostly home-cooked</option><option value="mixed">Mixed</option><option value="takeaway">Mostly takeaway</option></select></div>
+            <div class="field"><label for="wellbeing-meal-balance">Meal balance</label><select id="wellbeing-meal-balance"><option value="">Not logged</option><option value="1">1 — Poor</option><option value="2">2</option><option value="3">3 — Average</option><option value="4">4</option><option value="5">5 — Excellent</option></select></div>
+            <div class="field"><label for="wellbeing-home-feel">Home feels</label><select id="wellbeing-home-feel"><option value="">Not logged</option><option value="1">1 — Chaotic</option><option value="2">2</option><option value="3">3 — Okay</option><option value="4">4</option><option value="5">5 — Calm and tidy</option></select></div>
+          </div>
+          <button class="btn btn-secondary" type="button" onclick="saveHouseholdContext(this)">Save household context</button>
+        </div>
+
+        <div class="wb-card" id="wellbeing-meds-today"><h2>Medication today</h2><div class="wb-empty">No medication trackers yet.</div></div>
+
+        <div class="wb-card">
+          <h2>Household today</h2>
+          <p class="wb-intro">Structured check-ins are visible to both signed-in partners.</p>
+          <div class="wb-grid" id="wellbeing-household-today"></div>
+        </div>
+
+        <div class="wb-card wb-private-cta">
+          <div><strong>Want to write about how you feel?</strong><span>JournalPal writing is encrypted and excluded from every insight.</span></div>
+          <a class="btn btn-secondary" href="journalpal.html">Write privately</a>
+        </div>
+      </section>
+
+      <section id="wellbeing-tab-meds" style="display:none">
+        <div class="wb-card">
+          <h2>Add medication</h2>
+          <p class="wb-intro">Medication names and adherence are shared structured data. Do not add private feelings here.</p>
+          <div class="field"><label for="wellbeing-med-name">Medication name</label><input id="wellbeing-med-name" type="text" maxlength="120" placeholder="e.g. Vitamin D"></div>
+          <div class="field"><label for="wellbeing-med-dose">Dose</label><input id="wellbeing-med-dose" type="text" maxlength="120" placeholder="e.g. 1 tablet"></div>
+          <div class="field"><label for="wellbeing-med-time">Usual time</label><select id="wellbeing-med-time"><option value="morning">Morning</option><option value="afternoon">Afternoon</option><option value="evening">Evening</option><option value="bedtime">Bedtime</option><option value="any">Any time</option></select></div>
+          <button class="btn btn-primary" type="button" onclick="addWellbeingMedication(this)">Add medication</button>
+          <div id="wellbeing-med-error" class="auth-error" role="alert"></div>
+        </div>
+        <div id="wellbeing-medication-list"></div>
+      </section>
+
+      <section id="wellbeing-tab-insights" style="display:none">
+        <div class="wb-trust"><strong style="color:var(--text)">Patterns, not diagnoses.</strong><br>These comparisons describe associations in your own logs. They cannot show that one factor caused another, and they are hidden until enough days have been recorded.</div>
+        <div class="wb-insight-selector" id="wellbeing-insight-selector"></div>
+        <div id="wellbeing-insights-content"><div class="wb-card wb-empty">Add daily check-ins to begin seeing patterns.</div></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div id="toast" class="toast"></div>
+<script src="assets/js/familypal-core.js?v=20260715.10"></script>
+<script src="assets/js/familypal-ui.js?v=20260715.10"></script>
+<script src="assets/js/wellbeingpal.js?v=20260715.10"></script>
+</body>
+</html>

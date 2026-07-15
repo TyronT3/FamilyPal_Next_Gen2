@@ -79,10 +79,23 @@ For a fresh project, run the files in chronological filename order. The sequence
 5. Pantry unit-price support.
 6. PeriodPal tables, exclusions and import history.
 7. Per-user JournalPal vaults and encrypted entry storage.
+8. Shared structured WellbeingPal profiles, daily logs, household context and medication adherence.
 
 The current RLS model is intentionally single-household: anonymous access is blocked, but authenticated accounts share the same rows. Household isolation requires a dedicated schema and policy migration.
 
 JournalPal does not follow the shared-table model. `journal_vaults` and `journal_entries` must remain scoped to `(select auth.uid()) = owner_id`. Never replace those policies with authenticated-wide access.
+
+WellbeingPal follows the user's explicit single-household sharing rule: both authenticated accounts may read structured wellbeing data, but only the owner may change their profile, daily logs or medication data. `wellbeing_household_context` is intentionally shared for both reading and writing.
+
+## WellbeingPal data contract
+
+- Keep mood, energy, stress, sleep quality, movement and symptoms structured; do not add a notes or free-writing column.
+- Send all prose about feelings to JournalPal, where it remains encrypted and excluded from insights.
+- Keep medication names, dosage and adherence structured and shared between household accounts.
+- Use separate Supabase Auth accounts to associate check-ins with husband and wife roles.
+- Insights may read structured WellbeingPal, PeriodPal and ChoresPal data, but must never query `journal_vaults` or `journal_entries`.
+- Keep dynamic WellbeingPal output inside `[data-no-personalize]` so already-resolved account names are not processed as legacy profile tokens.
+- Present personal comparisons as associations, not causes or medical diagnoses, and require minimum sample sizes before showing them.
 
 ## JournalPal encryption contract
 
@@ -108,7 +121,7 @@ JournalPal does not follow the shared-table model. `journal_vaults` and `journal
 
 ## Cache versioning
 
-All HTML pages reference shared assets with the same query version, for example `?v=20260715.9`. Increment it when CSS or JavaScript changes and update every HTML entry point together.
+All HTML pages reference shared assets with the same query version, for example `?v=20260715.10`. Increment it when CSS or JavaScript changes and update every HTML entry point together.
 
 The query is only a cache key; it is not an application release number.
 
@@ -138,6 +151,7 @@ git status --short
 - ChoresPal: complete and undo a normal and shared chore.
 - PeriodPal: open Calendar, Today and Analytics; save one reversible entry.
 - JournalPal: create or unlock a test vault, save/edit/delete an entry, lock it, confirm a wrong passphrase fails, and verify the database contains ciphertext only.
+- WellbeingPal: connect each account to the correct role, save both daily check-ins, update household context, log medication status and review each person's Insights.
 - Settings: save household names, privacy and diaper-stock selection.
 
 ### Deployment

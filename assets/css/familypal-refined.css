@@ -444,7 +444,8 @@ body[data-app="home"] { padding: 0; align-items: stretch; }
 .home-module.baby { --module-color: #b84f7d; }
 .home-module.chores { --module-color: #247e68; }
 .home-module.period { --module-color: #aa4e72; }
-.home-module.journal { --module-color: #725ca8; grid-column: 1 / -1; min-height: 132px; }
+.home-module.journal { --module-color: #725ca8; }
+.home-module.wellbeing { --module-color: #3f7c85; }
 .home-account { margin-top: 28px; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
 
 /* Settings and utility pages */

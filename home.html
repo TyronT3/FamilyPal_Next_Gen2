@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FamilyPal — Home</title>
 <meta name="description" content="Your FamilyPal household dashboard.">
-<script src="assets/js/familypal-theme.js?v=20260715.9"></script>
-<link rel="stylesheet" href="assets/css/familypal.css?v=20260715.9">
+<script src="assets/js/familypal-theme.js?v=20260715.10"></script>
+<link rel="stylesheet" href="assets/css/familypal.css?v=20260715.10">
 <style>
   body{min-height:100vh;}
 </style>
-<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260715.9">
+<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260715.10">
 </head>
 <body data-app="home">
 <main class="home-shell">
@@ -71,6 +71,13 @@
       <span class="module-detail">Personal to this signed-in account</span>
       <span class="module-action">Unlock journal →</span>
     </a>
+
+    <a class="home-module wellbeing" href="wellbeingpal.html">
+      <span class="module-kicker"><span class="module-dot"></span>WellbeingPal</span>
+      <strong class="module-value">Daily wellbeing</strong>
+      <span class="module-detail">Mood, health, medication and household patterns</span>
+      <span class="module-action">Open check-in →</span>
+    </a>
   </div>
 
   <div class="home-account">
@@ -80,8 +87,8 @@
 </main>
 
 <div id="toast" class="toast"></div>
-<script src="assets/js/familypal-core.js?v=20260715.9"></script>
-<script src="assets/js/familypal-ui.js?v=20260715.9"></script>
+<script src="assets/js/familypal-core.js?v=20260715.10"></script>
+<script src="assets/js/familypal-ui.js?v=20260715.10"></script>
 <script>
 function todayRange(){var s=new Date();s.setHours(0,0,0,0);var e=new Date();e.setHours(23,59,59,999);return{start:s.toISOString(),end:e.toISOString()};}
 function timeAgo(ts){var m=Math.floor((Date.now()-new Date(ts))/60000);if(m<1)return'Just now';if(m<60)return m+' min ago';var h=Math.floor(m/60);if(h<24)return h+' hr'+(h===1?'':'s')+' ago';return new Date(ts).toLocaleDateString();}

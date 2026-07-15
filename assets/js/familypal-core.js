@@ -27,6 +27,18 @@
     return localStorage.getItem('fp_access_token');
   }
 
+  function getUserId() {
+    var token = getAccessToken();
+    if (!token) return null;
+    try {
+      var payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (payload.length % 4) payload += '=';
+      return JSON.parse(atob(payload)).sub || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   function getRefreshToken() {
     return localStorage.getItem('fp_refresh_token');
   }
@@ -312,6 +324,7 @@
     config: config,
     getEmail: getEmail,
     getAccessToken: getAccessToken,
+    getUserId: getUserId,
     getRefreshToken: getRefreshToken,
     getSetting: getSetting,
     getSettings: getSettings,
