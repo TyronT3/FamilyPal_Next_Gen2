@@ -168,6 +168,26 @@
   .action-btn.red{border-color:var(--red);background:#3d0e0e;color:var(--red);}
   .btn-primary{background:linear-gradient(135deg,var(--accent),#8b5cf6);color:#fff;}
   .btn-sm{padding:8px 14px;font-size:13px;border-radius:8px;border:none;cursor:pointer;font-weight:600;}
+  .table-editor-modal{position:relative;display:flex;flex-direction:column;}
+  .table-editor-modal>.modal-close{position:absolute;top:16px;right:20px;z-index:4;margin:0;}
+  .table-wrap{overflow:auto;min-height:0;border:1px solid var(--border);border-radius:12px;background:var(--card);}
+  .table-wrap table{width:100%;min-width:1080px;border-collapse:separate;border-spacing:0;font-size:12px;}
+  .table-wrap th,.table-wrap td{padding:7px;border-bottom:1px solid var(--border);vertical-align:middle;text-align:left;}
+  .table-wrap th{position:sticky;top:0;z-index:2;background:var(--surface);color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.45px;white-space:nowrap;}
+  .table-wrap tbody tr:last-child td{border-bottom:0;}
+  .table-wrap tbody tr:hover td{background:color-mix(in srgb,var(--accent) 4%,transparent);}
+  .table-wrap .td-input,.table-wrap .td-select{width:100%;min-height:36px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font:inherit;}
+  .table-wrap .td-input:focus,.table-wrap .td-select:focus{border-color:var(--accent);outline:3px solid var(--accent-soft);}
+  .table-wrap .td-num{width:58px;min-width:58px;text-align:center;}
+  .table-wrap .td-save{min-height:36px;padding:7px 12px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--border));border-radius:8px;background:var(--accent-soft);color:var(--accent);font-weight:700;cursor:pointer;}
+  .table-wrap .status-dot{display:block;width:9px;height:9px;border-radius:50%;}
+  .table-wrap .dot-stocked{background:var(--green);}.table-wrap .dot-low{background:var(--orange);}.table-wrap .dot-open{background:var(--yellow);}.table-wrap .dot-empty{background:var(--red);}
+  @media (min-width:900px){
+    #table-modal{align-items:stretch;padding:0!important;}
+    #table-modal .table-editor-modal{width:100vw;max-width:none;height:100vh;max-height:none;overflow:hidden;border:0;border-radius:0;padding:24px 28px;}
+    #table-modal .modal-handle{display:none;}
+    #table-modal .table-wrap{flex:1;}
+  }
   @media (max-width:520px){.toolbar{padding:10px 12px}.search-wrap{flex:1 0 100%;}.filters{width:100%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));}.filter-btn,.sort-btn{min-height:34px;padding:6px 8px;}.sort-btn{grid-column:span 2;}.stats{padding:10px 12px;}.stat-chip{min-width:84px;}}
   @media print{body{background:#fff;color:#000;}#app-screen,header,.toolbar,.stats,.fab,#toast{display:none!important;}#print-area{display:block!important;}.print-item{padding:6px 0;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;font-size:13px;}.print-section{margin-bottom:16px;}.print-section h3{font-size:14px;font-weight:700;margin-bottom:6px;border-bottom:2px solid #000;padding-bottom:4px;}}
   #print-area{display:none;}
@@ -379,7 +399,7 @@
 
 <!-- Table View Modal -->
 <div class="modal-overlay" id="table-modal" style="display:none" onclick="closeItemModal(event)">
-  <div class="modal" style="max-height:95vh;border-radius:20px 20px 0 0">
+  <div class="modal table-editor-modal">
     <div class="modal-handle"></div>
     <button class="modal-close" onclick="closeModal('table-modal')">✕</button>
     <h2>📊 Table View</h2>
