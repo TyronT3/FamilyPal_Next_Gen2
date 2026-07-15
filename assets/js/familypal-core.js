@@ -179,6 +179,14 @@
     }
   }
 
+  function apiErrorMessage(data, status) {
+    data = data || {};
+    if (data.error_code === 'invalid_credentials') return 'Email or password is incorrect.';
+    if (data.error_code === 'email_not_confirmed') return 'Please confirm your email address before signing in.';
+    if (data.error_code === 'user_banned') return 'This account is currently unavailable.';
+    return data.msg || data.message || data.error_description || data.error || ('Request failed (' + status + ').');
+  }
+
   async function requestJson(path, opts) {
     opts = opts || {};
     var token = await getAuthToken();
@@ -196,7 +204,7 @@
       if (!/index\.html$/.test(window.location.pathname)) window.location.replace('index.html?session=expired');
       throw new Error('Your session expired. Please sign in again.');
     }
-    if (!response.ok) throw new Error(data.message || data.error || response.status);
+    if (!response.ok) throw new Error(apiErrorMessage(data, response.status));
     return data;
   }
 
@@ -263,7 +271,7 @@
       }, opts.headers || {})
     }), 12000);
     var data = await response.json().catch(function () { return {}; });
-    if (!response.ok) throw new Error(data.message || data.error || response.status);
+    if (!response.ok) throw new Error(apiErrorMessage(data, response.status));
     return data;
   }
 
