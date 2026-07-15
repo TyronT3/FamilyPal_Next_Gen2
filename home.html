@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FamilyPal — Home</title>
 <meta name="description" content="Your FamilyPal household dashboard.">
-<script src="assets/js/familypal-theme.js"></script>
-<link rel="stylesheet" href="assets/css/familypal.css">
+<script src="assets/js/familypal-theme.js?v=20260715.3"></script>
+<link rel="stylesheet" href="assets/css/familypal.css?v=20260715.3">
 <style>
   body{min-height:100vh;}
 </style>
-<link rel="stylesheet" href="assets/css/familypal-refined.css">
+<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260715.3">
 </head>
 <body data-app="home">
 <main class="home-shell">
@@ -22,7 +22,7 @@
         <div class="brand-tagline" data-household-name>Your household</div>
       </div>
     </div>
-    <button class="icon-btn" type="button" aria-label="Open settings" title="Settings" onclick="go('settings.html')">⚙</button>
+    <a class="icon-btn" aria-label="Open settings" title="Settings" href="settings.html">⚙</a>
   </div>
 
   <section aria-labelledby="home-greeting">
@@ -32,49 +32,49 @@
 
   <section class="onboarding-card" id="onboarding-card" hidden>
     <div><strong>Make FamilyPal yours</strong><span>Add your household names and connect diaper stock to finish setup.</span></div>
-    <button class="btn btn-primary" type="button" onclick="go('settings.html')">Finish setup</button>
+    <a class="btn btn-primary" href="settings.html">Finish setup</a>
   </section>
 
   <h2 class="home-section-heading">Today</h2>
   <div class="home-modules" id="home-modules" aria-busy="true">
-    <button class="home-module pantry" type="button" onclick="go('pantrypal.html')">
+    <a class="home-module pantry" href="pantrypal.html">
       <span class="module-kicker"><span class="module-dot"></span>PantryPal</span>
       <strong class="module-value" id="home-pantry-value">Checking pantry…</strong>
       <span class="module-detail" id="home-pantry-detail">Stock and shopping</span>
       <span class="module-action" id="home-pantry-action">Open pantry →</span>
-    </button>
+    </a>
 
-    <button class="home-module baby" type="button" onclick="go('babypal.html')">
+    <a class="home-module baby" href="babypal.html">
       <span class="module-kicker"><span class="module-dot"></span>BabyPal</span>
       <strong class="module-value" id="home-baby-value">Checking today…</strong>
       <span class="module-detail" id="home-baby-detail">Feeds, diapers and sleep</span>
       <span class="module-action">Open today →</span>
-    </button>
+    </a>
 
-    <button class="home-module chores" type="button" onclick="go('chorepal.html')">
+    <a class="home-module chores" href="chorepal.html">
       <span class="module-kicker"><span class="module-dot"></span>ChoresPal</span>
       <strong class="module-value" id="home-chores-value">Checking chores…</strong>
       <span class="module-detail" id="home-chores-detail">Shared household progress</span>
       <span class="module-action">View today →</span>
-    </button>
+    </a>
 
-    <button class="home-module period" type="button" onclick="go('periodpal.html')">
+    <a class="home-module period" href="periodpal.html">
       <span class="module-kicker"><span class="module-dot"></span>PeriodPal</span>
       <strong class="module-value" id="home-period-value">Private calendar</strong>
       <span class="module-detail" id="home-period-detail">Details stay inside PeriodPal</span>
       <span class="module-action">Open privately →</span>
-    </button>
+    </a>
   </div>
 
   <div class="home-account">
     <span>Signed in as <strong id="user-email"></strong></span>
-    <button class="auth-link" type="button" onclick="go('settings.html')">Account settings</button>
+    <a class="auth-link" href="settings.html">Account settings</a>
   </div>
 </main>
 
 <div id="toast" class="toast"></div>
-<script src="assets/js/familypal-core.js"></script>
-<script src="assets/js/familypal-ui.js"></script>
+<script src="assets/js/familypal-core.js?v=20260715.3"></script>
+<script src="assets/js/familypal-ui.js?v=20260715.3"></script>
 <script>
 function todayRange(){var s=new Date();s.setHours(0,0,0,0);var e=new Date();e.setHours(23,59,59,999);return{start:s.toISOString(),end:e.toISOString()};}
 function timeAgo(ts){var m=Math.floor((Date.now()-new Date(ts))/60000);if(m<1)return'Just now';if(m<60)return m+' min ago';var h=Math.floor(m/60);if(h<24)return h+' hr'+(h===1?'':'s')+' ago';return new Date(ts).toLocaleDateString();}
@@ -140,7 +140,6 @@ window.onload=async function(){
   loadDashboard();
 };
 
-function go(url){window.location.href=url;}
 </script>
 </body>
 </html>

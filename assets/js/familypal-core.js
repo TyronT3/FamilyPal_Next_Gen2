@@ -98,6 +98,9 @@
       window.location.href = 'index.html';
       return false;
     }
+    // Let authenticated pages render immediately. Data requests can refresh a
+    // near-expiry token in the background without making navigation look stuck.
+    if (getAccessToken()) return true;
     var token = await getAuthToken();
     if (!token) {
       window.location.href = 'index.html';
@@ -141,10 +144,24 @@
     var token = getAccessToken();
     if (token && !tokenExpiresSoon()) return token;
     try {
-      return await refreshSession();
+      return await refreshSession() || token;
     } catch (e) {
+      if (token) return token;
       clearCredentials();
       return null;
+    }
+  }
+
+  async function fetchWithTimeout(url, opts, timeoutMs) {
+    var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer = controller ? setTimeout(function () { controller.abort(); }, timeoutMs || 12000) : null;
+    try {
+      return await fetch(url, Object.assign({}, opts || {}, controller ? { signal: controller.signal } : {}));
+    } catch (e) {
+      if (e && e.name === 'AbortError') throw new Error('The server took too long to respond. Please try again.');
+      throw e;
+    } finally {
+      if (timer) clearTimeout(timer);
     }
   }
 
@@ -152,13 +169,13 @@
     opts = opts || {};
     var token = await getAuthToken();
     if (!token) throw new Error('Please sign in again.');
-    var response = await fetch(config.supabaseUrl + path, Object.assign({}, opts, {
+    var response = await fetchWithTimeout(config.supabaseUrl + path, Object.assign({}, opts, {
       headers: Object.assign({
         'Content-Type': 'application/json',
         'apikey': config.supabaseAnonKey,
         'Authorization': 'Bearer ' + token
       }, opts.headers || {})
-    }));
+    }), 12000);
     var data = await response.json().catch(function () { return {}; });
     if (!response.ok) throw new Error(data.message || data.error || response.status);
     return data;
@@ -220,12 +237,12 @@
 
   async function authJson(path, opts) {
     opts = opts || {};
-    var response = await fetch(config.supabaseUrl + path, Object.assign({}, opts, {
+    var response = await fetchWithTimeout(config.supabaseUrl + path, Object.assign({}, opts, {
       headers: Object.assign({
         'Content-Type': 'application/json',
         'apikey': config.supabaseAnonKey
       }, opts.headers || {})
-    }));
+    }), 12000);
     var data = await response.json().catch(function () { return {}; });
     if (!response.ok) throw new Error(data.message || data.error || response.status);
     return data;
