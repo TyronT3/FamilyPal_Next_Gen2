@@ -197,7 +197,7 @@ function switchTab(tab,btn){
   activeTab=tab;
   document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
   btn.classList.add('active');
-  ['today','log','history','trends','health'].forEach(function(t){document.getElementById('tab-'+t).style.display=t===tab?'block':'none';});
+  ['today','history','trends','health'].forEach(function(t){document.getElementById('tab-'+t).style.display=t===tab?'block':'none';});
   if(tab==='today')loadToday();
   if(tab==='history')loadHistory();
   if(tab==='trends')loadTrends();

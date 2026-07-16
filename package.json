@@ -2,6 +2,6 @@
   "name": "familypal-next-gen",
   "private": true,
   "scripts": {
-    "test": "node scripts/validate.mjs && node scripts/test-periodpal-warning.mjs"
+    "test": "node scripts/validate.mjs && node scripts/test-babypal-tabs.mjs && node scripts/test-periodpal-warning.mjs"
   }
 }
