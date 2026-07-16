@@ -14,6 +14,26 @@ var importRows=[],jsonImportData=null;
 var sexFilterStart='',sexFilterEnd='';
 var measurementFilterMin='',measurementFilterMax='';
 var calendarFilters=loadCalendarFilters();
+var eventEditorState=null;
+var EVENT_CATEGORIES=['symptom','mood','sex','workout','water','pregnancy_test','other'];
+var EVENT_MOODS=[
+  ['Happy','😊 Happy'],['Calm','😌 Calm'],['Content','🙂 Content'],['Energetic','⚡ Energetic'],
+  ['Hopeful','🌤️ Hopeful'],['Emotional','🥹 Emotional'],['Irritable','😠 Irritable'],['Anxious','😟 Anxious'],
+  ['Low mood','😔 Low mood'],['Sad','😢 Sad'],['Angry','😡 Angry'],['Overwhelmed','😵‍💫 Overwhelmed']
+];
+var EVENT_SYMPTOMS=[
+  ['Cramps','Cramps'],['Headache','Headache'],['Bloating','Bloating'],['Fatigue','Fatigue'],
+  ['Nausea','Nausea'],['Back pain','Back pain'],['Tender breasts','Tender breasts'],['Acne','Acne'],
+  ['Cravings','Cravings'],['Dizziness','Dizziness'],['Digestive changes','Digestive changes'],['Trouble sleeping','Trouble sleeping']
+];
+var EVENT_SEX_OPTIONS=[
+  ['Protected sex','🛡️ Protected sex'],['Unprotected sex','⚠️ Unprotected sex'],['Withdrawal','↩️ Withdrawal'],
+  ['No penetration','🤍 No penetration'],['Other intimacy','✨ Other intimacy']
+];
+var EVENT_WORKOUTS=[
+  ['Walking','🚶 Walking'],['Running','🏃 Running'],['Cycling','🚴 Cycling'],['Strength training','🏋️ Strength training'],
+  ['Yoga','🧘 Yoga'],['Pilates','🤸 Pilates'],['Swimming','🏊 Swimming'],['HIIT','⚡ HIIT'],['Custom workout','✏️ Custom workout']
+];
 
 function loadCalendarFilters(){
   var defaults={period:true,predicted:true,fertile:true,ovulation:true,intimacy:true,notes:true,events:true};
@@ -353,7 +373,7 @@ function openDay(key){
   document.getElementById('day-title').textContent=fmtFullDate(key);
   document.getElementById('day-content').innerHTML=(tags.length?tags.join(''):'<div class="empty-log">Nothing logged for this day</div>')+
     '<button class="btn btn-primary" onclick="closeModal(\'day-modal\');openCycleModal(null,\''+key+'\')">Log Period Here</button>'+
-    '<button class="btn btn-secondary" onclick="closeModal(\'day-modal\');openEventModal(null,\''+key+'\',\'symptom\')">Log Symptom / Mood</button>'+
+    '<button class="btn btn-secondary" onclick="closeModal(\'day-modal\');openEventModal(null,\''+key+'\',\'mood\')">Log daily entry</button>'+
     '<button class="btn btn-secondary" onclick="closeModal(\'day-modal\');openIntimacyModal(null,\''+key+'\')">Log Pregnancy Risk Note</button>';
   document.getElementById('day-modal').style.display='flex';
 }
@@ -806,12 +826,19 @@ function eventTitle(e){
 }
 
 function eventDetail(e){
-  var parts=[e.category];
-  if(e.severity_code)parts.push('severity '+e.severity_code);
+  if(e.category==='mood')return'Mood';
+  if(e.category==='symptom'){
+    var symptomCount=String(e.label||'').split(/\s*·\s*/).filter(Boolean).length;
+    return symptomCount>1?symptomCount+' symptoms selected':'Symptom';
+  }
+  if(e.category==='sex')return'Private intimacy entry';
+  if(e.category==='pregnancy_test')return pregnancyTestResult(e);
+  var parts=[];
+  if(e.severity_code)parts.push(String(e.severity_code).replace(/_/g,' '));
   if(e.value_text)parts.push(e.value_text);
   if(e.value_number!=null)parts.push(String(e.value_number)+(e.unit?' '+e.unit:''));
   if(e.raw_value&&!e.value_text)parts.push(e.raw_value);
-  return parts.filter(Boolean).join(' · ')||'Imported event';
+  return parts.filter(Boolean).join(' · ')||'Daily entry';
 }
 
 function compactTimelineText(value,max){
@@ -823,7 +850,7 @@ function compactTimelineText(value,max){
 }
 
 function friendlyEventTitle(e){
-  if(e.category==='sex')return'Intimacy';
+  if(e.category==='sex')return e.label||'Intimacy';
   if(e.category==='pregnancy_test')return'Pregnancy test';
   if(e.category==='mood')return e.label||'Mood';
   if(e.category==='symptom')return e.label||'Symptom';
@@ -942,7 +969,7 @@ async function deleteExclusion(){
 
 function detailInput(label,id,value,type){
   type=type||'text';
-  return '<div class="date-row"><label>'+esc(label)+'</label><input type="'+type+'" id="'+id+'" value="'+esc(value||'')+'"></div>';
+  return '<div class="date-row"><label for="'+id+'">'+esc(label)+'</label><input type="'+type+'" id="'+id+'" value="'+escAttr(value||'')+'"></div>';
 }
 
 function detailArea(label,id,value){
@@ -972,70 +999,184 @@ async function deleteNote(id){
   try{await sbFetch('/rest/v1/period_notes?note_id=eq.'+encodeURIComponent(id),{method:'DELETE'});closeModal('history-detail-modal');toast('Note deleted');loadData();}catch(e){toast('Error: '+e.message);}
 }
 
+function escAttr(value){return esc(String(value==null?'':value)).replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
+function normaliseEventCategory(category){return EVENT_CATEGORIES.indexOf(category)>=0?category:'other';}
+
+function eventInput(label,id,value,type,help){
+  return '<div class="field"><label for="'+id+'">'+esc(label)+'</label><input id="'+id+'" type="'+(type||'text')+'" value="'+escAttr(value)+'">'+(help?'<div class="event-field-help">'+esc(help)+'</div>':'')+'</div>';
+}
+
+function eventArea(label,id,value,help){
+  return '<div class="field"><label for="'+id+'">'+esc(label)+'</label><textarea id="'+id+'">'+esc(value||'')+'</textarea>'+(help?'<div class="event-field-help">'+esc(help)+'</div>':'')+'</div>';
+}
+
+function eventChoiceMarkup(inputId,choices,selected,multiple){
+  var selectedValues=multiple?String(selected||'').split(/\s*·\s*/).filter(Boolean):[String(selected||'')];
+  return '<input type="hidden" id="'+inputId+'" value="'+escAttr(selected||'')+'"><div class="event-choice-grid">'+choices.map(function(choice){
+    var isSelected=selectedValues.indexOf(choice[0])>=0;
+    return '<button type="button" class="type-opt '+(isSelected?'selected':'')+'" data-choice-for="'+inputId+'" data-value="'+escAttr(choice[0])+'" aria-pressed="'+(isSelected?'true':'false')+'" onclick="selectEventChoice(\''+inputId+'\',this,'+(multiple?'true':'false')+')">'+esc(choice[1])+'</button>';
+  }).join('')+'</div>';
+}
+
+function markEventEditorDirty(){
+  var modal=document.getElementById('history-detail-modal');
+  if(modal)modal.setAttribute('data-fp-dirty','true');
+}
+
+function selectEventChoice(inputId,button,multiple){
+  var input=document.getElementById(inputId);
+  var choices=Array.from(document.querySelectorAll('[data-choice-for="'+inputId+'"]'));
+  if(multiple){
+    button.classList.toggle('selected');
+    button.setAttribute('aria-pressed',button.classList.contains('selected')?'true':'false');
+    input.value=choices.filter(function(choice){return choice.classList.contains('selected');}).map(function(choice){return choice.getAttribute('data-value');}).join(' · ');
+  }else{
+    choices.forEach(function(choice){var selected=choice===button;choice.classList.toggle('selected',selected);choice.setAttribute('aria-pressed',selected?'true':'false');});
+    input.value=button.getAttribute('data-value')||'';
+  }
+  if(inputId==='detail-event-workout')updateWorkoutCustomField();
+  markEventEditorDirty();
+}
+
+function updateWorkoutCustomField(){
+  var input=document.getElementById('detail-event-workout');
+  var custom=document.getElementById('detail-event-workout-custom-wrap');
+  if(custom)custom.style.display=input&&input.value==='Custom workout'?'block':'none';
+}
+
+function selectWaterAmount(button){
+  var input=document.getElementById('detail-event-water');
+  if(input)input.value=button.getAttribute('data-ml')||'';
+  syncWaterPreset(input?input.value:'');
+  markEventEditorDirty();
+}
+
+function syncWaterPreset(value){
+  document.querySelectorAll('[data-water-preset]').forEach(function(button){
+    var selected=button.getAttribute('data-ml')===String(value);
+    button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',selected?'true':'false');
+  });
+}
+
+function eventEditorTitle(category,isEditing){
+  var names={symptom:'symptoms',mood:'mood',sex:'sex / intimacy',workout:'workout',water:'water',pregnancy_test:'pregnancy test',other:'other entry'};
+  return (isEditing?'Edit ':'Log ')+(names[category]||'daily entry');
+}
+
+function renderEventCategoryFields(eventData){
+  var category=normaliseEventCategory(document.getElementById('detail-event-category').value);
+  var html='';
+  if(category==='mood'){
+    html='<p class="event-helper">How are you feeling? Choose the mood that fits best.</p>'+eventChoiceMarkup('detail-event-label',EVENT_MOODS,eventData.label||'',false);
+  }else if(category==='symptom'){
+    html='<p class="event-helper">Choose one or more symptoms you noticed.</p>'+eventChoiceMarkup('detail-event-label',EVENT_SYMPTOMS,eventData.label||'',true);
+  }else if(category==='sex'){
+    html='<p class="event-helper">Choose the option that best describes this entry. Use Pregnancy Risk when you want fertility-window estimates.</p>'+eventChoiceMarkup('detail-event-label',EVENT_SEX_OPTIONS,eventData.label||'',false);
+  }else if(category==='workout'){
+    var workoutNames=EVENT_WORKOUTS.map(function(choice){return choice[0];});
+    var selectedWorkout=workoutNames.indexOf(eventData.label)>=0?eventData.label:(eventData.label?'Custom workout':'');
+    var customWorkout=selectedWorkout==='Custom workout'&&eventData.label!=='Custom workout'?eventData.label:'';
+    var intensity=eventData.severity_code&&['Light','Moderate','Hard'].indexOf(eventData.severity_code)>=0?eventData.severity_code:'Moderate';
+    html='<p class="event-helper">Choose a workout, then add the details that matter.</p>'+eventChoiceMarkup('detail-event-workout',EVENT_WORKOUTS,selectedWorkout,false)+
+      '<div id="detail-event-workout-custom-wrap" style="display:'+(selectedWorkout==='Custom workout'?'block':'none')+'">'+eventInput('Workout name','detail-event-workout-custom',customWorkout,'text','Give your custom workout a short name.')+'</div>'+
+      eventInput('Duration in minutes','detail-event-workout-duration',eventData.value_number==null?'':eventData.value_number,'number','Optional — you can leave this blank.')+
+      '<div class="section-label">Intensity</div>'+eventChoiceMarkup('detail-event-workout-intensity',[['Light','Light'],['Moderate','Moderate'],['Hard','Hard']],intensity,false);
+  }else if(category==='water'){
+    var amount=eventData.value_number==null?'':eventData.value_number;
+    if(amount!==''&&['l','litre','litres','liter','liters'].indexOf(String(eventData.unit||'').toLowerCase())>=0)amount=Number(amount)*1000;
+    html='<p class="event-helper">How much water did you drink?</p>'+eventInput('Water in millilitres','detail-event-water',amount,'number','Enter any amount, or use a quick choice below.')+
+      '<div class="event-water-presets">'+[250,500,750,1000].map(function(ml){var selected=String(amount)===String(ml);return '<button type="button" class="type-opt '+(selected?'selected':'')+'" data-water-preset data-ml="'+ml+'" aria-pressed="'+(selected?'true':'false')+'" onclick="selectWaterAmount(this)">'+ml+' ml</button>';}).join('')+'</div>';
+  }else if(category==='pregnancy_test'){
+    var existingResult=pregnancyTestResult(eventData);
+    var result=/positive/i.test(existingResult)?'Positive':/negative/i.test(existingResult)?'Negative':'';
+    html='<p class="event-helper">Choose the result shown on the test.</p>'+eventChoiceMarkup('detail-event-result',[['Negative','Negative'],['Positive','Positive']],result,false);
+  }else{
+    html='<p class="event-helper">Add a custom entry when none of the guided options fit.</p>'+eventInput('Entry name','detail-event-label',eventData.label||'','text','A short, recognisable title.')+
+      eventArea('Description','detail-event-value-text',eventData.value_text||'','Optional details about what happened.')+
+      eventInput('Amount or measurement','detail-event-value-number',eventData.value_number==null?'':eventData.value_number,'number','Optional numeric value.')+
+      eventInput('Unit','detail-event-unit',eventData.unit||'','text','For example: minutes, kg, ml or times.')+
+      eventInput('Intensity or rating','detail-event-severity',eventData.severity_code||'','text','Optional — for example mild, moderate or strong.')+
+      '<details class="event-advanced"><summary>Reference details</summary>'+eventInput('Reference code','detail-event-code',eventData.code||'','text','Optional code used by an imported record.')+eventArea('Original or imported details','detail-event-raw',eventData.raw_value||'')+'</details>';
+  }
+  document.getElementById('detail-event-fields').innerHTML=html;
+  document.getElementById('history-detail-title').textContent=eventEditorTitle(category,!!(eventEditorState&&eventEditorState.event_id));
+  document.getElementById('detail-event-save').textContent='Save '+({symptom:'symptoms',mood:'mood',sex:'entry',workout:'workout',water:'water',pregnancy_test:'result',other:'entry'}[category]||'entry');
+  var water=document.getElementById('detail-event-water');if(water)water.addEventListener('input',function(){syncWaterPreset(water.value);});
+}
+
+function changeEventCategory(category){
+  document.getElementById('detail-event-category').value=normaliseEventCategory(category);
+  renderEventCategoryFields({category:category,label:'',code:'',severity_code:'',value_text:'',value_number:null,unit:'',raw_value:''});
+}
+
 function openEventModal(id,day,category){
-  var e=id?periodEvents.find(function(r){return r.event_id===id;}):null;
+  var e=id?periodEvents.find(function(row){return row.event_id===id;}):null;
   if(id&&!e)return;
-  var isNew=!e;
-  e=e||{event_id:'',source_app:'manual',event_date:day||todayKey(),category:category||'symptom',label:'',code:'',severity_code:'',value_text:'',value_number:null,unit:'',raw_value:''};
-  document.getElementById('history-detail-title').textContent=isNew?'Symptom / Mood':eventTitle(e);
+  e=e||{event_id:'',source_app:'manual',event_date:day||todayKey(),category:category||'mood',label:'',code:'',severity_code:'',value_text:'',value_number:null,unit:'',raw_value:''};
+  eventEditorState=Object.assign({},e);
+  var selectedCategory=normaliseEventCategory(e.category);
+  var isImported=e.source_app&&e.source_app!=='manual';
   document.getElementById('history-detail-content').innerHTML=
-    '<div class="detail-grid"><div class="detail-chip"><span>Source</span><strong>'+esc(e.source_app||'manual')+'</strong></div><div class="detail-chip"><span>ID</span><strong>'+esc(e.event_id||'new')+'</strong></div></div>'+
+    (isImported?'<div class="event-import-note">This entry was imported. Saving keeps its original reference details.</div>':'')+
     detailInput('Date','detail-event-date',e.event_date,'date')+
-    '<div class="date-row"><label>Category</label><select id="detail-event-category"><option value="symptom" '+(e.category==='symptom'?'selected':'')+'>Symptom</option><option value="mood" '+(e.category==='mood'?'selected':'')+'>Mood</option><option value="sex" '+(e.category==='sex'?'selected':'')+'>Sex</option><option value="workout" '+(e.category==='workout'?'selected':'')+'>Workout</option><option value="water" '+(e.category==='water'?'selected':'')+'>Water</option><option value="pregnancy_test" '+(e.category==='pregnancy_test'?'selected':'')+'>Pregnancy test</option><option value="other" '+(['symptom','mood','sex','workout','water','pregnancy_test'].indexOf(e.category)<0?'selected':'')+'>Other</option></select></div>'+
-    '<div class="section-label">Quick names</div><div class="type-toggle">'+['Cramps','Headache','Bloating','Fatigue','Nausea','Back pain','Tender breasts','Emotional','Irritable','Happy','Anxious','Low mood'].map(function(s){return '<button class="type-opt" onclick="chooseEventPreset(\''+s.replace(/'/g,'')+'\')">'+esc(s)+'</button>';}).join('')+'</div>'+
-    detailInput('Name','detail-event-label',e.label||'')+
-    detailInput('Code','detail-event-code',e.code||'')+
-    detailInput('Severity','detail-event-severity',e.severity_code||'')+
-    detailInput('Value','detail-event-value-text',e.value_text||'')+
-    detailInput('Number','detail-event-value-number',e.value_number==null?'':e.value_number,'number')+
-    detailInput('Unit','detail-event-unit',e.unit||'')+
-    detailArea('Raw value','detail-event-raw',e.raw_value||'')+
-    '<button class="btn btn-primary" onclick="saveEvent(\''+(e.event_id||'')+'\')">Save Event</button>'+
-    (isNew?'':'<button class="btn btn-secondary" style="color:var(--red)" onclick="deleteEvent(\''+e.event_id+'\')">Delete Event</button>');
+    '<div class="date-row"><label for="detail-event-category">What are you logging?</label><select id="detail-event-category" onchange="changeEventCategory(this.value)"><option value="mood" '+(selectedCategory==='mood'?'selected':'')+'>Mood</option><option value="symptom" '+(selectedCategory==='symptom'?'selected':'')+'>Symptoms</option><option value="sex" '+(selectedCategory==='sex'?'selected':'')+'>Sex / intimacy</option><option value="workout" '+(selectedCategory==='workout'?'selected':'')+'>Workout</option><option value="water" '+(selectedCategory==='water'?'selected':'')+'>Water</option><option value="pregnancy_test" '+(selectedCategory==='pregnancy_test'?'selected':'')+'>Pregnancy test</option><option value="other" '+(selectedCategory==='other'?'selected':'')+'>Other</option></select></div>'+
+    '<div id="detail-event-fields"></div>'+
+    '<button class="btn btn-primary" id="detail-event-save" onclick="saveEvent(\''+(e.event_id||'')+'\',this)">Save entry</button>'+
+    (e.event_id?'<button class="btn btn-secondary" style="color:var(--red)" onclick="deleteEvent(\''+e.event_id+'\')">Delete entry</button>':'');
   document.getElementById('history-detail-modal').style.display='flex';
+  renderEventCategoryFields(e);
 }
 
-function openPregnancyTestModal(){
-  openEventModal(null,todayKey(),'pregnancy_test');
-  document.getElementById('history-detail-title').textContent='Pregnancy Test';
-  document.getElementById('detail-event-category').value='pregnancy_test';
-  document.getElementById('detail-event-label').value='Pregnancy test';
-  document.getElementById('detail-event-value-text').value='';
-  var target=document.getElementById('detail-event-value-text').parentElement;
-  target.insertAdjacentHTML('beforebegin','<div class="section-label">Result</div><div class="type-toggle"><button class="type-opt" onclick="choosePregnancyTestResult(\'Negative\')">Negative</button><button class="type-opt" onclick="choosePregnancyTestResult(\'Positive\')">Positive</button></div>');
-}
+function openPregnancyTestModal(){openEventModal(null,todayKey(),'pregnancy_test');}
 
-function choosePregnancyTestResult(result){document.getElementById('detail-event-value-text').value=result;}
+function eventFieldValue(id){var field=document.getElementById(id);return field?String(field.value||'').trim():'';}
 
-function chooseEventPreset(name){
-  document.getElementById('detail-event-label').value=name;
-  document.getElementById('detail-event-category').value=['Emotional','Irritable','Happy','Anxious','Low mood'].indexOf(name)>=0?'mood':'symptom';
-}
-
-async function saveEvent(id){
-  var num=document.getElementById('detail-event-value-number').value;
+async function saveEvent(id,button){
+  var category=normaliseEventCategory(eventFieldValue('detail-event-category'));
   var payload={
-    event_date:document.getElementById('detail-event-date').value,
-    category:document.getElementById('detail-event-category').value.trim(),
-    label:document.getElementById('detail-event-label').value.trim()||null,
-    code:document.getElementById('detail-event-code').value.trim()||null,
-    severity_code:document.getElementById('detail-event-severity').value.trim()||null,
-    value_text:document.getElementById('detail-event-value-text').value.trim()||null,
-    value_number:num===''?null:Number(num),
-    unit:document.getElementById('detail-event-unit').value.trim()||null,
-    raw_value:document.getElementById('detail-event-raw').value.trim()||null
+    event_date:eventFieldValue('detail-event-date'),category:category,label:null,
+    code:eventEditorState&&eventEditorState.code||null,severity_code:eventEditorState&&eventEditorState.severity_code||null,
+    value_text:null,value_number:null,unit:null,raw_value:eventEditorState&&eventEditorState.raw_value||null
   };
-  if(!payload.event_date||!payload.category){toast('Date and category are required');return;}
-  if((payload.category==='symptom'||payload.category==='mood')&&!payload.label){toast('Add a meaningful name first');return;}
-  try{
+  if(!payload.event_date){toast('Choose a date');return;}
+  if(category==='mood'){
+    payload.label=eventFieldValue('detail-event-label')||null;if(!payload.label){toast('Choose a mood');return;}
+  }else if(category==='symptom'){
+    payload.label=eventFieldValue('detail-event-label')||null;if(!payload.label){toast('Choose at least one symptom');return;}
+  }else if(category==='sex'){
+    payload.label=eventFieldValue('detail-event-label')||null;if(!payload.label){toast('Choose the option that fits best');return;}
+  }else if(category==='workout'){
+    var workout=eventFieldValue('detail-event-workout');
+    if(!workout){toast('Choose a workout');return;}
+    if(workout==='Custom workout'){workout=eventFieldValue('detail-event-workout-custom');if(!workout){toast('Name your custom workout');return;}}
+    var duration=eventFieldValue('detail-event-workout-duration');
+    if(duration!==''&&Number(duration)<=0){toast('Duration must be more than 0 minutes');return;}
+    payload.label=workout;payload.value_number=duration===''?null:Number(duration);payload.unit=duration===''?null:'min';payload.severity_code=eventFieldValue('detail-event-workout-intensity')||null;
+  }else if(category==='water'){
+    var water=Number(eventFieldValue('detail-event-water'));
+    if(!water||water<=0){toast('Enter how much water you drank');return;}
+    payload.label='Water';payload.value_number=water;payload.unit='ml';payload.severity_code=null;
+  }else if(category==='pregnancy_test'){
+    payload.label='Pregnancy test';payload.value_text=eventFieldValue('detail-event-result')||null;payload.severity_code=null;
+    if(!payload.value_text){toast('Choose Positive or Negative');return;}
+  }else{
+    payload.label=eventFieldValue('detail-event-label')||null;
+    if(!payload.label){toast('Give this entry a name');return;}
+    payload.value_text=eventFieldValue('detail-event-value-text')||null;
+    var number=eventFieldValue('detail-event-value-number');payload.value_number=number===''?null:Number(number);
+    payload.unit=eventFieldValue('detail-event-unit')||null;payload.severity_code=eventFieldValue('detail-event-severity')||null;
+    payload.code=eventFieldValue('detail-event-code')||null;payload.raw_value=eventFieldValue('detail-event-raw')||null;
+  }
+  return FamilyPalUI.runBusy(button,'Saving…',async function(){try{
     if(id)await sbFetch('/rest/v1/period_events?event_id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});
     else{
-      payload.event_id='manual_'+payload.category+'_'+Date.now();
-      payload.source_app='manual';
+      payload.event_id='manual_'+payload.category+'_'+Date.now();payload.source_app='manual';
       await sbFetch('/rest/v1/period_events',{method:'POST',body:JSON.stringify(payload)});
     }
-    closeModal('history-detail-modal');toast('Event saved');loadData();
-  }catch(e){toast('Error: '+e.message);}
+    var savedLabel={symptom:'Symptoms',mood:'Mood',sex:'Intimacy entry',workout:'Workout',water:'Water',pregnancy_test:'Pregnancy-test result',other:'Entry'}[category]||'Entry';
+    closeModal('history-detail-modal');toast(savedLabel+' saved');loadData();
+  }catch(error){toast('Error: '+error.message);}});
 }
 
 async function deleteEvent(id){

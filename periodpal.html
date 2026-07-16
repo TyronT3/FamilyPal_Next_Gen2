@@ -121,6 +121,16 @@
   .type-toggle{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
   .type-opt{flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;cursor:pointer;text-align:center;font-weight:700;min-width:86px;}
   .type-opt.selected{border-color:var(--accent);background:rgba(217,70,143,.16);color:var(--accent);}
+  .event-helper{margin:-2px 0 12px;color:var(--muted);font-size:13px;line-height:1.45;}
+  .event-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:16px;}
+  .event-choice-grid .type-opt{width:100%;min-width:0;min-height:48px;}
+  .event-water-presets{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:-3px 0 16px;}
+  .event-water-presets .type-opt{min-width:0;padding:9px 4px;font-size:12px;}
+  .event-field-help{margin-top:5px;color:var(--muted);font-size:11px;line-height:1.4;}
+  .event-import-note{margin-bottom:14px;padding:10px 12px;border:1px solid color-mix(in srgb,var(--blue) 35%,var(--border));border-radius:10px;background:color-mix(in srgb,var(--blue) 7%,var(--card));color:var(--muted);font-size:12px;line-height:1.45;}
+  .event-advanced{margin:4px 0 16px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card);}
+  .event-advanced summary{cursor:pointer;color:var(--muted);font-size:12px;font-weight:700;}
+  .event-advanced[open] summary{margin-bottom:14px;}
   .section-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;margin-top:14px;}
   .symptom-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px;}
   .symptom-grid label{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;font-size:13px;display:flex;gap:8px;align-items:center;}
@@ -136,6 +146,7 @@
     .day{border-radius:8px;padding:4px;}
     .day-num{font-size:11px;}
     .tag-dot{width:5px;height:5px;}
+    .event-water-presets{grid-template-columns:repeat(2,minmax(0,1fr));}
   }
 </style>
 <link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260716.15">
@@ -191,7 +202,7 @@
       <button type="button" class="ql-btn rose" onclick="quickStartPeriod(this)"><span class="ql-icon">🩸</span><span class="ql-label">Started Today</span><span class="ql-sub">One tap period start</span></button>
       <button type="button" class="ql-btn coral" onclick="quickEndPeriod(this)"><span class="ql-icon">✅</span><span class="ql-label">Ended Today</span><span class="ql-sub">Close current period</span></button>
       <button type="button" class="ql-btn blue" onclick="openCycleModal()"><span class="ql-icon">✏️</span><span class="ql-label">Add / Edit Period</span><span class="ql-sub">Dates, flow, symptoms</span></button>
-      <button type="button" class="ql-btn yellow" onclick="openEventModal(null,todayKey(),'symptom')"><span class="ql-icon">✨</span><span class="ql-label">Symptom / Mood</span><span class="ql-sub">Named daily entry</span></button>
+      <button type="button" class="ql-btn yellow" onclick="openEventModal(null,todayKey(),'mood')"><span class="ql-icon">✨</span><span class="ql-label">Daily entry</span><span class="ql-sub">Mood, symptoms, water and more</span></button>
       <button type="button" class="ql-btn yellow" style="grid-column:1/-1" onclick="openIntimacyModal()"><span class="ql-icon">🛡️</span><span class="ql-label">Pregnancy Risk</span><span class="ql-sub">Log intimacy privately</span></button>
     </div>
   </div>
@@ -232,8 +243,8 @@
       <button type="button" class="ql-btn rose" onclick="closeModal('log-picker-modal');quickStartPeriod(this)"><span class="ql-icon">🩸</span><span class="ql-label">Period Start</span></button>
       <button type="button" class="ql-btn coral" onclick="closeModal('log-picker-modal');quickEndPeriod(this)"><span class="ql-icon">✅</span><span class="ql-label">Period End</span></button>
       <button type="button" class="ql-btn blue" onclick="closeModal('log-picker-modal');openCycleModal()"><span class="ql-icon">✏️</span><span class="ql-label">Period Details</span></button>
-      <button type="button" class="ql-btn yellow" onclick="closeModal('log-picker-modal');openEventModal(null,todayKey(),'symptom')"><span class="ql-icon">✨</span><span class="ql-label">Symptom / Mood</span></button>
-      <button type="button" class="ql-btn yellow" onclick="closeModal('log-picker-modal');openIntimacyModal()"><span class="ql-icon">🛡️</span><span class="ql-label">Intimacy</span></button>
+      <button type="button" class="ql-btn yellow" onclick="closeModal('log-picker-modal');openEventModal(null,todayKey(),'mood')"><span class="ql-icon">✨</span><span class="ql-label">Daily entry</span></button>
+      <button type="button" class="ql-btn yellow" onclick="closeModal('log-picker-modal');openIntimacyModal()"><span class="ql-icon">🛡️</span><span class="ql-label">Pregnancy risk</span></button>
     </div>
   </div>
 </div>
@@ -371,6 +382,6 @@
 <div id="toast"></div>
 <script src="assets/js/familypal-core.js?v=20260715.10"></script>
 <script src="assets/js/familypal-ui.js?v=20260716.15"></script>
-<script src="assets/js/periodpal.js?v=20260716.15"></script>
+<script src="assets/js/periodpal.js?v=20260716.16"></script>
 </body>
 </html>
