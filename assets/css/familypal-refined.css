@@ -516,6 +516,11 @@ body[data-app="home"] { padding: 0; align-items: stretch; }
   .fp-nav-item { font-size: 9px; }
 }
 
+@media (pointer: coarse) {
+  button, [role="button"], .icon-btn, .modal-close { min-height: 44px; }
+  .icon-btn, .modal-close { min-width: 44px; height: 44px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }

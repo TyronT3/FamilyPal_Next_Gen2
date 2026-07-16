@@ -155,7 +155,7 @@ function openEditModal(id){
   closeModal('detail-modal');document.getElementById('item-modal').style.display='flex';
 }
 
-async function saveItem(){
+async function saveItem(button){
   const name=document.getElementById('item-name').value.trim();if(!name){toast('Name is required');return;}
   const brand=document.getElementById('item-brand').value.trim();
   const catId=document.getElementById('item-category-id').value||null;
@@ -167,11 +167,11 @@ async function saveItem(){
   const cat=categories.find(c=>c.id===catId);
   const emoji=cat?cat.emoji:guessEmoji(name);
   const payload={name,brand,category_id:catId,expiry_date:expiry,priority,barcode,emoji,unit_of_measure:uom,rating,qty_stocked:formQty.stocked,qty_open:formQty.open,min_stock:formQty.min,updated_at:new Date().toISOString()};
-  try{
+  return FamilyPalUI.runBusy(button,'Saving…',async function(){try{
     if(editingId){await sbFetch(`/rest/v1/items?id=eq.${editingId}`,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});await sbFetch('/rest/v1/history',{method:'POST',body:JSON.stringify({item_id:editingId,action:'Item edited'})});toast('Updated ✓');}
     else{const res=await sbFetch('/rest/v1/items',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});const ni=Array.isArray(res)?res[0]:res;await sbFetch('/rest/v1/history',{method:'POST',body:JSON.stringify({item_id:ni.id,action:'Item added'})});toast('Added ✓');}
     closeModal('item-modal');await loadAll();
-  }catch(e){toast('Error: '+e.message);}
+  }catch(e){toast('Error: '+e.message);}});
 }
 
 async function deleteItem(){
@@ -223,7 +223,16 @@ async function togglePriority(id,val){const item=items.find(i=>i.id===id);if(!it
 
 function openCatModal(){document.getElementById('cat-modal').style.display='flex';renderCatList();}
 function renderCatList(){const el=document.getElementById('cat-list');if(!categories.length){el.innerHTML='<div style="color:var(--muted);text-align:center;padding:20px">No categories yet</div>';return;}el.innerHTML=categories.map(c=>`<div class="cat-item"><span style="font-size:20px">${c.emoji}</span><span>${esc(c.name)}</span><button class="cat-del" onclick="deleteCategory('${c.id}')">🗑</button></div>`).join('');}
-async function addCategory(){const name=document.getElementById('new-cat-name').value.trim(),emoji=document.getElementById('new-cat-emoji').value.trim()||'📦';if(!name){toast('Enter a name');return;}try{const res=await sbFetch('/rest/v1/categories',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({name,emoji})});const nc=Array.isArray(res)?res[0]:res;categories.push(nc);categories.sort((a,b)=>a.name.localeCompare(b.name));document.getElementById('new-cat-name').value='';document.getElementById('new-cat-emoji').value='';populateCategorySelect();renderCatList();toast('Category added ✓');}catch(e){toast('Error: '+e.message);}}
+async function addCategory(button){
+  const name=document.getElementById('new-cat-name').value.trim(),emoji=document.getElementById('new-cat-emoji').value.trim()||'📦';
+  if(!name){toast('Enter a name');return;}
+  return FamilyPalUI.runBusy(button,'Adding…',async function(){try{
+    const res=await sbFetch('/rest/v1/categories',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({name,emoji})});
+    const nc=Array.isArray(res)?res[0]:res;categories.push(nc);categories.sort((a,b)=>a.name.localeCompare(b.name));
+    document.getElementById('new-cat-name').value='';document.getElementById('new-cat-emoji').value='';
+    FamilyPalUI.markSaved('cat-modal');populateCategorySelect();renderCatList();toast('Category added ✓');
+  }catch(e){toast('Error: '+e.message);}});
+}
 async function deleteCategory(id){if(!(await FamilyPalUI.confirm('Items in this category will become uncategorised.',{title:'Delete category?',confirmLabel:'Delete'})))return;try{await sbFetch(`/rest/v1/categories?id=eq.${id}`,{method:'DELETE'});categories=categories.filter(c=>c.id!==id);items.forEach(i=>{if(i.category_id===id)i.category_id=null;});populateCategorySelect();renderCatList();renderItems();toast('Category deleted');}catch(e){toast('Error: '+e.message);}}
 
 function renderCatList(){
@@ -369,7 +378,7 @@ function loadQuagga(){
 }
 
 // Shopping mode
-let shopTicked={},pendingScan=null,pendingUnknownBarcode=null,offlineQueue=[],unknownScans=[],shopScannerRunning=false,scannerRunning=false,shopScanHandler=null,scanHandler=null;
+let shopTicked={},pendingScan=null,pendingUnknownBarcode=null,offlineQueue=[],unknownScans=[],shopScannerRunning=false,scannerRunning=false,shopScanHandler=null,scanHandler=null,shopPending=new Set();
 function loadOfflineQueue(){try{offlineQueue=JSON.parse(localStorage.getItem('pp_queue')||'[]');}catch(e){offlineQueue=[];}try{unknownScans=JSON.parse(localStorage.getItem('pp_unknown')||'[]');}catch(e){unknownScans=[];}try{shopTicked=JSON.parse(localStorage.getItem('pp_ticked')||'{}');}catch(e){shopTicked={};}}
 function saveOfflineQueue(){localStorage.setItem('pp_queue',JSON.stringify(offlineQueue));}
 function saveUnknownScans(){localStorage.setItem('pp_unknown',JSON.stringify(unknownScans));}
@@ -410,6 +419,9 @@ function buildShopItems(){const list=[];items.forEach(item=>{const st=calcStatus
 function openShoppingMode(){document.getElementById('shop-modal').style.display='flex';updateSyncBanner();renderUnknownList();renderShopList();}
 function renderShopList(){const all=buildShopItems();const priority=all.filter(x=>x.isPriority),other=all.filter(x=>!x.isPriority);const renderItem=({item,tag,label})=>{const ticked=!!shopTicked[item.id];return`<div class="shop-list-item ${ticked?'ticked':''}" onclick="tickShopItem('${item.id}')"><div class="shop-tick">${ticked?'✓':''}</div><div class="shop-item-emoji">${item.emoji||'🥫'}</div><div class="shop-item-info"><div class="shop-item-name">${esc(item.name)}</div><div class="shop-item-brand">${esc(item.brand||'')}${catName(item.category_id)?' · '+catName(item.category_id):''}</div></div><span class="shop-tag ${tag}">${label}</span></div>`;};let html='';if(priority.length)html+=`<div class="shop-section-title">⭐ Priority (${priority.length})</div>${priority.map(renderItem).join('')}`;if(other.length)html+=`<div class="shop-section-title">📋 Also Needed (${other.length})</div>${other.map(renderItem).join('')}`;if(!priority.length&&!other.length)html=`<div style="text-align:center;padding:40px;color:var(--muted)">🎉 Nothing to buy!</div>`;document.getElementById('shop-list-content').innerHTML=html;}
 async function tickShopItem(id){
+  if(shopPending.has(id))return;
+  shopPending.add(id);
+  try{
   const wasTicked=!!shopTicked[id];
   shopTicked[id]=!wasTicked;
   localStorage.setItem('pp_ticked',JSON.stringify(shopTicked));
@@ -441,8 +453,17 @@ async function tickShopItem(id){
     }
     renderItems();renderShopList();updateSyncBanner();
   }
+  }finally{shopPending.delete(id);}
 }
-function resetShoppingTicks(){shopTicked={};localStorage.removeItem('pp_ticked');renderShopList();toast('Shopping session cleared');}
+async function resetShoppingTicks(button){
+  if(!Object.keys(shopTicked).some(function(id){return shopTicked[id];})){toast('This trip has no checked items');return;}
+  return FamilyPalUI.runBusy(button,'Starting…',async function(){
+    if(!(await FamilyPalUI.confirm('This clears the checked items for the current trip. Pantry stock will not change.',{title:'Start a new shopping trip?',confirmLabel:'Clear checkmarks'})))return;
+    const previous=Object.assign({},shopTicked);
+    shopTicked={};localStorage.removeItem('pp_ticked');renderShopList();
+    FamilyPalUI.offerUndo('Shopping trip checkmarks cleared',async function(){shopTicked=previous;localStorage.setItem('pp_ticked',JSON.stringify(shopTicked));renderShopList();});
+  });
+}
 function shareWhatsApp(){const all=buildShopItems();if(!all.length){toast('Nothing to buy!');return;}let msg='🛒 *PantryPal Shopping List*\n\n';const p=all.filter(x=>x.isPriority),o=all.filter(x=>!x.isPriority);if(p.length){msg+='⭐ *Priority*\n';p.forEach(({item})=>{msg+=`${shopTicked[item.id]?'✅':'☐'} ${item.emoji||''} ${item.name}\n`;});}if(o.length){msg+='\n📋 *Also Needed*\n';o.forEach(({item})=>{msg+=`${shopTicked[item.id]?'✅':'☐'} ${item.emoji||''} ${item.name}\n`;});}window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');}
 async function startShopScan(){
   document.getElementById('shop-scanner-wrap').style.display='block';
@@ -543,6 +564,7 @@ async function saveTableRow(id){
   try{
     await sbFetch(`/rest/v1/items?id=eq.${id}`,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});
     Object.assign(item,payload);
+    FamilyPalUI.markSaved('table-modal');
     renderItems();
     // flash the row green briefly
     const row=document.getElementById(`trow-${id}`);

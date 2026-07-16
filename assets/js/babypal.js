@@ -106,7 +106,7 @@ function wakeUp(){
   document.getElementById('sleep-edit-modal').style.display='flex';
 }
 
-async function saveSleepEdit(){
+async function saveSleepEdit(button){
   var id=document.getElementById('sleep-edit-id').value;
   var start=document.getElementById('sleep-edit-start').value;
   var end=document.getElementById('sleep-edit-end').value;
@@ -115,7 +115,7 @@ async function saveSleepEdit(){
   var diffMins=end?Math.round((new Date(end)-new Date(start))/60000):null;
   if(diffMins!==null&&diffMins<0){toast('Wake time must be after sleep time');return;}
   var payload={sleep_start:new Date(start).toISOString(),sleep_end:end?new Date(end).toISOString():null,duration_mins:diffMins,notes:notes||null,logged_at:new Date(start).toISOString()};
-  try{
+  return FamilyPalUI.runBusy(button,'Saving…',async function(){try{
     if(id){
       await sbFetch('/rest/v1/baby_sleep?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});
       toast('😴 Session updated');
@@ -128,7 +128,7 @@ async function saveSleepEdit(){
     closeModal('sleep-edit-modal');closeModal('sleep-list-modal');
     if(activeTab==='today')loadToday();
     if(activeTab==='history')loadHistory();
-  }catch(e){toast('Error: '+e.message);}
+  }catch(e){toast('Error: '+e.message);}});
 }
 
 async function deleteSleepSession(){
@@ -406,20 +406,20 @@ function offerBabyUndo(table,rows,message,restoreDiaper){
   });
 }
 
-async function logBottleFeed(){
+async function logBottleFeed(button){
   var ml=parseInt(document.getElementById('feed-ml').value);if(!ml||ml<1){toast('Enter amount in ml');return;}
   var time=document.getElementById('feed-time').value||nowLocal(),notes=document.getElementById('feed-notes').value.trim();
-  try{var rows=await sbFetch('/rest/v1/baby_feeds',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({feed_type:'bottle',amount_ml:ml,logged_at:new Date(time).toISOString(),notes:notes||null})});closeModal('feed-modal');offerBabyUndo('baby_feeds',rows,ml+' ml bottle logged');if(activeTab==='today')loadToday();}catch(e){toast('Error: '+e.message);}
+  return FamilyPalUI.runBusy(button,'Logging…',async function(){try{var rows=await sbFetch('/rest/v1/baby_feeds',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({feed_type:'bottle',amount_ml:ml,logged_at:new Date(time).toISOString(),notes:notes||null})});closeModal('feed-modal');offerBabyUndo('baby_feeds',rows,ml+' ml bottle logged');if(activeTab==='today')loadToday();}catch(e){toast('Error: '+e.message);}});
 }
-async function logBreastFeed(){
+async function logBreastFeed(button){
   var mins=parseInt(document.getElementById('breast-mins').value);if(!mins||mins<1){toast('Enter duration');return;}
   var side=document.getElementById('breast-side').value,time=document.getElementById('breast-time').value||nowLocal(),notes=document.getElementById('breast-notes').value.trim();
-  try{var rows=await sbFetch('/rest/v1/baby_feeds',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({feed_type:'breast',duration_mins:mins,breast_side:side,logged_at:new Date(time).toISOString(),notes:notes||null})});closeModal('breast-modal');offerBabyUndo('baby_feeds',rows,mins+' min breastfeed logged');if(activeTab==='today')loadToday();}catch(e){toast('Error: '+e.message);}
+  return FamilyPalUI.runBusy(button,'Logging…',async function(){try{var rows=await sbFetch('/rest/v1/baby_feeds',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({feed_type:'breast',duration_mins:mins,breast_side:side,logged_at:new Date(time).toISOString(),notes:notes||null})});closeModal('breast-modal');offerBabyUndo('baby_feeds',rows,mins+' min breastfeed logged');if(activeTab==='today')loadToday();}catch(e){toast('Error: '+e.message);}});
 }
-async function logPump(){
+async function logPump(button){
   var ml=parseInt(document.getElementById('pump-ml').value);if(!ml||ml<1){toast('Enter amount');return;}
   var mins=parseInt(document.getElementById('pump-mins').value)||null,time=document.getElementById('pump-time').value||nowLocal(),notes=document.getElementById('pump-notes').value.trim();
-  try{var rows=await sbFetch('/rest/v1/baby_pumping',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({amount_ml:ml,duration_mins:mins,logged_at:new Date(time).toISOString(),notes:notes||null})});closeModal('pump-modal');offerBabyUndo('baby_pumping',rows,ml+' ml pumping session logged');if(activeTab==='today')loadToday();}catch(e){toast('Error: '+e.message);}
+  return FamilyPalUI.runBusy(button,'Logging…',async function(){try{var rows=await sbFetch('/rest/v1/baby_pumping',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({amount_ml:ml,duration_mins:mins,logged_at:new Date(time).toISOString(),notes:notes||null})});closeModal('pump-modal');offerBabyUndo('baby_pumping',rows,ml+' ml pumping session logged');if(activeTab==='today')loadToday();}catch(e){toast('Error: '+e.message);}});
 }
 function healthTitle(h){
   var value=h.value_numeric!==null&&h.value_numeric!==undefined?h.value_numeric:'';
@@ -436,18 +436,18 @@ function openDiaperModal(type){
   document.getElementById('diaper-log-modal').style.display='flex';
 }
 
-async function saveDiaperLog(){
+async function saveDiaperLog(button){
   var type=document.getElementById('diaper-type').value;
   var time=document.getElementById('diaper-time').value||nowLocal();
   var notes=document.getElementById('diaper-notes').value.trim();
-  try{
+  return FamilyPalUI.runBusy(button,'Logging…',async function(){try{
     var rows=await sbFetch('/rest/v1/baby_diapers',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({diaper_type:type,logged_at:new Date(time).toISOString(),notes:notes||null})});
     closeModal('diaper-log-modal');
     var stock=await consumeDiaperStock('BabyPal');
     offerBabyUndo('baby_diapers',rows,(type==='wet'?'Wet diaper logged':'Soiled diaper logged')+stock.message,stock.changed);
     if(activeTab==='today')loadToday();
     if(activeTab==='history')loadHistory();
-  }catch(e){toast('Error: '+e.message);}
+  }catch(e){toast('Error: '+e.message);}});
 }
 
 async function loadToday(){
@@ -515,7 +515,7 @@ function syncHealthFields(){
   if(t==='note')unit.value='';
 }
 
-async function saveHealthLog(){
+async function saveHealthLog(button){
   var type=document.getElementById('health-type').value;
   var label=document.getElementById('health-label').value.trim();
   var val=document.getElementById('health-value').value;
@@ -523,13 +523,13 @@ async function saveHealthLog(){
   var time=document.getElementById('health-time').value||nowLocal();
   var notes=document.getElementById('health-notes').value.trim();
   if(type!=='note'&&!label&&val===''){toast('Add a label or value');return;}
-  try{
+  return FamilyPalUI.runBusy(button,'Saving…',async function(){try{
     await sbFetch('/rest/v1/baby_health',{method:'POST',body:JSON.stringify({health_type:type,label:label||null,value_numeric:val===''?null:parseFloat(val),unit:unit||null,notes:notes||null,logged_at:new Date(time).toISOString()})});
     closeModal('health-modal');
     toast('Health log saved');
     if(activeTab==='health')loadHealth();
     if(activeTab==='today')loadToday();
-  }catch(e){toast('Error: '+e.message);}
+  }catch(e){toast('Error: '+e.message);}});
 }
 
 async function loadHealth(){
@@ -537,7 +537,7 @@ async function loadHealth(){
     var rows=await sbFetch('/rest/v1/baby_health?order=logged_at.desc&limit=50&select=*');
     document.getElementById('health-content').innerHTML=
       '<div class="quicklog-grid"><div class="ql-btn purple" onclick="openHealthModal(\'temperature\')"><div class="ql-icon">🌡️</div><div class="ql-label">Temperature</div></div><div class="ql-btn teal" onclick="openHealthModal(\'weight\')"><div class="ql-icon">⚖️</div><div class="ql-label">Weight</div></div><div class="ql-btn yellow" onclick="openHealthModal(\'medicine\')"><div class="ql-icon">💊</div><div class="ql-label">Medicine</div></div><div class="ql-btn green" onclick="openHealthModal(\'note\')"><div class="ql-icon">🩺</div><div class="ql-label">Note</div></div></div>'+
-      (rows.length?'<div class="history-section"><h3>Health history</h3>'+rows.map(function(h){return '<div class="log-item"><div class="log-icon">'+(h.health_type==='temperature'?'🌡️':h.health_type==='weight'?'⚖️':h.health_type==='medicine'?'💊':'🩺')+'</div><div class="log-info"><div class="log-title">'+esc(healthTitle(h))+'</div>'+(h.notes?'<div class="log-detail">'+esc(h.notes)+'</div>':'')+'</div><div class="log-actions"><div class="log-time">'+fmtDateTime(h.logged_at)+'</div><button class="undo-btn" onclick="deleteBabyLog(\'baby_health\',\''+h.id+'\',\'health log\')">Undo</button></div></div>';}).join('')+'</div>':'<div class="empty-log">No health logs yet</div>');
+      (rows.length?'<div class="history-section"><h3>Health history</h3>'+rows.map(function(h){return '<div class="log-item"><div class="log-icon">'+(h.health_type==='temperature'?'🌡️':h.health_type==='weight'?'⚖️':h.health_type==='medicine'?'💊':'🩺')+'</div><div class="log-info"><div class="log-title">'+esc(healthTitle(h))+'</div>'+(h.notes?'<div class="log-detail">'+esc(h.notes)+'</div>':'')+'</div><div class="log-actions"><div class="log-time">'+fmtDateTime(h.logged_at)+'</div><button class="undo-btn" onclick="deleteBabyLog(\'baby_health\',\''+h.id+'\',\'health log\')">Delete</button></div></div>';}).join('')+'</div>':'<div class="empty-log">No health logs yet</div>');
   }catch(e){document.getElementById('health-content').innerHTML='<div class="loading" style="color:var(--red)">Error: '+e.message+'</div>';}
 }
 
@@ -573,7 +573,7 @@ async function loadHistory(){
       results[4].map(function(h){return{table:'baby_health',id:h.id,label:'health log',icon:h.health_type==='temperature'?'🌡️':h.health_type==='weight'?'⚖️':h.health_type==='medicine'?'💊':'🩺',title:healthTitle(h),detail:h.notes,ts:h.logged_at};})
     ).sort(function(a,b){return new Date(b.ts)-new Date(a.ts);});
     document.getElementById('history-content').innerHTML=all.length?
-      '<div class="history-section"><h3>Last 7 days</h3>'+all.map(function(e){return'<div class="log-item"><div class="log-icon">'+e.icon+'</div><div class="log-info"><div class="log-title">'+esc(e.title)+'</div>'+(e.detail?'<div class="log-detail">'+esc(e.detail)+'</div>':'')+'</div><div class="log-actions"><div class="log-time">'+fmtDateTime(e.ts)+'</div><button class="undo-btn" onclick="deleteBabyLog(\''+e.table+'\',\''+e.id+'\',\''+e.label+'\')">Undo</button></div></div>';}).join('')+'</div>':
+      '<div class="history-section"><h3>Last 7 days</h3>'+all.map(function(e){return'<div class="log-item"><div class="log-icon">'+e.icon+'</div><div class="log-info"><div class="log-title">'+esc(e.title)+'</div>'+(e.detail?'<div class="log-detail">'+esc(e.detail)+'</div>':'')+'</div><div class="log-actions"><div class="log-time">'+fmtDateTime(e.ts)+'</div><button class="undo-btn" onclick="deleteBabyLog(\''+e.table+'\',\''+e.id+'\',\''+e.label+'\')">Delete</button></div></div>';}).join('')+'</div>':
       '<div class="empty-log">No activity in the last 7 days</div>';
   }catch(e){document.getElementById('history-content').innerHTML='<div class="loading" style="color:var(--red)">Error: '+e.message+'</div>';}
 }
@@ -657,7 +657,7 @@ function sdAddSleep(){
 
 function sdRemoveSleep(i){schoolSleeps.splice(i,1);renderSdSleeps();}
 
-async function saveSchoolDay(){
+async function saveSchoolDay(button){
   var date=document.getElementById('sd-date').value;
   if(!date){toast('Pick a date');return;}
   var diaperTime=document.getElementById('sd-diaper-time').value||'12:00';
@@ -665,7 +665,7 @@ async function saveSchoolDay(){
   var validBottles=schoolBottles.filter(function(b){return b.ml>0&&b.time;});
   var validSleeps=schoolSleeps.filter(function(s){return s.start;});
   if(!totalDiapers&&!validBottles.length&&!validSleeps.length){toast('Nothing to log');return;}
-  try{
+  return FamilyPalUI.runBusy(button,'Logging day…',async function(){try{
     var promises=[];
     var offset=0;
     ['wet','soiled','light','blowout'].forEach(function(type){
@@ -696,7 +696,7 @@ async function saveSchoolDay(){
     toast('🏫 Logged! '+parts.join(', '));
     if(activeTab==='today')loadToday();
     if(activeTab==='history')loadHistory();
-  }catch(e){toast('Error: '+e.message);}
+  }catch(e){toast('Error: '+e.message);}});
 }
 
 // ── Modal helpers ─────────────────────────────────────────

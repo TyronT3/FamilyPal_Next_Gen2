@@ -128,7 +128,7 @@
   .sd-remove{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);padding:7px 10px;font-size:12px;cursor:pointer;flex-shrink:0;}
   .sd-empty{font-size:13px;color:var(--muted);padding:6px 0;}
 </style>
-<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260716.13">
+<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260716.15">
 </head>
 <body data-app="baby">
 
@@ -168,7 +168,7 @@
 </div>
 
 <!-- School Day Modal -->
-<div class="modal-overlay" id="school-day-modal" style="display:none" onclick="closeModalClick(event)">
+<div class="modal-overlay" id="school-day-modal" style="display:none" onclick="closeModalClick(event)" data-fp-guard-dirty>
   <div class="modal">
     <div class="modal-handle"></div>
     <button class="modal-close" onclick="closeModal('school-day-modal')">✕</button>
@@ -194,7 +194,7 @@
     <div id="sd-sleeps"></div>
     <button class="btn btn-secondary" style="margin-top:6px;font-size:13px;padding:10px 16px" onclick="sdAddSleep()">+ Add sleep</button>
 
-    <button class="btn btn-primary" style="margin-top:24px" onclick="saveSchoolDay()">✅ Log School Day</button>
+    <button class="btn btn-primary" style="margin-top:24px" onclick="saveSchoolDay(this)">✅ Log School Day</button>
   </div>
 </div>
 
@@ -219,7 +219,7 @@
 </div>
 
 <!-- Bottle Feed -->
-<div class="modal-overlay" id="feed-modal" style="display:none" onclick="closeModalClick(event)">
+<div class="modal-overlay" id="feed-modal" style="display:none" onclick="closeModalClick(event)" data-fp-guard-dirty>
   <div class="modal">
     <div class="modal-handle"></div>
     <button class="modal-close" onclick="closeModal('feed-modal')">✕</button>
@@ -228,12 +228,12 @@
     <div class="time-row"><label>Time</label><input type="datetime-local" id="feed-time"></div>
     <div class="time-presets"><button onclick="setLogTime('feed-time',0)">Now</button><button onclick="setLogTime('feed-time',15)">15 min ago</button><button onclick="setLogTime('feed-time',30)">30 min ago</button></div>
     <div class="field"><label>Notes (optional)</label><input type="text" id="feed-notes" placeholder="e.g. finished the whole bottle"></div>
-    <button class="btn btn-primary" onclick="logBottleFeed()">Log Feed</button>
+    <button class="btn btn-primary" onclick="logBottleFeed(this)">Log Feed</button>
   </div>
 </div>
 
 <!-- Breast Feed -->
-<div class="modal-overlay" id="breast-modal" style="display:none" onclick="closeModalClick(event)">
+<div class="modal-overlay" id="breast-modal" style="display:none" onclick="closeModalClick(event)" data-fp-guard-dirty>
   <div class="modal">
     <div class="modal-handle"></div>
     <button class="modal-close" onclick="closeModal('breast-modal')">✕</button>
@@ -249,7 +249,7 @@
     <div class="time-row"><label>Time</label><input type="datetime-local" id="breast-time"></div>
     <div class="time-presets"><button onclick="setLogTime('breast-time',0)">Now</button><button onclick="setLogTime('breast-time',15)">15 min ago</button><button onclick="setLogTime('breast-time',30)">30 min ago</button></div>
     <div class="field"><label>Notes (optional)</label><input type="text" id="breast-notes" placeholder="e.g. latched well"></div>
-    <button class="btn btn-primary" onclick="logBreastFeed()">Log Feed</button>
+    <button class="btn btn-primary" onclick="logBreastFeed(this)">Log Feed</button>
   </div>
 </div>
 
@@ -266,7 +266,7 @@
 </div>
 
 <!-- Sleep Edit Modal -->
-<div class="modal-overlay" id="sleep-edit-modal" style="display:none" onclick="closeModalClick(event)">
+<div class="modal-overlay" id="sleep-edit-modal" style="display:none" onclick="closeModalClick(event)" data-fp-guard-dirty>
   <div class="modal">
     <div class="modal-handle"></div>
     <button class="modal-close" onclick="closeModal('sleep-edit-modal')">✕</button>
@@ -276,13 +276,13 @@
     <div style="font-size:12px;color:var(--muted);margin-bottom:16px">Leave “woke up” empty while the sleep session is still active.</div>
     <div class="field"><label>Notes (optional)</label><input type="text" id="sleep-edit-notes" placeholder="e.g. slept in pram"></div>
     <input type="hidden" id="sleep-edit-id">
-    <button class="btn btn-primary" onclick="saveSleepEdit()">Save Session</button>
+    <button class="btn btn-primary" onclick="saveSleepEdit(this)">Save Session</button>
     <button class="btn btn-secondary" id="sleep-delete-btn" style="color:var(--red);display:none" onclick="deleteSleepSession()">🗑 Delete Session</button>
   </div>
 </div>
 
 <!-- Pump -->
-<div class="modal-overlay" id="pump-modal" style="display:none" onclick="closeModalClick(event)">
+<div class="modal-overlay" id="pump-modal" style="display:none" onclick="closeModalClick(event)" data-fp-guard-dirty>
   <div class="modal">
     <div class="modal-handle"></div>
     <button class="modal-close" onclick="closeModal('pump-modal')">✕</button>
@@ -292,12 +292,12 @@
     <div class="time-row"><label>Time</label><input type="datetime-local" id="pump-time"></div>
     <div class="time-presets"><button onclick="setLogTime('pump-time',0)">Now</button><button onclick="setLogTime('pump-time',15)">15 min ago</button><button onclick="setLogTime('pump-time',30)">30 min ago</button></div>
     <div class="field"><label>Notes (optional)</label><input type="text" id="pump-notes" placeholder="e.g. left side only"></div>
-    <button class="btn btn-primary" onclick="logPump()">Log Session</button>
+    <button class="btn btn-primary" onclick="logPump(this)">Log Session</button>
   </div>
 </div>
 
 <!-- Diaper -->
-<div class="modal-overlay" id="diaper-log-modal" style="display:none" onclick="closeModalClick(event)">
+<div class="modal-overlay" id="diaper-log-modal" style="display:none" onclick="closeModalClick(event)" data-fp-guard-dirty>
   <div class="modal">
     <div class="modal-handle"></div>
     <button class="modal-close" onclick="closeModal('diaper-log-modal')">✕</button>
@@ -306,12 +306,12 @@
     <div class="time-row"><label>Time</label><input type="datetime-local" id="diaper-time"></div>
     <div class="time-presets"><button onclick="setLogTime('diaper-time',0)">Now</button><button onclick="setLogTime('diaper-time',15)">15 min ago</button><button onclick="setLogTime('diaper-time',30)">30 min ago</button></div>
     <div class="field"><label>Notes (optional)</label><input type="text" id="diaper-notes" placeholder="e.g. rash cream used"></div>
-    <button class="btn btn-primary" onclick="saveDiaperLog()">Log Diaper</button>
+    <button class="btn btn-primary" onclick="saveDiaperLog(this)">Log Diaper</button>
   </div>
 </div>
 
 <!-- Health -->
-<div class="modal-overlay" id="health-modal" style="display:none" onclick="closeModalClick(event)">
+<div class="modal-overlay" id="health-modal" style="display:none" onclick="closeModalClick(event)" data-fp-guard-dirty>
   <div class="modal">
     <div class="modal-handle"></div>
     <button class="modal-close" onclick="closeModal('health-modal')">✕</button>
@@ -330,7 +330,7 @@
     <div class="time-row"><label>Time</label><input type="datetime-local" id="health-time"></div>
     <div class="time-presets"><button onclick="setLogTime('health-time',0)">Now</button><button onclick="setLogTime('health-time',15)">15 min ago</button><button onclick="setLogTime('health-time',30)">30 min ago</button></div>
     <div class="field"><label>Notes</label><textarea id="health-notes" placeholder="Optional notes"></textarea></div>
-    <button class="btn btn-primary" onclick="saveHealthLog()">Save Health Log</button>
+    <button class="btn btn-primary" onclick="saveHealthLog(this)">Save Health Log</button>
   </div>
 </div>
 
@@ -358,7 +358,7 @@
 <div id="toast"></div>
 
 <script src="assets/js/familypal-core.js?v=20260715.10"></script>
-<script src="assets/js/familypal-ui.js?v=20260715.11"></script>
-<script src="assets/js/babypal.js?v=20260716.14"></script>
+<script src="assets/js/familypal-ui.js?v=20260716.15"></script>
+<script src="assets/js/babypal.js?v=20260716.15"></script>
 </body>
 </html>

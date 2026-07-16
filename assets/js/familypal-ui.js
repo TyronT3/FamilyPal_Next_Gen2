@@ -14,6 +14,8 @@
   var confirmResolver = null;
   var lastModalTrigger = null;
   var personalizing = false;
+  var handlingHistoryPop = false;
+  var unwindingHistory = false;
 
   function pronouns() {
     if (profile.babyPronouns === 'he') return { subject: 'he', Subject: 'He', object: 'him', possessive: 'his' };
@@ -113,10 +115,44 @@
     if (root && root.querySelectorAll) scopes = scopes.concat(Array.from(root.querySelectorAll('.tabs')));
     scopes.forEach(function (tabs) {
       tabs.setAttribute('role', 'tablist');
-      tabs.querySelectorAll('.tab').forEach(function (tab) {
+      tabs.querySelectorAll('.tab').forEach(function (tab, index) {
         tab.setAttribute('role', 'tab');
         tab.setAttribute('aria-selected', tab.classList.contains('active') ? 'true' : 'false');
+        if (!tab.id) tab.id = 'fp-tab-' + (document.body.dataset.app || 'app') + '-' + index;
+        var handler = tab.getAttribute('onclick') || '';
+        var match = handler.match(/switch(?:Wellbeing)?Tab\('([^']+)'/);
+        var panel = match && (document.getElementById('tab-' + match[1]) || document.getElementById('wellbeing-tab-' + match[1]));
+        if (panel) {
+          tab.setAttribute('aria-controls', panel.id);
+          panel.setAttribute('role', 'tabpanel');
+          panel.setAttribute('aria-labelledby', tab.id);
+        }
+        if (!tab.hasAttribute('data-fp-tab-keys')) {
+          tab.setAttribute('data-fp-tab-keys', 'true');
+          tab.addEventListener('keydown', function (event) {
+            var keys = ['ArrowLeft', 'ArrowRight', 'Home', 'End'];
+            if (keys.indexOf(event.key) < 0) return;
+            event.preventDefault();
+            var choices = Array.from(tabs.querySelectorAll('.tab'));
+            var current = choices.indexOf(tab);
+            var next = event.key === 'Home' ? 0 : event.key === 'End' ? choices.length - 1 : (current + (event.key === 'ArrowRight' ? 1 : -1) + choices.length) % choices.length;
+            choices[next].focus();
+            choices[next].click();
+          });
+        }
       });
+    });
+  }
+
+  function enhanceFormLabels(root) {
+    var scopes = [];
+    if (root && root.matches && root.matches('.field, .time-row, .date-row')) scopes.push(root);
+    if (root && root.querySelectorAll) scopes = scopes.concat(Array.from(root.querySelectorAll('.field, .time-row, .date-row')));
+    scopes.forEach(function (scope) {
+      var control = scope.querySelector('input:not([type="hidden"]), select, textarea');
+      var label = scope.querySelector('label:not([for])');
+      if (!control || !label || !control.id) return;
+      label.setAttribute('for', control.id);
     });
   }
 
@@ -262,6 +298,91 @@
     }
   }
 
+  function isVisibleModal(overlay) {
+    return !!(overlay && global.getComputedStyle(overlay).display !== 'none');
+  }
+
+  function underlyingHistoryModal() {
+    return Array.from(document.querySelectorAll('.modal-overlay')).reverse().find(function (overlay) {
+      return overlay.id !== 'fp-confirm-dialog' && isVisibleModal(overlay);
+    });
+  }
+
+  function historyModal() {
+    return underlyingHistoryModal() || (isVisibleModal(document.getElementById('fp-confirm-dialog')) ? document.getElementById('fp-confirm-dialog') : null);
+  }
+
+  function modalIsDirty(overlay) {
+    return !!(overlay && overlay.hasAttribute('data-fp-guard-dirty') && overlay.getAttribute('data-fp-dirty') === 'true');
+  }
+
+  function markSaved(target) {
+    var overlay = typeof target === 'string' ? document.getElementById(target) : target;
+    if (overlay) overlay.setAttribute('data-fp-dirty', 'false');
+  }
+
+  async function confirmDiscard(overlay) {
+    if (!modalIsDirty(overlay)) return true;
+    return confirmAction('Your unsaved changes in this form will be lost.', { title: 'Discard changes?', confirmLabel: 'Discard' });
+  }
+
+  function performModalClose(overlay) {
+    if (!overlay) return;
+    if (overlay.id === 'fp-confirm-dialog') { resolveConfirm(false); return; }
+    overlay.setAttribute('data-fp-discard-approved', 'true');
+    var close = overlay.querySelector('.modal-close, [data-fp-discard-close]');
+    if (close) close.click();
+    else {
+      overlay.style.display = 'none';
+      overlay.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  function tabStorageKey(tabs, index) {
+    return 'fp_tab_' + (document.body.dataset.app || global.location.pathname) + '_' + index;
+  }
+
+  function rememberTab(tab) {
+    var tabs = tab && tab.closest ? tab.closest('.tabs') : null;
+    if (!tabs) return;
+    var groups = Array.from(document.querySelectorAll('.tabs'));
+    var choices = Array.from(tabs.querySelectorAll('.tab'));
+    try { global.sessionStorage.setItem(tabStorageKey(tabs, groups.indexOf(tabs)), String(choices.indexOf(tab))); } catch (e) {}
+  }
+
+  function restoreTabs() {
+    var groups = Array.from(document.querySelectorAll('.tabs'));
+    groups.forEach(function (tabs, groupIndex) {
+      var value;
+      try { value = global.sessionStorage.getItem(tabStorageKey(tabs, groupIndex)); } catch (e) { return; }
+      if (value === null) return;
+      var choices = Array.from(tabs.querySelectorAll('.tab'));
+      var tab = choices[Number(value)];
+      if (tab && !tab.classList.contains('active') && !tab.disabled) tab.click();
+    });
+  }
+
+  function syncModalHistory(changedShown, changedHidden) {
+    var top = historyModal();
+    var stateId = global.history.state && global.history.state.fpOverlay;
+    if (handlingHistoryPop) { handlingHistoryPop = false; return; }
+    if (top) {
+      if (stateId === top.id) return;
+      var previous = stateId && document.getElementById(stateId);
+      if (stateId && changedHidden.indexOf(stateId) >= 0 && changedShown.indexOf(top.id) >= 0 && !isVisibleModal(previous)) {
+        global.history.replaceState(Object.assign({}, global.history.state, { fpOverlay: top.id }), '');
+      } else if (stateId && changedHidden.indexOf(stateId) >= 0 && !isVisibleModal(previous)) {
+        unwindingHistory = true;
+        global.history.back();
+      } else {
+        global.history.pushState(Object.assign({}, global.history.state, { fpOverlay: top.id }), '');
+      }
+    } else if (stateId) {
+      unwindingHistory = true;
+      global.history.back();
+    }
+  }
+
   function trapFocus(event) {
     if (event.key !== 'Tab') return;
     var overlay = visibleModal();
@@ -289,6 +410,13 @@
     }
   }
 
+  async function runBusy(button, label, callback) {
+    if (button && button.disabled) return;
+    setBusy(button, true, label);
+    try { return await callback(); }
+    finally { setBusy(button, false); }
+  }
+
   function offerUndo(message, callback) {
     var existing = document.querySelector('.fp-undo-toast');
     if (existing) existing.remove();
@@ -313,22 +441,95 @@
     if (toast) { toast.setAttribute('role', 'status'); toast.setAttribute('aria-live', 'polite'); }
     enhanceClickable(document.body);
     enhanceTabs(document.body);
+    enhanceFormLabels(document.body);
     enhanceModals(document.body);
     injectBottomNav();
     injectConfirmDialog();
-    document.addEventListener('click', function (event) { setTimeout(function () { setActiveTab(event.target); }, 0); });
+    document.addEventListener('input', function (event) {
+      var overlay = event.target.closest && event.target.closest('[data-fp-guard-dirty]');
+      if (overlay && isVisibleModal(overlay)) overlay.setAttribute('data-fp-dirty', 'true');
+    });
+    document.addEventListener('change', function (event) {
+      var overlay = event.target.closest && event.target.closest('[data-fp-guard-dirty]');
+      if (overlay && isVisibleModal(overlay)) overlay.setAttribute('data-fp-dirty', 'true');
+    });
+    document.addEventListener('click', function (event) {
+      var tab = event.target.closest && event.target.closest('.tab');
+      if (tab) rememberTab(tab);
+      setTimeout(function () { setActiveTab(event.target); }, 0);
+    });
+    document.addEventListener('click', function (event) {
+      var overlay = event.target.closest && event.target.closest('[data-fp-guard-dirty]');
+      if (!overlay || !modalIsDirty(overlay)) return;
+      var close = event.target.closest && event.target.closest('.modal-close, [data-fp-discard-close]');
+      var backdrop = event.target === overlay;
+      if (!close && !backdrop) return;
+      if (overlay.getAttribute('data-fp-discard-approved') === 'true') { overlay.removeAttribute('data-fp-discard-approved'); return; }
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      confirmDiscard(overlay).then(function (discard) {
+        if (!discard) return;
+        overlay.setAttribute('data-fp-discard-approved', 'true');
+        if (close) close.click(); else overlay.click();
+      });
+    }, true);
     document.addEventListener('keydown', function (event) {
-      if (event.key === 'Escape') { event.preventDefault(); closeTopModal(); }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        var overlay = visibleModal();
+        if (!overlay) return;
+        if (overlay.id === 'fp-confirm-dialog') { resolveConfirm(false); return; }
+        confirmDiscard(overlay).then(function (discard) { if (discard) performModalClose(overlay); });
+      }
       else trapFocus(event);
     });
 
+    global.addEventListener('popstate', function () {
+      var overlay = visibleModal();
+      if (unwindingHistory) {
+        unwindingHistory = false;
+        if (!overlay && global.history.state && global.history.state.fpOverlay) {
+          unwindingHistory = true;
+          global.history.back();
+        }
+        return;
+      }
+      if (!overlay) {
+        if (global.history.state && global.history.state.fpOverlay) {
+          var cleanState = Object.assign({}, global.history.state);
+          delete cleanState.fpOverlay;
+          global.history.replaceState(cleanState, '');
+        }
+        return;
+      }
+      if (overlay.id === 'fp-confirm-dialog') {
+        var underlying = underlyingHistoryModal();
+        resolveConfirm(false);
+        if (underlying) global.history.pushState(Object.assign({}, global.history.state, { fpOverlay: underlying.id }), '');
+        else handlingHistoryPop = true;
+        return;
+      }
+      if (modalIsDirty(overlay)) {
+        global.history.pushState(Object.assign({}, global.history.state, { fpOverlay: overlay.id }), '');
+        confirmDiscard(overlay).then(function (discard) { if (discard) performModalClose(overlay); });
+        return;
+      }
+      handlingHistoryPop = true;
+      closeTopModal();
+    });
+
+    global.addEventListener('load', function () { global.setTimeout(restoreTabs, 0); });
+
     var observer = new MutationObserver(function (mutations) {
+      var changedShown = [];
+      var changedHidden = [];
       mutations.forEach(function (mutation) {
         mutation.addedNodes.forEach(function (node) {
           if (node.nodeType === 3) { if (node.parentElement) applyProfileToText(node.parentElement); return; }
           if (node.nodeType !== 1) return;
           enhanceClickable(node);
           enhanceTabs(node);
+          enhanceFormLabels(node);
           enhanceModals(node);
           applyProfileToText(node);
         });
@@ -337,14 +538,18 @@
           var wasHidden = mutation.target.getAttribute('aria-hidden') === 'true';
           mutation.target.setAttribute('aria-hidden', isHidden ? 'true' : 'false');
           if (!isHidden && wasHidden) {
+            changedShown.push(mutation.target.id);
+            mutation.target.setAttribute('data-fp-dirty', 'false');
             lastModalTrigger = document.activeElement;
             var focusTarget = mutation.target.querySelector('.modal-close, button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])');
             if (focusTarget) global.setTimeout(function () { focusTarget.focus(); }, 0);
-          } else if (isHidden && !wasHidden && lastModalTrigger && lastModalTrigger.focus) {
-            lastModalTrigger.focus();
+          } else if (isHidden && !wasHidden) {
+            changedHidden.push(mutation.target.id);
+            if (lastModalTrigger && lastModalTrigger.focus) lastModalTrigger.focus();
           }
         }
       });
+      if (changedShown.length || changedHidden.length) syncModalHistory(changedShown, changedHidden);
     });
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
   }
@@ -357,7 +562,9 @@
     pronouns: pronouns,
     confirm: confirmAction,
     setBusy: setBusy,
+    runBusy: runBusy,
     offerUndo: offerUndo,
+    markSaved: markSaved,
     openMore: openMoreSheet,
     closeMore: closeMoreSheet
   };

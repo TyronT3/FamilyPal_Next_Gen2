@@ -42,7 +42,7 @@
   .journal-delete{margin-top:10px!important;color:var(--red)!important;}
   @media(max-width:420px){.journal-toolbar{align-items:flex-start}.journal-toolbar .btn{padding:10px 13px}.journal-modal-actions{grid-template-columns:1fr}}
 </style>
-<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260716.13">
+<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260716.15">
 </head>
 <body data-app="journal">
 <div id="journal-screen" class="app-screen">
@@ -92,7 +92,7 @@
   </main>
 </div>
 
-<div class="modal-overlay journal-modal" id="journal-entry-modal" style="display:none" onclick="closeJournalModalClick(event)" data-private-content>
+<div class="modal-overlay journal-modal" id="journal-entry-modal" style="display:none" onclick="closeJournalModalClick(event)" data-private-content data-fp-guard-dirty>
   <div class="modal">
     <div class="modal-handle"></div>
     <button class="modal-close" type="button" onclick="closeJournalEntry()" aria-label="Close">×</button>
@@ -102,7 +102,7 @@
     <div class="field"><label for="journal-entry-title">Title</label><input id="journal-entry-title" type="text" maxlength="180" placeholder="Optional title" autocomplete="off"></div>
     <div class="field"><label for="journal-entry-body">Entry</label><textarea id="journal-entry-body" maxlength="50000" placeholder="Write privately…"></textarea></div>
     <div class="journal-modal-actions">
-      <button class="btn btn-secondary" type="button" onclick="closeJournalEntry()">Cancel</button>
+      <button class="btn btn-secondary" type="button" onclick="closeJournalEntry()" data-fp-discard-close>Cancel</button>
       <button class="btn btn-primary" id="journal-save-button" type="button" onclick="saveJournalEntry(this)">Save entry</button>
     </div>
     <button class="btn btn-secondary journal-delete" id="journal-delete-button" type="button" style="display:none" onclick="deleteJournalEntry()">Delete entry</button>
@@ -112,7 +112,7 @@
 
 <div id="toast" class="toast"></div>
 <script src="assets/js/familypal-core.js?v=20260715.10"></script>
-<script src="assets/js/familypal-ui.js?v=20260715.11"></script>
-<script src="assets/js/journalpal.js?v=20260715.10"></script>
+<script src="assets/js/familypal-ui.js?v=20260716.15"></script>
+<script src="assets/js/journalpal.js?v=20260716.15"></script>
 </body>
 </html>

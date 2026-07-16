@@ -688,7 +688,7 @@ function selectFlow(flow,btn){
   if(btn)btn.classList.add('selected');
 }
 
-async function saveCycle(){
+async function saveCycle(button){
   var id=document.getElementById('cycle-id').value;
   var start=document.getElementById('cycle-start').value;
   var end=document.getElementById('cycle-end').value;
@@ -697,31 +697,31 @@ async function saveCycle(){
   var duplicate=!id?cycles.find(function(c){return c.start_date===start;}):cycles.find(function(c){return c.start_date===start&&c.id!==id;});
   var symptoms=[].slice.call(document.querySelectorAll('input[name="symptom"]:checked')).map(function(b){return b.value;});
   var payload={start_date:start,end_date:end||null,flow:document.getElementById('cycle-flow').value,symptoms:symptoms,notes:document.getElementById('cycle-notes').value.trim()||null,updated_at:new Date().toISOString()};
-  try{
+  return FamilyPalUI.runBusy(button,'Saving…',async function(){try{
     if(duplicate&&!id)id=duplicate.id;
     if(duplicate&&document.getElementById('cycle-id').value){toast('A period already starts on that date');return;}
     if(id)await sbFetch('/rest/v1/period_cycles?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});
     else await sbFetch('/rest/v1/period_cycles',{method:'POST',body:JSON.stringify(payload)});
     closeModal('cycle-modal');toast(duplicate?'Updated existing period for that date':'Period saved');loadData();
-  }catch(e){toast('Error: '+e.message);}
+  }catch(e){toast('Error: '+e.message);}});
 }
 
-async function quickStartPeriod(){
+async function quickStartPeriod(button){
   var existing=cycles.find(function(c){return c.start_date===todayKey();});
   if(existing){toast('Period already started today');openCycleModal(existing.id);return;}
-  try{
+  return FamilyPalUI.runBusy(button,'Logging…',async function(){try{
     await sbFetch('/rest/v1/period_cycles',{method:'POST',body:JSON.stringify({start_date:todayKey(),flow:'medium'})});
     toast('Period start logged');loadData();
-  }catch(e){toast('Error: '+e.message);}
+  }catch(e){toast('Error: '+e.message);}});
 }
 
-async function quickEndPeriod(){
+async function quickEndPeriod(button){
   var open=cycles.slice().sort(function(a,b){return b.start_date.localeCompare(a.start_date);}).find(function(c){return !c.end_date;});
   if(!open){toast('No open period to end');return;}
-  try{
+  return FamilyPalUI.runBusy(button,'Logging…',async function(){try{
     await sbFetch('/rest/v1/period_cycles?id=eq.'+open.id,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify({end_date:todayKey(),updated_at:new Date().toISOString()})});
     toast('Period end logged');loadData();
-  }catch(e){toast('Error: '+e.message);}
+  }catch(e){toast('Error: '+e.message);}});
 }
 
 async function deleteCycle(){
@@ -756,16 +756,16 @@ function updateRiskPreview(){
   document.getElementById('risk-preview').innerHTML='<strong>'+esc(r.label)+'</strong><br>'+esc(r.detail)+' This is a calendar estimate, not a diagnosis or contraception guarantee.';
 }
 
-async function saveIntimacy(){
+async function saveIntimacy(button){
   var id=document.getElementById('intimacy-id').value;
   var day=document.getElementById('intimacy-date').value;
   if(!day){toast('Choose a date');return;}
   var payload={logged_date:day,protection:document.getElementById('intimacy-protection').value,emergency_contraception:document.getElementById('intimacy-ec').checked,notes:document.getElementById('intimacy-notes').value.trim()||null,updated_at:new Date().toISOString()};
-  try{
+  return FamilyPalUI.runBusy(button,'Saving…',async function(){try{
     if(id)await sbFetch('/rest/v1/period_intimacy?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});
     else await sbFetch('/rest/v1/period_intimacy',{method:'POST',body:JSON.stringify(payload)});
     closeModal('intimacy-modal');toast('Risk note saved');loadData();
-  }catch(e){toast('Error: '+e.message);}
+  }catch(e){toast('Error: '+e.message);}});
 }
 
 async function deleteIntimacy(){
@@ -920,18 +920,18 @@ function openExclusionModal(id){
   document.getElementById('exclusion-modal').style.display='flex';
 }
 
-async function saveExclusion(){
+async function saveExclusion(button){
   var id=document.getElementById('exclusion-id').value;
   var start=document.getElementById('exclusion-start').value;
   var end=document.getElementById('exclusion-end').value;
   if(!start||!end){toast('Choose start and end dates');return;}
   if(end<start){toast('End date must be after start date');return;}
   var payload={start_date:start,end_date:end,reason:document.getElementById('exclusion-reason').value,notes:document.getElementById('exclusion-notes').value.trim()||null,updated_at:new Date().toISOString()};
-  try{
+  return FamilyPalUI.runBusy(button,'Saving…',async function(){try{
     if(id)await sbFetch('/rest/v1/period_exclusions?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});
     else await sbFetch('/rest/v1/period_exclusions',{method:'POST',body:JSON.stringify(payload)});
     closeModal('exclusion-modal');toast('Exclusion saved');loadData();
-  }catch(e){toast('Error: '+e.message);}
+  }catch(e){toast('Error: '+e.message);}});
 }
 
 async function deleteExclusion(){

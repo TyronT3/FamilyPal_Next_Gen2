@@ -138,7 +138,7 @@
     .tag-dot{width:5px;height:5px;}
   }
 </style>
-<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260716.13">
+<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260716.15">
 </head>
 <body data-app="period">
 <div id="period-screen" class="app-screen">
@@ -188,8 +188,8 @@
   <div id="tab-log" style="display:none">
     <div id="today-summary" class="today-summary"><div class="loading"><span class="spinner"></span></div></div>
     <div class="quicklog-grid">
-      <button type="button" class="ql-btn rose" onclick="quickStartPeriod()"><span class="ql-icon">🩸</span><span class="ql-label">Started Today</span><span class="ql-sub">One tap period start</span></button>
-      <button type="button" class="ql-btn coral" onclick="quickEndPeriod()"><span class="ql-icon">✅</span><span class="ql-label">Ended Today</span><span class="ql-sub">Close current period</span></button>
+      <button type="button" class="ql-btn rose" onclick="quickStartPeriod(this)"><span class="ql-icon">🩸</span><span class="ql-label">Started Today</span><span class="ql-sub">One tap period start</span></button>
+      <button type="button" class="ql-btn coral" onclick="quickEndPeriod(this)"><span class="ql-icon">✅</span><span class="ql-label">Ended Today</span><span class="ql-sub">Close current period</span></button>
       <button type="button" class="ql-btn blue" onclick="openCycleModal()"><span class="ql-icon">✏️</span><span class="ql-label">Add / Edit Period</span><span class="ql-sub">Dates, flow, symptoms</span></button>
       <button type="button" class="ql-btn yellow" onclick="openEventModal(null,todayKey(),'symptom')"><span class="ql-icon">✨</span><span class="ql-label">Symptom / Mood</span><span class="ql-sub">Named daily entry</span></button>
       <button type="button" class="ql-btn yellow" style="grid-column:1/-1" onclick="openIntimacyModal()"><span class="ql-icon">🛡️</span><span class="ql-label">Pregnancy Risk</span><span class="ql-sub">Log intimacy privately</span></button>
@@ -229,8 +229,8 @@
     <button class="modal-close" onclick="closeModal('log-picker-modal')">✕</button>
     <h2>What are you logging?</h2>
     <div class="quicklog-grid" style="padding:0">
-      <button type="button" class="ql-btn rose" onclick="closeModal('log-picker-modal');quickStartPeriod()"><span class="ql-icon">🩸</span><span class="ql-label">Period Start</span></button>
-      <button type="button" class="ql-btn coral" onclick="closeModal('log-picker-modal');quickEndPeriod()"><span class="ql-icon">✅</span><span class="ql-label">Period End</span></button>
+      <button type="button" class="ql-btn rose" onclick="closeModal('log-picker-modal');quickStartPeriod(this)"><span class="ql-icon">🩸</span><span class="ql-label">Period Start</span></button>
+      <button type="button" class="ql-btn coral" onclick="closeModal('log-picker-modal');quickEndPeriod(this)"><span class="ql-icon">✅</span><span class="ql-label">Period End</span></button>
       <button type="button" class="ql-btn blue" onclick="closeModal('log-picker-modal');openCycleModal()"><span class="ql-icon">✏️</span><span class="ql-label">Period Details</span></button>
       <button type="button" class="ql-btn yellow" onclick="closeModal('log-picker-modal');openEventModal(null,todayKey(),'symptom')"><span class="ql-icon">✨</span><span class="ql-label">Symptom / Mood</span></button>
       <button type="button" class="ql-btn yellow" onclick="closeModal('log-picker-modal');openIntimacyModal()"><span class="ql-icon">🛡️</span><span class="ql-label">Intimacy</span></button>
@@ -238,7 +238,7 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="import-modal" style="display:none" onclick="closeModalClick(event)">
+<div class="modal-overlay" id="import-modal" style="display:none" onclick="closeModalClick(event)" data-fp-guard-dirty>
   <div class="modal">
     <div class="modal-handle"></div>
     <button class="modal-close" onclick="closeModal('import-modal')">✕</button>
@@ -268,7 +268,7 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="cycle-modal" style="display:none" onclick="closeModalClick(event)">
+<div class="modal-overlay" id="cycle-modal" style="display:none" onclick="closeModalClick(event)" data-fp-guard-dirty>
   <div class="modal">
     <div class="modal-handle"></div>
     <button class="modal-close" onclick="closeModal('cycle-modal')">✕</button>
@@ -295,12 +295,12 @@
       <label><input type="checkbox" value="tender breasts" name="symptom"> Tender breasts</label>
     </div>
     <div class="field"><label>Notes</label><textarea id="cycle-notes" placeholder="Optional notes"></textarea></div>
-    <button class="btn btn-primary" onclick="saveCycle()">Save Period</button>
+    <button class="btn btn-primary" onclick="saveCycle(this)">Save Period</button>
     <button class="btn btn-secondary" id="cycle-delete-btn" style="display:none;color:var(--red)" onclick="deleteCycle()">Delete Period</button>
   </div>
 </div>
 
-<div class="modal-overlay" id="intimacy-modal" style="display:none" onclick="closeModalClick(event)">
+<div class="modal-overlay" id="intimacy-modal" style="display:none" onclick="closeModalClick(event)" data-fp-guard-dirty>
   <div class="modal">
     <div class="modal-handle"></div>
     <button class="modal-close" onclick="closeModal('intimacy-modal')">✕</button>
@@ -322,7 +322,7 @@
     <label style="display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px;font-size:14px"><input type="checkbox" id="intimacy-ec"> Emergency contraception used</label>
     <div class="field"><label>Notes</label><textarea id="intimacy-notes" placeholder="Optional private note"></textarea></div>
     <div id="risk-preview" class="trust-note" style="margin:0 0 14px"></div>
-    <button class="btn btn-primary" onclick="saveIntimacy()">Save Risk Note</button>
+    <button class="btn btn-primary" onclick="saveIntimacy(this)">Save Risk Note</button>
     <button class="btn btn-secondary" id="intimacy-delete-btn" style="display:none;color:var(--red)" onclick="deleteIntimacy()">Delete Note</button>
   </div>
 </div>
@@ -336,7 +336,7 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="exclusion-modal" style="display:none" onclick="closeModalClick(event)">
+<div class="modal-overlay" id="exclusion-modal" style="display:none" onclick="closeModalClick(event)" data-fp-guard-dirty>
   <div class="modal">
     <div class="modal-handle"></div>
     <button class="modal-close" onclick="closeModal('exclusion-modal')">✕</button>
@@ -354,12 +354,12 @@
       </select>
     </div>
     <div class="field"><label>Notes</label><textarea id="exclusion-notes" placeholder="Optional notes"></textarea></div>
-    <button class="btn btn-primary" onclick="saveExclusion()">Save Exclusion</button>
+    <button class="btn btn-primary" onclick="saveExclusion(this)">Save Exclusion</button>
     <button class="btn btn-secondary" id="exclusion-delete-btn" style="display:none;color:var(--red)" onclick="deleteExclusion()">Delete Exclusion</button>
   </div>
 </div>
 
-<div class="modal-overlay" id="history-detail-modal" style="display:none" onclick="closeModalClick(event)">
+<div class="modal-overlay" id="history-detail-modal" style="display:none" onclick="closeModalClick(event)" data-fp-guard-dirty>
   <div class="modal">
     <div class="modal-handle"></div>
     <button class="modal-close" onclick="closeModal('history-detail-modal')">✕</button>
@@ -370,7 +370,7 @@
 
 <div id="toast"></div>
 <script src="assets/js/familypal-core.js?v=20260715.10"></script>
-<script src="assets/js/familypal-ui.js?v=20260715.11"></script>
-<script src="assets/js/periodpal.js?v=20260715.12"></script>
+<script src="assets/js/familypal-ui.js?v=20260716.15"></script>
+<script src="assets/js/periodpal.js?v=20260716.15"></script>
 </body>
 </html>

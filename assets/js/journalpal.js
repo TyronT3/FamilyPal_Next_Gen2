@@ -114,7 +114,13 @@
     if (event.target === element('journal-entry-modal')) closeJournalEntry();
   }
 
-  function lockJournal(automatic) {
+  async function lockJournal(automatic) {
+    var editor = element('journal-entry-modal');
+    if (editor && editor.getAttribute('data-fp-dirty') === 'true') {
+      var discard = await FamilyPalUI.confirm('The open journal entry has unsaved changes.', { title: automatic ? 'Journal ready to lock' : 'Lock journal?', confirmLabel: 'Discard and lock' });
+      if (!discard) { resetAutoLock(); return; }
+      FamilyPalUI.markSaved(editor);
+    }
     global.clearTimeout(autoLockTimer);
     autoLockTimer = null;
     vaultKey = null;

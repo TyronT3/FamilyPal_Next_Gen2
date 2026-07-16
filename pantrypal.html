@@ -192,7 +192,7 @@
   @media print{body{background:#fff;color:#000;}#app-screen,header,.toolbar,.stats,.fab,#toast{display:none!important;}#print-area{display:block!important;}.print-item{padding:6px 0;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;font-size:13px;}.print-section{margin-bottom:16px;}.print-section h3{font-size:14px;font-weight:700;margin-bottom:6px;border-bottom:2px solid #000;padding-bottom:4px;}}
   #print-area{display:none;}
 </style>
-<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260716.13">
+<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260716.15">
 </head>
 <body data-app="pantry">
 <div id="app-screen" class="app-screen">
@@ -244,7 +244,7 @@
 </div>
 
 <!-- Add/Edit Modal -->
-<div class="modal-overlay" id="item-modal" style="display:none" onclick="closeItemModal(event)">
+<div class="modal-overlay" id="item-modal" style="display:none" onclick="closeItemModal(event)" data-fp-guard-dirty>
   <div class="modal">
     <div class="modal-handle"></div>
     <button class="modal-close" onclick="closeModal('item-modal')">✕</button>
@@ -289,7 +289,7 @@
     </div>
     <input type="hidden" id="item-id">
     <input type="hidden" id="item-barcode">
-    <button class="btn btn-primary" id="item-save-btn" onclick="saveItem()">Add to Pantry</button>
+    <button class="btn btn-primary" id="item-save-btn" onclick="saveItem(this)">Add to Pantry</button>
     <button class="btn btn-secondary" id="item-delete-btn" style="display:none;color:var(--red)" onclick="deleteItem()">🗑 Delete Item</button>
   </div>
 </div>
@@ -321,14 +321,14 @@
 </div>
 
 <!-- Categories Modal -->
-<div class="modal-overlay" id="cat-modal" style="display:none" onclick="closeItemModal(event)">
+<div class="modal-overlay" id="cat-modal" style="display:none" onclick="closeItemModal(event)" data-fp-guard-dirty>
   <div class="modal">
     <div class="modal-handle"></div><button class="modal-close" onclick="closeModal('cat-modal')">✕</button>
     <h2>🏷️ Manage Categories</h2>
     <div style="display:flex;gap:8px;margin-bottom:16px">
       <input type="text" id="new-cat-name" placeholder="Category name" style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:9px 14px;color:var(--text);font-size:14px;outline:none;">
       <input type="text" id="new-cat-emoji" placeholder="🏷️" style="width:60px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:9px;color:var(--text);font-size:20px;outline:none;text-align:center;">
-      <button class="btn-sm btn-primary" onclick="addCategory()">Add</button>
+      <button class="btn-sm btn-primary" onclick="addCategory(this)">Add</button>
     </div>
     <div id="cat-list"></div>
   </div>
@@ -345,7 +345,7 @@
       <button class="btn btn-primary" style="font-size:13px;margin-top:0" onclick="startShopScan()">📷 Scan</button>
       <button class="btn btn-secondary" style="font-size:13px" onclick="shareWhatsApp()">💬 WhatsApp</button>
       <button class="btn btn-secondary" style="font-size:13px" onclick="printShoppingList()">🖨️ Print</button>
-      <button class="btn btn-secondary" style="font-size:13px" onclick="resetShoppingTicks()">New Trip</button>
+      <button class="btn btn-secondary" style="font-size:13px" onclick="resetShoppingTicks(this)">New Trip</button>
     </div>
     <div id="shop-scanner-wrap" style="display:none;margin-bottom:12px">
       <div id="shop-scanner-container"><div id="shop-interactive"></div></div>
@@ -398,7 +398,7 @@
 </div>
 
 <!-- Table View Modal -->
-<div class="modal-overlay" id="table-modal" style="display:none" onclick="closeItemModal(event)">
+<div class="modal-overlay" id="table-modal" style="display:none" onclick="closeItemModal(event)" data-fp-guard-dirty>
   <div class="modal table-editor-modal">
     <div class="modal-handle"></div>
     <button class="modal-close" onclick="closeModal('table-modal')">✕</button>
@@ -427,7 +427,7 @@
 <div id="toast"></div>
 
 <script src="assets/js/familypal-core.js?v=20260715.10"></script>
-<script src="assets/js/familypal-ui.js?v=20260715.11"></script>
-<script src="assets/js/pantrypal.js?v=20260715.12"></script>
+<script src="assets/js/familypal-ui.js?v=20260716.15"></script>
+<script src="assets/js/pantrypal.js?v=20260716.15"></script>
 </body>
 </html>
