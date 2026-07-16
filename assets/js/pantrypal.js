@@ -10,6 +10,7 @@ window.onload=async()=>{
 };
 function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
 function escAttr(s){return esc(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function localDateKey(value){const d=value instanceof Date?value:new Date(value);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function expiryStatus(ds){if(!ds)return null;const diff=Math.ceil((new Date(ds)-new Date())/(864e5));return diff<0?'expired':diff<=7?'expiring':'ok';}
 function expiryLabel(ds){if(!ds)return'';const diff=Math.ceil((new Date(ds)-new Date())/(864e5));if(diff<0)return`Expired ${Math.abs(diff)}d ago`;if(diff===0)return'Expires today!';if(diff<=7)return`Expires in ${diff}d`;return new Date(ds).toLocaleDateString();}
 function isLow(item){const s=item.qty_stocked||0,o=item.qty_open||0,m=item.min_stock||0;if(m>0)return s<m;return s===1&&o===0;}
@@ -216,6 +217,16 @@ function openInventoryModal(){document.getElementById('inventory-modal').style.d
 function renderInventory(){const q=(document.getElementById('inv-search').value||'').toLowerCase();const filtered=items.filter(i=>!q||i.name.toLowerCase().includes(q));const el=document.getElementById('inventory-list');el.innerHTML=filtered.map(item=>`<div class="inv-item"><div class="inv-emoji">${item.emoji||'🥫'}</div><div class="inv-info"><div class="inv-name">${esc(item.name)}</div><div class="inv-cat">${catName(item.category_id)||''}</div></div><div class="inv-controls"><button onclick="invAdj('${item.id}',-1)">−</button><span id="inv-s-${item.id}">${item.qty_stocked||0}</span><button onclick="invAdj('${item.id}',1)">+</button><button class="inv-open-btn ${(item.qty_open||0)>0?'active':''}" onclick="invToggleOpen('${item.id}')">${(item.qty_open||0)>0?'🔓 '+item.qty_open:'🔒'}</button></div></div>`).join('');}
 async function invAdj(id,delta){const item=items.find(i=>i.id===id);if(!item)return;const newQty=Math.max(0,(item.qty_stocked||0)+delta);try{await sbFetch(`/rest/v1/items?id=eq.${id}`,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify({qty_stocked:newQty,updated_at:new Date().toISOString()})});item.qty_stocked=newQty;const el=document.getElementById(`inv-s-${id}`);if(el)el.textContent=newQty;renderItems();}catch(e){toast('Error: '+e.message);}}
 async function invToggleOpen(id){const item=items.find(i=>i.id===id);if(!item)return;const newOpen=(item.qty_open||0)>0?0:1;try{await sbFetch(`/rest/v1/items?id=eq.${id}`,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify({qty_open:newOpen,updated_at:new Date().toISOString()})});item.qty_open=newOpen;renderInventory();renderItems();}catch(e){toast('Error: '+e.message);}}
+async function captureInventorySnapshot(button){
+  if(!items.length){toast('There are no pantry items to check');return;}
+  return FamilyPalUI.runBusy(button,'Saving check…',async function(){try{
+    const now=new Date();
+    const payload=items.map(item=>({item_id:item.id,snapshot_date:localDateKey(now),qty_stocked:item.qty_stocked||0,qty_open:item.qty_open||0,captured_at:now.toISOString()}));
+    await sbFetch('/rest/v1/pantry_inventory_snapshots?on_conflict=item_id,snapshot_date',{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(payload)});
+    toast(`✓ Inventory check saved for ${items.length} items`);
+    closeModal('inventory-modal');
+  }catch(e){toast('Could not finish inventory check: '+e.message);}});
+}
 
 function openPriorityModal(){document.getElementById('priority-modal').style.display='flex';renderPriorityList();}
 function renderPriorityList(){const q=(document.getElementById('pri-search').value||'').toLowerCase();const filtered=items.filter(i=>!q||i.name.toLowerCase().includes(q));document.getElementById('priority-list').innerHTML=filtered.map(item=>`<div class="pri-item"><div style="font-size:20px">${item.emoji||'🥫'}</div><div style="flex:1"><div style="font-size:14px">${esc(item.name)}</div><div style="font-size:11px;color:var(--muted)">${catName(item.category_id)||''}</div></div><label class="toggle"><input type="checkbox" ${item.priority?'checked':''} onchange="togglePriority('${item.id}',this.checked)"><span class="toggle-slider"></span></label></div>`).join('');}
@@ -277,6 +288,38 @@ async function mergeCategory(fromId){
 }
 
 let lastReportRows=[];
+function pantryPurchaseUnits(action){
+  if(!/bought|purchase/i.test(action||''))return 0;
+  const match=String(action).match(/(?:bought|purchase(?:d)?)\D*(\d+)/i);
+  return match?Math.max(1,parseInt(match[1],10)||1):1;
+}
+function buildPantrySnapshotForecasts(allItems,snapshots,historyRows){
+  const byItem={};
+  snapshots.forEach(snapshot=>{if(!byItem[snapshot.item_id])byItem[snapshot.item_id]=[];byItem[snapshot.item_id].push(snapshot);});
+  return allItems.filter(item=>(item.min_stock||0)>0).map(item=>{
+    const itemSnapshots=(byItem[item.id]||[]).slice().sort((a,b)=>String(a.snapshot_date).localeCompare(String(b.snapshot_date))||new Date(a.captured_at)-new Date(b.captured_at));
+    let observedDays=0,estimatedUsed=0,intervals=0;
+    for(let i=1;i<itemSnapshots.length;i++){
+      const start=itemSnapshots[i-1],end=itemSnapshots[i];
+      const span=Math.round((Date.parse(end.snapshot_date+'T00:00:00Z')-Date.parse(start.snapshot_date+'T00:00:00Z'))/86400000);
+      if(span<1)continue;
+      const purchases=historyRows.reduce((sum,row)=>{
+        if(!row.item||row.item.id!==item.id)return sum;
+        const when=new Date(row.date),afterStart=when>new Date(start.captured_at),beforeEnd=when<=new Date(end.captured_at);
+        return afterStart&&beforeEnd?sum+pantryPurchaseUnits(row.action):sum;
+      },0);
+      const startTotal=(start.qty_stocked||0)+(start.qty_open||0);
+      const endTotal=(end.qty_stocked||0)+(end.qty_open||0);
+      estimatedUsed+=Math.max(0,startTotal+purchases-endTotal);
+      observedDays+=span;intervals++;
+    }
+    const ratePerDay=observedDays>=3&&estimatedUsed>0?estimatedUsed/observedDays:0;
+    const current=(item.qty_stocked||0)+(item.qty_open||0);
+    const daysLeft=ratePerDay>0?Math.max(0,Math.floor((current-(item.min_stock||0))/ratePerDay)):null;
+    const confidence=intervals>=3&&observedDays>=21?'Good':intervals>=2&&observedDays>=7?'Building':'Early';
+    return{item,current,daysLeft,ratePerDay,estimatedUsed,observedDays,intervals,confidence,snapshotCount:itemSnapshots.length};
+  }).filter(f=>f.ratePerDay>0&&f.daysLeft!==null&&f.daysLeft<=90).sort((a,b)=>a.daysLeft-b.daysLeft).slice(0,10);
+}
 function openReportModal(){document.getElementById('report-modal').style.display='flex';renderPantryReport(30,document.querySelector('.rp-btn'));}
 async function renderPantryReport(days,btn){
   document.querySelectorAll('.rp-btn').forEach(b=>b.classList.remove('active'));
@@ -286,6 +329,8 @@ async function renderPantryReport(days,btn){
   el.innerHTML='<div class="loading-screen"><span class="spinner"></span></div>';
   try{
     const hist=await sbFetch(`/rest/v1/history?created_at=gte.${since.toISOString()}&order=created_at.desc&limit=500&select=*`);
+    let snapshots=[],snapshotError=null;
+    try{snapshots=await sbFetch(`/rest/v1/pantry_inventory_snapshots?snapshot_date=gte.${localDateKey(since)}&order=snapshot_date.asc,captured_at.asc&select=*`);}catch(e){snapshotError=e;}
     const itemMap={};items.forEach(i=>itemMap[i.id]=i);
     const catMap={};categories.forEach(c=>catMap[c.id]=c);
     const rows=hist.map(h=>({date:h.created_at,item:itemMap[h.item_id],action:h.action||'',note:h.note||'',price:h.price===null||h.price===undefined?null:parseFloat(h.price)}));
@@ -295,7 +340,7 @@ async function renderPantryReport(days,btn){
     const spend=rows.reduce((s,r)=>s+(r.price||0),0);
     const priced=rows.filter(r=>r.price!==null).length;
 
-    // ── Most active items ──────────────────────────────
+    // ── Most recorded changes ──────────────────────────
     const byItem={};
     rows.forEach(r=>{const name=r.item?r.item.name:'Unknown item';if(!byItem[name])byItem[name]={count:0,spend:0};byItem[name].count++;byItem[name].spend+=r.price||0;});
     const top=Object.entries(byItem).sort((a,b)=>b[1].count-a[1].count).slice(0,8);
@@ -311,22 +356,10 @@ async function renderPantryReport(days,btn){
     });
     const catSpend=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
 
-    // ── Stock forecast (days until low) ───────────────
-    const useRows=rows.filter(r=>/finished|used|opened/i.test(r.action)&&r.item);
-    const useByItem={};
-    useRows.forEach(r=>{const id=r.item.id;if(!useByItem[id])useByItem[id]=0;useByItem[id]++;});
-    const forecastItems=items
-      .filter(i=>i.min_stock>0&&i.qty_stocked>=0)
-      .map(i=>{
-        const uses=useByItem[i.id]||0;
-        const ratePerDay=uses/days;
-        const current=i.qty_stocked+(i.qty_open?1:0);
-        const daysLeft=ratePerDay>0?Math.floor((current-i.min_stock)/ratePerDay):null;
-        return{item:i,ratePerDay,daysLeft,current,uses};
-      })
-      .filter(f=>f.uses>=2&&f.ratePerDay>0&&(f.daysLeft===null||f.daysLeft<=90))
-      .sort((a,b)=>(a.daysLeft??9999)-(b.daysLeft??9999))
-      .slice(0,10);
+    // ── Stock forecast from confirmed inventory intervals ──
+    const forecastItems=buildPantrySnapshotForecasts(items,snapshots,rows);
+    const snapshotDates=[...new Set(snapshots.map(s=>s.snapshot_date))];
+    const forecastHelp=snapshotError?'Inventory snapshots are unavailable until the latest database migration is applied.':snapshotDates.length<2?`Complete at least 2 inventory checks on different days to enable forecasts. ${snapshotDates.length} saved in this period.`:'Forecasts use stock differences between confirmed inventory checks, adjusted for recorded purchases. Quiet days are not counted as zero use.';
 
     // ── Expiry tracker ────────────────────────────────
     const today=new Date();today.setHours(0,0,0,0);
@@ -346,10 +379,11 @@ async function renderPantryReport(days,btn){
       </div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:12px">${priced} row${priced!==1?'s':''} included price data. Price reporting improves as more purchases are scanned with a price.</div>
       <button class="btn btn-secondary" onclick="downloadReportCsv(${days})">⬇ Download CSV</button>
-      <div class="section-label">Most active items</div>
+      <div class="section-label">Most recorded changes</div>
       ${top.length?top.map(([name,v])=>`<div class="history-item"><div style="flex:1">${esc(name)}</div><div class="history-time">${v.count} changes${v.spend?` · R${v.spend.toFixed(2)}`:''}</div></div>`).join(''):'<div class="empty-state" style="padding:16px">No history yet</div>'}
       ${catSpend.length?`<div class="section-label">Spend by category</div>${catSpend.map(([cat,amt])=>`<div class="history-item"><div style="flex:1">${esc(cat)}</div><div class="history-time" style="font-weight:700">R${amt.toFixed(2)}</div></div>`).join('')}`:''}
-      ${forecastItems.length?`<div class="section-label">Stock forecast</div><div style="font-size:11px;color:var(--muted);margin-bottom:8px">Items used 2+ times in this period — capped at 90 days. Items with too little data or very slow use are excluded.</div>${forecastItems.map(f=>{const urgStyle=f.daysLeft!==null&&f.daysLeft<=3?'color:var(--red);font-weight:700':f.daysLeft<=7?'color:var(--orange)':'';return`<div class="history-item"><div style="flex:1"><div>${esc(f.item.name)}</div><div class="history-time">${f.uses} uses · ${f.current} in stock</div></div><div class="history-time" style="${urgStyle}">${f.daysLeft!==null?f.daysLeft+'d left':'—'}</div></div>`;}).join('')}`:''}
+      <div class="section-label">Stock forecast</div><div style="font-size:11px;color:var(--muted);margin-bottom:8px">${forecastHelp}</div>
+      ${forecastItems.length?forecastItems.map(f=>{const urgStyle=f.daysLeft<=3?'color:var(--red);font-weight:700':f.daysLeft<=7?'color:var(--orange)':'';return`<div class="history-item"><div style="flex:1"><div>${esc(f.item.name)}</div><div class="history-time">~${f.estimatedUsed} used across ${f.observedDays} observed days · ${f.current} in stock · ${f.confidence} confidence</div></div><div class="history-time" style="${urgStyle}">${f.daysLeft}d left</div></div>`;}).join(''):'<div class="empty-state" style="padding:16px">Not enough confirmed inventory movement for a forecast yet.</div>'}
       ${expiryItems.length?`<div class="section-label">Expiry tracker</div>${expiryItems.map(f=>{const style=f.daysLeft<0?'color:var(--red);font-weight:700':f.daysLeft<=7?'color:var(--orange)':'';return`<div class="history-item"><div style="flex:1">${esc(f.item.name)}</div><div class="history-time" style="${style}">${f.daysLeft<0?'Expired '+Math.abs(f.daysLeft)+'d ago':f.daysLeft===0?'Expires today':'In '+f.daysLeft+'d'}</div></div>`;}).join('')}`:''}
       <div class="section-label">Recent history</div>
       ${rows.length?rows.slice(0,80).map(r=>`<div class="history-item"><div class="history-dot" style="background:var(--accent)"></div><div style="flex:1"><div>${esc(r.item?r.item.name:'Unknown item')} · ${esc(r.action)}</div><div class="history-time">${new Date(r.date).toLocaleString()}${r.price?` · R${r.price.toFixed(2)}`:''}</div></div></div>`).join(''):'<div class="empty-state" style="padding:16px">No report data for this period</div>'}`;
