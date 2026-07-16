@@ -826,7 +826,10 @@ function eventTitle(e){
 }
 
 function eventDetail(e){
-  if(e.category==='mood')return'Mood';
+  if(e.category==='mood'){
+    var moodCount=String(e.label||'').split(/\s*·\s*/).filter(Boolean).length;
+    return moodCount>1?moodCount+' moods selected':'Mood';
+  }
   if(e.category==='symptom'){
     var symptomCount=String(e.label||'').split(/\s*·\s*/).filter(Boolean).length;
     return symptomCount>1?symptomCount+' symptoms selected':'Symptom';
@@ -1068,7 +1071,7 @@ function renderEventCategoryFields(eventData){
   var category=normaliseEventCategory(document.getElementById('detail-event-category').value);
   var html='';
   if(category==='mood'){
-    html='<p class="event-helper">How are you feeling? Choose the mood that fits best.</p>'+eventChoiceMarkup('detail-event-label',EVENT_MOODS,eventData.label||'',false);
+    html='<p class="event-helper">How are you feeling? Choose one or more moods that fit.</p>'+eventChoiceMarkup('detail-event-label',EVENT_MOODS,eventData.label||'',true);
   }else if(category==='symptom'){
     html='<p class="event-helper">Choose one or more symptoms you noticed.</p>'+eventChoiceMarkup('detail-event-label',EVENT_SYMPTOMS,eventData.label||'',true);
   }else if(category==='sex'){

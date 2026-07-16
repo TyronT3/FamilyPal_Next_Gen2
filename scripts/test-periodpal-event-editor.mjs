@@ -50,12 +50,14 @@ assert.equal(context.normaliseEventCategory('unknown_import_category'), 'other')
 assert.equal(context.eventEditorTitle('pregnancy_test', false), 'Log pregnancy test');
 assert.equal(context.eventEditorTitle('workout', true), 'Edit workout');
 assert.equal(context.eventDetail({ category: 'water', label: 'Water', value_number: 500, unit: 'ml' }), '500 ml');
+assert.equal(context.eventDetail({ category: 'mood', label: 'Calm · Hopeful' }), '2 moods selected');
 assert.equal(context.eventDetail({ category: 'symptom', label: 'Cramps · Fatigue' }), '2 symptoms selected');
 assert.equal(context.friendlyEventTitle({ category: 'sex', label: 'Protected sex' }), 'Protected sex');
 
-const moodChoices = context.eventChoiceMarkup('test-mood', context.EVENT_MOODS, 'Calm', false);
+const moodChoices = context.eventChoiceMarkup('test-mood', context.EVENT_MOODS, 'Calm · Hopeful', true);
 assert.match(moodChoices, /😊 Happy/);
 assert.match(moodChoices, /data-value="Calm" aria-pressed="true"/);
+assert.match(moodChoices, /data-value="Hopeful" aria-pressed="true"/);
 
 const symptomChoices = context.eventChoiceMarkup('test-symptoms', context.EVENT_SYMPTOMS, 'Cramps · Fatigue', true);
 assert.match(symptomChoices, /data-value="Cramps" aria-pressed="true"/);
@@ -93,8 +95,8 @@ async function saveCategory(category, categoryFields) {
   return savedPayload;
 }
 
-let payload = await saveCategory('mood', { 'detail-event-label': value('Calm') });
-assert.equal(payload.label, 'Calm');
+let payload = await saveCategory('mood', { 'detail-event-label': value('Calm · Hopeful') });
+assert.equal(payload.label, 'Calm · Hopeful');
 
 payload = await saveCategory('symptom', { 'detail-event-label': value('Cramps · Fatigue') });
 assert.equal(payload.label, 'Cramps · Fatigue');
