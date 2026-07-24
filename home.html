@@ -9,6 +9,24 @@
 <link rel="stylesheet" href="assets/css/familypal.css?v=20260715.12">
 <style>
   body{min-height:100vh;}
+  .catchup-btn{display:flex;align-items:center;gap:12px;width:100%;background:var(--card,#fff);border:1px solid var(--border,#e5e7eb);border-radius:20px;padding:14px 18px;cursor:pointer;text-align:left;font-family:inherit;box-sizing:border-box;margin-top:12px;}
+  .catchup-btn:active{opacity:.8;}
+  .catchup-btn-icon{font-size:26px;flex-shrink:0;}
+  .catchup-btn-text strong{display:block;font-size:14px;font-weight:700;}
+  .catchup-btn-text span{font-size:12px;color:var(--muted,#6b7280);}
+  .catchup-btn-arrow{margin-left:auto;font-size:18px;color:var(--muted,#6b7280);}
+  .cu-section{background:var(--card,#fff);border:1px solid var(--border,#e5e7eb);border-radius:16px;padding:14px 16px;margin-bottom:12px;}
+  .cu-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted,#6b7280);margin-bottom:10px;}
+  .cu-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--border,#e5e7eb);}
+  .cu-row:last-of-type{border-bottom:none;}
+  .cu-row-info{flex:1;min-width:0;}
+  .cu-row-label{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .cu-row-sub{font-size:11px;color:var(--muted,#6b7280);margin-top:2px;}
+  .cu-btn{background:var(--bg,#f9fafb);border:1px solid var(--border,#e5e7eb);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--text,#111);cursor:pointer;flex-shrink:0;white-space:nowrap;font-family:inherit;line-height:1.3;}
+  .cu-btn:active{opacity:.7;}
+  .cu-ok-msg{font-size:13px;color:var(--muted,#6b7280);padding:6px 0;}
+  .cu-app-link{display:inline-block;font-size:12px;color:var(--accent,#6c63ff);margin-top:10px;text-decoration:none;opacity:.8;}
+  .cu-done-row{opacity:.45;text-decoration:line-through;pointer-events:none;}
 </style>
 <link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260716.15">
 </head>
@@ -80,11 +98,29 @@
     </a>
   </div>
 
+  <button class="catchup-btn" onclick="openCatchUp()">
+    <div class="catchup-btn-icon">📋</div>
+    <div class="catchup-btn-text">
+      <strong>Catch Up Mode</strong>
+      <span>See what needs logging across all apps</span>
+    </div>
+    <div class="catchup-btn-arrow">›</div>
+  </button>
+
   <div class="home-account">
     <span>Signed in as <strong id="user-email"></strong></span>
     <a class="auth-link" href="settings.html">Account settings</a>
   </div>
 </main>
+
+<div id="catchup-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeModal('catchup-modal')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeModal('catchup-modal')">✕</button>
+    <h2 style="margin-bottom:16px">📋 Catch Up</h2>
+    <div id="catchup-content"><div style="color:var(--muted);text-align:center;padding:24px">Loading…</div></div>
+  </div>
+</div>
 
 <div id="toast" class="toast"></div>
 <script src="assets/js/familypal-core.js?v=20260715.10"></script>
@@ -160,6 +196,169 @@ async function loadDashboard(){
     }
   }
   document.getElementById('home-modules').setAttribute('aria-busy','false');
+}
+
+var cuChores=[];
+var cuToastTimer;
+function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(cuToastTimer);cuToastTimer=setTimeout(function(){t.classList.remove('show');},2500);}
+function closeModal(id){document.getElementById(id).style.display='none';}
+function openCatchUp(){document.getElementById('catchup-modal').style.display='flex';loadCatchUp();}
+
+async function loadCatchUp(){
+  var el=document.getElementById('catchup-content');
+  el.innerHTML='<div style="color:var(--muted);text-align:center;padding:24px">Loading…</div>';
+  var r=todayRange();
+  var since12h=new Date(Date.now()-12*3600000).toISOString();
+  try{
+    var results=await Promise.allSettled([
+      sbFetch('/rest/v1/baby_feeds?logged_at=gte.'+since12h+'&order=logged_at.desc&limit=1&select=logged_at'),
+      sbFetch('/rest/v1/baby_diapers?logged_at=gte.'+r.start+'&select=id'),
+      sbFetch('/rest/v1/baby_sleep?logged_at=gte.'+r.start+'&select=id'),
+      sbFetch('/rest/v1/chores?active=eq.true&frequency=eq.daily&select=id,name,emoji,points'),
+      sbFetch('/rest/v1/chore_logs?completed_at=gte.'+r.start+'&select=chore_id'),
+      sbFetch('/rest/v1/items?min_stock=gt.0&select=id,name,emoji,qty_stocked,qty_open,min_stock,priority,rating')
+    ]);
+    var feeds=results[0].status==='fulfilled'?results[0].value:[];
+    var diapers=results[1].status==='fulfilled'?results[1].value:[];
+    var sleeps=results[2].status==='fulfilled'?results[2].value:[];
+    var chores=results[3].status==='fulfilled'?results[3].value:[];
+    var choreLogs=results[4].status==='fulfilled'?results[4].value:[];
+    var allItems=results[5].status==='fulfilled'?results[5].value:[];
+    cuChores=chores;
+
+    var lastFeed=feeds[0];
+    var gapMins=lastFeed?Math.floor((Date.now()-new Date(lastFeed.logged_at))/60000):null;
+    var gapStr=gapMins===null?'None in last 12h':gapMins<60?gapMins+'m ago':Math.floor(gapMins/60)+'h '+(gapMins%60)+'m ago';
+    var feedWarn=gapMins===null||gapMins>180;
+
+    var doneIds=new Set(choreLogs.map(function(l){return l.chore_id;}));
+    var overdueChores=chores.filter(function(c){return!doneIds.has(c.id);});
+
+    var lowItems=allItems.filter(function(i){var s=i.qty_stocked||0,m=i.min_stock||0;return s<=m;});
+
+    var html='';
+
+    // Baby
+    html+='<div class="cu-section"><div class="cu-section-title">🍼 Baby — Today</div>'+
+      '<div class="cu-row"><div class="cu-row-info"><div class="cu-row-label"'+(feedWarn?' style="color:var(--warning,#f59e0b)"':'')+'>Last feed</div><div class="cu-row-sub">'+gapStr+'</div></div>'+
+      '<div style="display:flex;gap:5px"><button class="cu-btn" onclick="cuToggleFeedForm()">🍼 Bottle</button></div></div>'+
+      '<div class="cu-row"><div class="cu-row-info"><div class="cu-row-label">Diapers today</div><div class="cu-row-sub">'+diapers.length+' logged</div></div>'+
+      '<div style="display:flex;gap:5px"><button class="cu-btn" onclick="cuLogDiaper(\'wet\')">💧 Wet</button><button class="cu-btn" onclick="cuLogDiaper(\'soiled\')">💩 Soiled</button></div></div>'+
+      '<div class="cu-row"><div class="cu-row-info"><div class="cu-row-label">Sleep</div><div class="cu-row-sub">'+sleeps.length+' session'+(sleeps.length!==1?'s':'')+' today</div></div>'+
+      '<a class="cu-btn" href="babypal.html" style="text-decoration:none">Open →</a></div>'+
+      '<div id="cu-feed-form" style="display:none;padding-top:12px;border-top:1px solid var(--border) ;margin-top:4px">'+
+        '<div style="font-size:12px;color:var(--muted);margin-bottom:8px">Log a bottle feed</div>'+
+        '<div style="display:flex;gap:8px;align-items:center">'+
+          '<input type="number" id="cu-ml" placeholder="ml" min="1" max="500" style="width:64px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);font-size:14px;text-align:center;outline:none">'+
+          '<input type="time" id="cu-feed-time" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);font-size:14px;outline:none">'+
+          '<button class="cu-btn" onclick="cuSaveBottle()" style="border-color:var(--accent);color:var(--accent)">Log</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+
+    // Chores
+    html+='<div class="cu-section"><div class="cu-section-title">🧹 Daily Chores — Today</div>';
+    if(overdueChores.length){
+      overdueChores.forEach(function(c){
+        html+='<div class="cu-row" id="cu-chore-'+c.id+'">'+
+          '<div class="cu-row-label">'+(c.emoji||'🧹')+' '+esc(c.name)+'</div>'+
+          '<div style="display:flex;gap:4px">'+
+            '<button class="cu-btn" title="Tyron" onclick="cuLogChore(\''+c.id+'\',\'Tyron\',this)">👨</button>'+
+            '<button class="cu-btn" title="Ansonette" onclick="cuLogChore(\''+c.id+'\',\'Ansonette\',this)">👩</button>'+
+            '<button class="cu-btn" title="Both" onclick="cuLogChore(\''+c.id+'\',\'Both\',this)">👨👩</button>'+
+          '</div></div>';
+      });
+    }else{
+      html+='<div class="cu-ok-msg">✅ All daily chores done today!</div>';
+    }
+    html+='<a class="cu-app-link" href="chorepal.html">Open ChoresPal →</a></div>';
+
+    // Pantry
+    html+='<div class="cu-section"><div class="cu-section-title">🥫 Pantry — Low Stock</div>';
+    if(lowItems.length){
+      lowItems.forEach(function(i){
+        html+='<div class="cu-row" id="cu-item-'+i.id+'">'+
+          '<div class="cu-row-info"><div class="cu-row-label">'+(i.emoji||'🥫')+' '+esc(i.name)+'</div><div class="cu-row-sub">'+(i.qty_stocked||0)+' left · min '+(i.min_stock||0)+'</div></div>'+
+          '<button class="cu-btn" onclick="cuBuyOne(\''+i.id+'\',this)">+1 📦</button>'+
+        '</div>';
+      });
+    }else{
+      html+='<div class="cu-ok-msg">✅ All stocked above minimum!</div>';
+    }
+    html+='<a class="cu-app-link" href="pantrypal.html">Open PantryPal →</a></div>';
+
+    // Wellbeing link
+    html+='<div class="cu-section"><div class="cu-section-title">🌿 Wellbeing</div>'+
+      '<div class="cu-ok-msg" style="font-size:13px">Log your daily mood, energy, medication and health check-ins in WellbeingPal.</div>'+
+      '<a class="cu-app-link" href="wellbeingpal.html">Open WellbeingPal →</a></div>';
+
+    el.innerHTML=html;
+
+    var now=new Date();now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
+    var timeEl=document.getElementById('cu-feed-time');
+    if(timeEl)timeEl.value=now.toISOString().slice(11,16);
+
+  }catch(err){
+    el.innerHTML='<div style="color:var(--danger,red);padding:20px">Error: '+err.message+'</div>';
+  }
+}
+
+function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
+
+function cuToggleFeedForm(){
+  var f=document.getElementById('cu-feed-form');
+  if(f)f.style.display=f.style.display==='none'?'block':'none';
+}
+
+async function cuSaveBottle(){
+  var ml=parseInt(document.getElementById('cu-ml').value);
+  var timeVal=document.getElementById('cu-feed-time').value;
+  if(!ml||ml<1){toast('Enter amount in ml');return;}
+  var ts=timeVal?new Date(new Date().toISOString().slice(0,10)+'T'+timeVal+':00').toISOString():new Date().toISOString();
+  try{
+    await sbFetch('/rest/v1/baby_feeds',{method:'POST',body:JSON.stringify({feed_type:'bottle',amount_ml:ml,logged_at:ts})});
+    toast('🍼 '+ml+'ml logged!');
+    document.getElementById('cu-feed-form').style.display='none';
+    loadCatchUp();
+  }catch(e){toast('Error: '+e.message);}
+}
+
+async function cuLogDiaper(type){
+  try{
+    await sbFetch('/rest/v1/baby_diapers',{method:'POST',body:JSON.stringify({diaper_type:type,logged_at:new Date().toISOString()})});
+    try{await FamilyPal.decrementDiaperStock('Catch Up');}catch(e){}
+    toast((type==='wet'?'💧 Wet':'💩 Soiled')+' diaper logged!');
+    loadCatchUp();
+  }catch(e){toast('Error: '+e.message);}
+}
+
+async function cuLogChore(choreId,person,btn){
+  var shared=person==='Both';
+  try{
+    await sbFetch('/rest/v1/chore_logs',{method:'POST',body:JSON.stringify({
+      chore_id:choreId,
+      completed_by:shared?'Tyron':person,
+      completed_at:new Date().toISOString(),
+      shared:shared,
+      completed_by_2:shared?'Ansonette':null
+    })});
+    var row=document.getElementById('cu-chore-'+choreId);
+    if(row)row.classList.add('cu-done-row');
+    toast('✅ Done!');
+  }catch(e){toast('Error: '+e.message);}
+}
+
+async function cuBuyOne(itemId,btn){
+  try{
+    var res=await sbFetch('/rest/v1/items?id=eq.'+itemId+'&select=qty_stocked');
+    var newQty=((res[0]&&res[0].qty_stocked)||0)+1;
+    await Promise.all([
+      sbFetch('/rest/v1/items?id=eq.'+itemId,{method:'PATCH',body:JSON.stringify({qty_stocked:newQty,updated_at:new Date().toISOString()})}),
+      sbFetch('/rest/v1/history',{method:'POST',body:JSON.stringify({item_id:itemId,action:'Bought 1 more (catch up)'})})
+    ]);
+    if(btn){btn.textContent='✓ Done';btn.disabled=true;btn.style.opacity='.5';}
+    toast('📦 Stock updated!');
+  }catch(e){toast('Error: '+e.message);}
 }
 
 window.onload=async function(){

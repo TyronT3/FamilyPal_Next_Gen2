@@ -33,6 +33,7 @@ async function loadAll(){
   catch(e){toast('Error loading: '+e.message);}
 }
 function populateCategorySelect(){const sel=document.getElementById('item-category-id');sel.innerHTML='<option value="">— No category —</option>';categories.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.emoji+' '+c.name;sel.appendChild(o);});}
+function populateRefillSelect(excludeId){const sel=document.getElementById('item-refill-for');if(!sel)return;sel.innerHTML='<option value="">— Not a refill product —</option>'+items.filter(i=>i.id!==excludeId).map(i=>`<option value="${i.id}">${esc(i.emoji||'🥫')} ${esc(i.name)}</option>`).join('');}
 
 function toggleCatSort(){
   groupByCategory=!groupByCategory;
@@ -57,6 +58,7 @@ function renderItems(){
 
   const renderCard=item=>{
     const st=calcStatus(item),es=expiryStatus(item.expiry_date),cat=catName(item.category_id);
+    const refillTarget=item.refill_for_id?items.find(i=>i.id===item.refill_for_id):null;
     const uom=item.unit_of_measure?`<span class="badge badge-cat">${item.unit_of_measure}</span>`:'';
     const ratingBadge=item.rating==='love'?`<span class="badge badge-love">❤️ Love</span>`:item.rating==='hate'?`<span class="badge badge-hate">😬 Don't buy</span>`:'';
     const badges=[item.priority?`<span class="badge badge-priority">⭐</span>`:'',es==='expiring'?`<span class="badge badge-expiring">⚠️ ${expiryLabel(item.expiry_date)}</span>`:'',es==='expired'?`<span class="badge badge-expired">🔴 Expired</span>`:'',cat&&!groupByCategory?`<span class="badge badge-cat">${cat}</span>`:'',uom,ratingBadge].filter(Boolean).join('');
@@ -70,6 +72,7 @@ function renderItems(){
         <button class="qa-btn" onclick="quickAction('${item.id}','bought')">+1 📦</button>
         <button class="qa-btn" onclick="quickAction('${item.id}','openone')">🔓 Open</button>
         <button class="qa-btn" onclick="quickAction('${item.id}','finished')">✅ Done</button>
+        ${refillTarget?`<button class="qa-btn" style="border-color:#8b5cf6;color:#a78bfa" onclick="quickAction('${item.id}','refill')">🔄 Refill</button>`:''}
       </div>
     </div>`;
   };
@@ -106,6 +109,25 @@ async function quickAction(id,action){
   const item=items.find(i=>i.id===id);if(!item)return;
   const previous={qty_stocked:item.qty_stocked||0,qty_open:item.qty_open||0};
   let s=previous.qty_stocked,o=previous.qty_open,note='';
+  if(action==='refill'){
+    const linked=items.find(i=>i.id===item.refill_for_id);
+    if(!linked){toast('Linked item not found');return;}
+    if(s<1&&o<1){toast('No refill stock left!');return;}
+    if(o>0){o--;note='Used to refill '+linked.name;}else{s--;note='Opened to refill '+linked.name;}
+    try{
+      const upd={qty_stocked:s,qty_open:o,updated_at:new Date().toISOString()};
+      const lOpen=Math.max(1,linked.qty_open||0);
+      const lUpd={qty_open:lOpen,updated_at:new Date().toISOString()};
+      await Promise.all([
+        sbFetch(`/rest/v1/items?id=eq.${id}`,{method:'PATCH',body:JSON.stringify(upd)}),
+        sbFetch(`/rest/v1/items?id=eq.${linked.id}`,{method:'PATCH',body:JSON.stringify(lUpd)}),
+        sbFetch('/rest/v1/history',{method:'POST',body:JSON.stringify({item_id:id,action:note})}),
+        sbFetch('/rest/v1/history',{method:'POST',body:JSON.stringify({item_id:linked.id,action:'Refilled from '+item.name})})
+      ]);
+      Object.assign(item,upd);Object.assign(linked,lUpd);renderItems();toast('🔄 '+note);
+    }catch(e){toast('Error: '+e.message);}
+    return;
+  }
   if(action==='bought'){s++;note='Bought 1 more';}
   else if(action==='openone'){if(s<1){toast('No sealed stock!');return;}s--;o++;note='Opened one';}
   else if(action==='finished'){if(o<1&&s<1){toast('Nothing left!');return;}if(o>0){o--;note='Finished one';}else{s--;note='Opened & finished one';}}
@@ -134,6 +156,7 @@ function openAddModal(prefill={}){
   ['stocked','open','min'].forEach(t=>document.getElementById('val-'+t).textContent=formQty[t]);
   document.getElementById('item-save-btn').textContent='Add to Pantry';
   document.getElementById('item-delete-btn').style.display='none';
+  populateRefillSelect(null);document.getElementById('item-refill-for').value='';
   document.getElementById('item-modal').style.display='flex';
 }
 
@@ -153,6 +176,7 @@ function openEditModal(id){
   ['stocked','open','min'].forEach(t=>document.getElementById('val-'+t).textContent=formQty[t]);
   document.getElementById('item-save-btn').textContent='Save Changes';
   document.getElementById('item-delete-btn').style.display='block';
+  populateRefillSelect(id);document.getElementById('item-refill-for').value=item.refill_for_id||'';
   closeModal('detail-modal');document.getElementById('item-modal').style.display='flex';
 }
 
@@ -167,7 +191,8 @@ async function saveItem(button){
   const rating=document.getElementById('item-rating').value||'unsure';
   const cat=categories.find(c=>c.id===catId);
   const emoji=cat?cat.emoji:guessEmoji(name);
-  const payload={name,brand,category_id:catId,expiry_date:expiry,priority,barcode,emoji,unit_of_measure:uom,rating,qty_stocked:formQty.stocked,qty_open:formQty.open,min_stock:formQty.min,updated_at:new Date().toISOString()};
+  const refillForId=document.getElementById('item-refill-for').value||null;
+  const payload={name,brand,category_id:catId,expiry_date:expiry,priority,barcode,emoji,unit_of_measure:uom,rating,qty_stocked:formQty.stocked,qty_open:formQty.open,min_stock:formQty.min,refill_for_id:refillForId,updated_at:new Date().toISOString()};
   return FamilyPalUI.runBusy(button,'Saving…',async function(){try{
     if(editingId){await sbFetch(`/rest/v1/items?id=eq.${editingId}`,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});await sbFetch('/rest/v1/history',{method:'POST',body:JSON.stringify({item_id:editingId,action:'Item edited'})});toast('Updated ✓');}
     else{const res=await sbFetch('/rest/v1/items',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});const ni=Array.isArray(res)?res[0]:res;await sbFetch('/rest/v1/history',{method:'POST',body:JSON.stringify({item_id:ni.id,action:'Item added'})});toast('Added ✓');}
@@ -191,6 +216,7 @@ async function openDetailModal(id){
   try{
     const hist=await sbFetch(`/rest/v1/history?item_id=eq.${id}&order=created_at.desc&limit=30`);
     const s=item.qty_stocked||0,o=item.qty_open||0,es=expiryStatus(item.expiry_date),cat=catName(item.category_id);
+    const refillTarget=item.refill_for_id?items.find(i=>i.id===item.refill_for_id):null;
     const ac=a=>{if(a.includes('Bought'))return'var(--green)';if(a.includes('Opened'))return'var(--yellow)';if(a.includes('Finished'))return'var(--accent2)';return'var(--muted)';};
     document.getElementById('detail-content').innerHTML=`
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
@@ -207,6 +233,7 @@ async function openDetailModal(id){
         <button class="action-btn yellow" onclick="quickAction('${id}','openone');closeModal('detail-modal')">🔓 Open one<br><small>Sealed → Open</small></button>
         <button class="action-btn red" onclick="quickAction('${id}','finished');closeModal('detail-modal')">✅ Finished one<br><small>Open if needed, then use</small></button>
         <button class="action-btn" onclick="openEditModal('${id}')">✏️ Edit<br><small>Adjust / settings</small></button>
+        ${refillTarget?`<button class="action-btn" style="grid-column:1/-1;border-color:#8b5cf6;background:rgba(139,92,246,.08);color:#a78bfa" onclick="quickAction('${id}','refill');closeModal('detail-modal')">🔄 Refill ${esc(refillTarget.name)}<br><small>Use this sachet to refill it</small></button>`:''}
       </div>
       <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px">History (${hist.length})</div>
       <div class="history-list">${hist.length?hist.map(h=>`<div class="history-item"><div class="history-dot" style="background:${ac(h.action||'')}"></div><div><div>${esc(h.action||'')}${h.price?` <span style="color:var(--green);font-size:11px">R${parseFloat(h.price).toFixed(2)}</span>`:''}</div><div class="history-time">${new Date(h.created_at).toLocaleString()}</div></div></div>`).join(''):'<div style="color:var(--muted);font-size:13px;padding:8px 0">No history yet.</div>'}</div>`;
