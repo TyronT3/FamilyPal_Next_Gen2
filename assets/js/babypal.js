@@ -357,8 +357,11 @@ async function loadTrends(days){
     var totalFeeds=bottleFeeds.length+breastFeedsArr.length;
     var bPct=totalFeeds?Math.round(bottleFeeds.length/totalFeeds*100):0;
     var confirmedDiaperDays=diapersPerDay.filter(function(day){return day.state==='complete'&&day.val>0;});
+    var allDiaperDays=diapersPerDay.filter(function(day){return day.val!==null&&day.val>0;});
     var suspiciousZeroDiaperDays=diapersPerDay.filter(function(day){return day.state==='complete'&&day.val===0;}).length;
-    var avgDiapersPerDay=confirmedDiaperDays.length?confirmedDiaperDays.reduce(function(sum,day){return sum+day.val;},0)/confirmedDiaperDays.length:null;
+    var avgDiapersPerDay=confirmedDiaperDays.length?confirmedDiaperDays.reduce(function(sum,day){return sum+day.val;},0)/confirmedDiaperDays.length:allDiaperDays.length?allDiaperDays.reduce(function(sum,day){return sum+day.val;},0)/allDiaperDays.length:null;
+    var forecastDayCount=confirmedDiaperDays.length||allDiaperDays.length;
+    var forecastQuality=confirmedDiaperDays.length?confirmedDiaperDays.length+' complete day'+(confirmedDiaperDays.length!==1?'s':''):allDiaperDays.length+' logged day'+(allDiaperDays.length!==1?'s':'')+' (mark days complete for more accuracy)';
     var visibleDateKeys=new Set(dayArr.map(localDateKey));
     var completeDayCount=Array.from(completeDates).filter(function(key){return visibleDateKeys.has(key);}).length;
     var activityDates=new Set([].concat(feeds,diapers,sleeps).map(function(row){return localDateKey(row.logged_at||row.sleep_start);}));
@@ -394,12 +397,12 @@ async function loadTrends(days){
       if(diaperItemId){
         var dItems=await sbFetch('/rest/v1/items?id=eq.'+diaperItemId+'&select=name,qty_stocked');
         var dItem=dItems&&dItems[0];
-        if(dItem&&avgDiapersPerDay&&confirmedDiaperDays.length>=3){
+        if(dItem&&avgDiapersPerDay&&forecastDayCount>=1){
           var daysRem=Math.floor(dItem.qty_stocked/avgDiapersPerDay);
           var urg=daysRem<=2?'color:var(--red);font-weight:700':daysRem<=5?'color:var(--orange)':'color:var(--green)';
-          forecastHtml='<div class="insight-card" style="margin:0 0 12px"><div class="insight-title">🔮 Diaper stock forecast</div><div class="insight-row"><span>'+esc(dItem.name)+'</span><strong>'+dItem.qty_stocked+' in stock</strong></div><div class="log-detail" style="margin-top:5px">Based on '+confirmedDiaperDays.length+' complete tracked days at '+avgDiapersPerDay.toFixed(1)+'/day → <span style="'+urg+'">~'+daysRem+' days remaining</span></div></div>';
+          forecastHtml='<div class="insight-card" style="margin:0 0 12px"><div class="insight-title">🔮 Diaper stock forecast</div><div class="insight-row"><span>'+esc(dItem.name)+'</span><strong>'+dItem.qty_stocked+' in stock</strong></div><div class="log-detail" style="margin-top:5px">Based on '+forecastQuality+' at '+avgDiapersPerDay.toFixed(1)+'/day → <span style="'+urg+'">~'+daysRem+' days remaining</span></div></div>';
         }else if(dItem){
-          forecastHtml='<div class="insight-card" style="margin:0 0 12px"><div class="insight-title">🔮 Diaper stock forecast</div><div class="log-detail">Mark at least 3 fully logged days to enable a reliable forecast. '+confirmedDiaperDays.length+' usable so far.</div></div>';
+          forecastHtml='<div class="insight-card" style="margin:0 0 12px"><div class="insight-title">🔮 Diaper stock forecast</div><div class="log-detail">No diaper data yet in this window. Log diapers a few days and the forecast will appear automatically.</div></div>';
         }
       }
     }catch(e){}
