@@ -347,6 +347,26 @@ function buildPantrySnapshotForecasts(allItems,snapshots,historyRows){
     return{item,current,daysLeft,ratePerDay,estimatedUsed,observedDays,intervals,confidence,snapshotCount:itemSnapshots.length};
   }).filter(f=>f.ratePerDay>0&&f.daysLeft!==null&&f.daysLeft<=90).sort((a,b)=>a.daysLeft-b.daysLeft).slice(0,10);
 }
+function buildHistoryBasedForecasts(allItems,historyRows,windowDays){
+  const consumed={};
+  historyRows.forEach(r=>{
+    if(!r.item)return;
+    if(/finished|used to refill/i.test(r.action||''))consumed[r.item.id]=(consumed[r.item.id]||0)+1;
+  });
+  return allItems
+    .filter(item=>(item.min_stock||0)>0&&(consumed[item.id]||0)>0)
+    .map(item=>{
+      const cnt=consumed[item.id];
+      const ratePerDay=cnt/windowDays;
+      const current=(item.qty_stocked||0)+(item.qty_open||0);
+      const daysLeft=Math.max(0,Math.floor((current-(item.min_stock||0))/ratePerDay));
+      const confidence=cnt>=5&&windowDays>=21?'Good':cnt>=2?'Building':'Early';
+      return{item,current,daysLeft,ratePerDay,estimatedUsed:cnt,observedDays:windowDays,intervals:cnt,confidence,snapshotCount:0,historyBased:true};
+    })
+    .filter(f=>f.daysLeft<=90)
+    .sort((a,b)=>a.daysLeft-b.daysLeft)
+    .slice(0,10);
+}
 function openReportModal(){document.getElementById('report-modal').style.display='flex';renderPantryReport(30,document.querySelector('.rp-btn'));}
 async function renderPantryReport(days,btn){
   document.querySelectorAll('.rp-btn').forEach(b=>b.classList.remove('active'));
@@ -383,10 +403,12 @@ async function renderPantryReport(days,btn){
     });
     const catSpend=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
 
-    // ── Stock forecast from confirmed inventory intervals ──
-    const forecastItems=buildPantrySnapshotForecasts(items,snapshots,rows);
+    // ── Stock forecast: snapshot-based, fall back to history-based ──
+    let forecastItems=buildPantrySnapshotForecasts(items,snapshots,rows);
+    let forecastIsHistoryBased=false;
+    if(!forecastItems.length&&!snapshotError){forecastItems=buildHistoryBasedForecasts(items,rows,days);forecastIsHistoryBased=forecastItems.length>0;}
     const snapshotDates=[...new Set(snapshots.map(s=>s.snapshot_date))];
-    const forecastHelp=snapshotError?'Inventory snapshots are unavailable until the latest database migration is applied.':snapshotDates.length<2?`Complete at least 2 inventory checks on different days to enable forecasts. ${snapshotDates.length} saved in this period.`:'Forecasts use stock differences between confirmed inventory checks, adjusted for recorded purchases. Quiet days are not counted as zero use.';
+    const forecastHelp=snapshotError?'Inventory snapshots table not found — run the latest migration.':forecastIsHistoryBased?`Estimated from your recorded usage in the last ${days} days. Press ✅ Done when you finish an item to keep this accurate. For more precise forecasts, do a periodic Inventory Check.`:snapshotDates.length<2?`No forecast yet — open Inventory and tap "Save Check" once a day over 2+ different days to enable it. ${snapshotDates.length} snapshot${snapshotDates.length===1?' saved':' saved'} so far.`:'Forecasts use confirmed inventory differences, adjusted for recorded purchases.';
 
     // ── Expiry tracker ────────────────────────────────
     const today=new Date();today.setHours(0,0,0,0);
@@ -410,7 +432,7 @@ async function renderPantryReport(days,btn){
       ${top.length?top.map(([name,v])=>`<div class="history-item"><div style="flex:1">${esc(name)}</div><div class="history-time">${v.count} changes${v.spend?` · R${v.spend.toFixed(2)}`:''}</div></div>`).join(''):'<div class="empty-state" style="padding:16px">No history yet</div>'}
       ${catSpend.length?`<div class="section-label">Spend by category</div>${catSpend.map(([cat,amt])=>`<div class="history-item"><div style="flex:1">${esc(cat)}</div><div class="history-time" style="font-weight:700">R${amt.toFixed(2)}</div></div>`).join('')}`:''}
       <div class="section-label">Stock forecast</div><div style="font-size:11px;color:var(--muted);margin-bottom:8px">${forecastHelp}</div>
-      ${forecastItems.length?forecastItems.map(f=>{const urgStyle=f.daysLeft<=3?'color:var(--red);font-weight:700':f.daysLeft<=7?'color:var(--orange)':'';return`<div class="history-item"><div style="flex:1"><div>${esc(f.item.name)}</div><div class="history-time">~${f.estimatedUsed} used across ${f.observedDays} observed days · ${f.current} in stock · ${f.confidence} confidence</div></div><div class="history-time" style="${urgStyle}">${f.daysLeft}d left</div></div>`;}).join(''):'<div class="empty-state" style="padding:16px">Not enough confirmed inventory movement for a forecast yet.</div>'}
+      ${forecastItems.length?forecastItems.map(f=>{const urgStyle=f.daysLeft<=3?'color:var(--red);font-weight:700':f.daysLeft<=7?'color:var(--orange)':'';const src=f.historyBased?'<span style="font-size:10px;color:var(--muted);margin-left:4px">history</span>':'';return`<div class="history-item"><div style="flex:1"><div>${esc(f.item.name)}${src}</div><div class="history-time">${f.historyBased?`${f.estimatedUsed} finish event${f.estimatedUsed!==1?'s':''} in ${f.observedDays}d · ${f.current} in stock`:`~${f.estimatedUsed} used across ${f.observedDays} observed days · ${f.current} in stock`} · ${f.confidence} confidence</div></div><div class="history-time" style="${urgStyle}">${f.daysLeft}d left</div></div>`;}).join(''):'<div class="empty-state" style="padding:16px">No usage recorded yet — use the ✅ Done button when you finish items to build up forecast data.</div>'}
       ${expiryItems.length?`<div class="section-label">Expiry tracker</div>${expiryItems.map(f=>{const style=f.daysLeft<0?'color:var(--red);font-weight:700':f.daysLeft<=7?'color:var(--orange)':'';return`<div class="history-item"><div style="flex:1">${esc(f.item.name)}</div><div class="history-time" style="${style}">${f.daysLeft<0?'Expired '+Math.abs(f.daysLeft)+'d ago':f.daysLeft===0?'Expires today':'In '+f.daysLeft+'d'}</div></div>`;}).join('')}`:''}
       <div class="section-label">Recent history</div>
       ${rows.length?rows.slice(0,80).map(r=>`<div class="history-item"><div class="history-dot" style="background:var(--accent)"></div><div style="flex:1"><div>${esc(r.item?r.item.name:'Unknown item')} · ${esc(r.action)}</div><div class="history-time">${new Date(r.date).toLocaleString()}${r.price?` · R${r.price.toFixed(2)}`:''}</div></div></div>`).join(''):'<div class="empty-state" style="padding:16px">No report data for this period</div>'}`;
