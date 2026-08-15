@@ -73,18 +73,24 @@ function startSleepTimer(){
     if(!sleepStart)return;
     var diff=Math.floor((Date.now()-sleepStart)/1000);
     var h=Math.floor(diff/3600),m=Math.floor((diff%3600)/60),s=diff%60;
+    var timeStr=(h>0?h+':':'')+(String(m).padStart(h>0?2:1,'0'))+':'+String(s).padStart(2,'0');
     var el=document.getElementById('sleep-timer');
-    if(el)el.textContent=(h>0?h+':':'')+(String(m).padStart(h>0?2:1,'0'))+':'+String(s).padStart(2,'0');
+    if(el)el.textContent=timeStr;
+    var chip=document.getElementById('sleep-chip-timer');
+    if(chip)chip.textContent=timeStr;
   },1000);
 }
 function updateSleepUI(){
   var banner=document.getElementById('sleep-banner');
+  var chip=document.getElementById('sleep-chip');
   var lpIcon=document.getElementById('lp-sleep-icon'),lpLabel=document.getElementById('lp-sleep-label');
   if(sleepStart){
     if(banner)banner.style.display='flex';
+    if(chip)chip.style.display='flex';
     if(lpIcon)lpIcon.textContent='☀️';if(lpLabel)lpLabel.textContent='End sleep';
   }else{
     if(banner)banner.style.display='none';
+    if(chip)chip.style.display='none';
     if(lpIcon)lpIcon.textContent='😴';if(lpLabel)lpLabel.textContent='Start sleep';
   }
 }

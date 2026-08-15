@@ -157,6 +157,7 @@ function openAddModal(prefill={}){
   document.getElementById('item-save-btn').textContent='Add to Pantry';
   document.getElementById('item-delete-btn').style.display='none';
   populateRefillSelect(null);document.getElementById('item-refill-for').value='';
+  var d=document.getElementById('item-more');if(d)d.open=false;
   document.getElementById('item-modal').style.display='flex';
 }
 
@@ -177,6 +178,7 @@ function openEditModal(id){
   document.getElementById('item-save-btn').textContent='Save Changes';
   document.getElementById('item-delete-btn').style.display='block';
   populateRefillSelect(id);document.getElementById('item-refill-for').value=item.refill_for_id||'';
+  var d=document.getElementById('item-more');if(d){d.open=!!(item.brand||item.unit_of_measure||item.refill_for_id||item.expiry_date||(item.qty_open&&item.qty_open>0)||(item.min_stock&&item.min_stock>0)||(item.rating&&item.rating!=='unsure')||item.priority);}
   closeModal('detail-modal');document.getElementById('item-modal').style.display='flex';
 }
 

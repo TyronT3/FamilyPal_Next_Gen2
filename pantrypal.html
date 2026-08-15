@@ -82,7 +82,7 @@
   .badge-expired{background:#3d0e0e;color:var(--red);}
   .badge-cat{background:var(--surface);color:var(--muted);border:1px solid var(--border);}
   .quick-actions{display:flex;gap:4px;flex-wrap:wrap;}
-  .qa-btn{flex:1;min-width:40px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:5px 2px;font-size:11px;color:var(--text);cursor:pointer;text-align:center;line-height:1.3;}
+  .qa-btn{flex:1;min-width:44px;min-height:44px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 4px;font-size:13px;color:var(--text);cursor:pointer;text-align:center;line-height:1.3;display:flex;align-items:center;justify-content:center;}
   .qa-btn:active{background:var(--accent);border-color:var(--accent);}
   .empty-state{grid-column:1/-1;}
   .fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#8b5cf6);border:none;color:#fff;font-size:24px;cursor:pointer;box-shadow:0 4px 20px rgba(108,99,255,.5);display:flex;align-items:center;justify-content:center;z-index:50;}
@@ -96,6 +96,12 @@
   .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);}
   .toggle-row label{font-size:14px;}
   .toggle-row small{font-size:11px;color:var(--muted);display:block;}
+  #item-more{margin-top:4px;}
+  #item-more summary{list-style:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--accent);padding:12px 0;border-top:1px solid var(--border);display:flex;align-items:center;gap:6px;user-select:none;}
+  #item-more summary::-webkit-details-marker{display:none;}
+  #item-more summary::before{content:'▶';font-size:10px;transition:transform .2s;display:inline-block;}
+  #item-more[open] summary::before{transform:rotate(90deg);}
+  .item-more-body{padding-top:4px;}
   .toggle{position:relative;width:44px;height:24px;flex-shrink:0;}
   .toggle input{opacity:0;width:0;height:0;}
   .toggle-slider{position:absolute;inset:0;background:var(--border);border-radius:12px;cursor:pointer;transition:.3s;}
@@ -201,7 +207,7 @@
 <body data-app="pantry">
 <div id="app-screen" class="app-screen">
   <header>
-    <div class="header-left"><span class="header-logo" aria-hidden="true">🥫</span><span class="header-title">PantryPal</span></div>
+    <div class="header-left"><a href="home.html" class="icon-btn" aria-label="FamilyPal home" title="Home" style="font-size:16px;font-weight:700;text-decoration:none;flex-shrink:0">←</a><span class="header-logo" aria-hidden="true">🥫</span><span class="header-title">PantryPal</span></div>
     <div class="header-actions">
       <button class="icon-btn header-text-btn primary" title="Shopping list" aria-label="Shopping list" onclick="openShoppingMode()"><span aria-hidden="true">✓</span><span class="label">Shopping</span></button>
       <button class="icon-btn" title="Scan barcode" aria-label="Scan barcode" onclick="openScanModal()">⌁</button>
@@ -254,44 +260,49 @@
     <button class="modal-close" onclick="closeModal('item-modal')">✕</button>
     <h2 id="item-modal-title">Add Item</h2>
     <div class="field"><label>Name *</label><input type="text" id="item-name" placeholder="e.g. Pasta Sauce"></div>
-    <div class="field"><label>Brand</label><input type="text" id="item-brand" placeholder="e.g. Dolmio"></div>
     <div class="field"><label>Category</label><select id="item-category-id"><option value="">— No category —</option></select></div>
-    <div class="field">
-      <label>Unit of Measure</label>
-      <select id="item-uom">
-        <option value="">— None —</option>
-        <option value="Bottle">🍶 Bottle</option>
-        <option value="Jar">🫙 Jar</option>
-        <option value="Box">📦 Box</option>
-        <option value="Bag">🛍️ Bag</option>
-        <option value="Can">🥫 Can</option>
-        <option value="Packet">📋 Packet</option>
-        <option value="Tin">🥫 Tin</option>
-        <option value="Carton">🧃 Carton</option>
-        <option value="Tube">🪥 Tube</option>
-        <option value="Each">1️⃣ Each</option>
-      </select>
-    </div>
-    <div class="field"><label>Refills item <span style="color:var(--muted);font-size:11px">(optional — for sachets/refills)</span></label><select id="item-refill-for"><option value="">— Not a refill product —</option></select></div>
-    <div class="field"><label>Expiry Date <span style="color:var(--muted);font-size:11px">(optional)</span></label><input type="date" id="item-expiry"></div>
     <div class="section-label">How many sealed/stocked?</div>
     <div class="stepper-row"><label>📦 Stocked</label><div class="stepper"><button onclick="stepQty('stocked',-1)">−</button><span id="val-stocked">1</span><button onclick="stepQty('stocked',1)">+</button></div></div>
-    <div class="section-label">How many currently open?</div>
-    <div class="stepper-row"><label>🔓 Open</label><div class="stepper"><button onclick="stepQty('open',-1)">−</button><span id="val-open">0</span><button onclick="stepQty('open',1)">+</button></div></div>
-    <div class="section-label">Minimum stock before flagging low</div>
-    <div class="stepper-row"><label>⚠️ Min Stock</label><div class="stepper"><button onclick="stepQty('min',-1)">−</button><span id="val-min">0</span><button onclick="stepQty('min',1)">+</button></div></div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:8px">0 = use default logic.</div>
-    <div class="section-label">Rating</div>
-    <div class="rating-toggle">
-      <button class="rating-opt selected-unsure" data-r="unsure" onclick="selectRating('unsure',this)">😐 Not sure</button>
-      <button class="rating-opt" data-r="love" onclick="selectRating('love',this)">❤️ Love it</button>
-      <button class="rating-opt" data-r="hate" onclick="selectRating('hate',this)">😬 Don't buy</button>
-    </div>
-    <input type="hidden" id="item-rating" value="unsure">
-    <div class="toggle-row" style="margin-top:8px">
-      <div><label style="font-weight:600">⭐ Priority Item</label><small>Always appears on shopping list</small></div>
-      <label class="toggle"><input type="checkbox" id="item-priority"><span class="toggle-slider"></span></label>
-    </div>
+    <details id="item-more">
+      <summary>More options</summary>
+      <div class="item-more-body">
+        <div class="field"><label>Brand</label><input type="text" id="item-brand" placeholder="e.g. Dolmio"></div>
+        <div class="field">
+          <label>Unit of Measure</label>
+          <select id="item-uom">
+            <option value="">— None —</option>
+            <option value="Bottle">🍶 Bottle</option>
+            <option value="Jar">🫙 Jar</option>
+            <option value="Box">📦 Box</option>
+            <option value="Bag">🛍️ Bag</option>
+            <option value="Can">🥫 Can</option>
+            <option value="Packet">📋 Packet</option>
+            <option value="Tin">🥫 Tin</option>
+            <option value="Carton">🧃 Carton</option>
+            <option value="Tube">🪥 Tube</option>
+            <option value="Each">1️⃣ Each</option>
+          </select>
+        </div>
+        <div class="field"><label>Refills item <span style="color:var(--muted);font-size:11px">(optional — for sachets/refills)</span></label><select id="item-refill-for"><option value="">— Not a refill product —</option></select></div>
+        <div class="field"><label>Expiry Date <span style="color:var(--muted);font-size:11px">(optional)</span></label><input type="date" id="item-expiry"></div>
+        <div class="section-label">How many currently open?</div>
+        <div class="stepper-row"><label>🔓 Open</label><div class="stepper"><button onclick="stepQty('open',-1)">−</button><span id="val-open">0</span><button onclick="stepQty('open',1)">+</button></div></div>
+        <div class="section-label">Minimum stock before flagging low</div>
+        <div class="stepper-row"><label>⚠️ Min Stock</label><div class="stepper"><button onclick="stepQty('min',-1)">−</button><span id="val-min">0</span><button onclick="stepQty('min',1)">+</button></div></div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">0 = use default logic.</div>
+        <div class="section-label">Rating</div>
+        <div class="rating-toggle">
+          <button class="rating-opt selected-unsure" data-r="unsure" onclick="selectRating('unsure',this)">😐 Not sure</button>
+          <button class="rating-opt" data-r="love" onclick="selectRating('love',this)">❤️ Love it</button>
+          <button class="rating-opt" data-r="hate" onclick="selectRating('hate',this)">😬 Don't buy</button>
+        </div>
+        <input type="hidden" id="item-rating" value="unsure">
+        <div class="toggle-row" style="margin-top:8px">
+          <div><label style="font-weight:600">⭐ Priority Item</label><small>Always appears on shopping list</small></div>
+          <label class="toggle"><input type="checkbox" id="item-priority"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+    </details>
     <input type="hidden" id="item-id">
     <input type="hidden" id="item-barcode">
     <button class="btn btn-primary" id="item-save-btn" onclick="saveItem(this)">Add to Pantry</button>

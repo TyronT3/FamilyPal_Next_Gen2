@@ -66,7 +66,7 @@
 <body data-app="wellbeing">
 <div id="wellbeing-screen" class="app-screen">
   <header>
-    <div class="header-left"><span class="header-logo" aria-hidden="true">🌿</span><span class="header-title">WellbeingPal</span></div>
+    <div class="header-left"><a href="home.html" class="icon-btn" aria-label="FamilyPal home" title="Home" style="font-size:16px;font-weight:700;text-decoration:none;flex-shrink:0">←</a><span class="header-logo" aria-hidden="true">🌿</span><span class="header-title">WellbeingPal</span></div>
   </header>
 
   <div class="tabs" id="wellbeing-tabs" style="display:none">
@@ -80,7 +80,7 @@
 
     <section id="wellbeing-setup" class="wb-card" style="display:none" aria-labelledby="wellbeing-setup-heading">
       <h2 id="wellbeing-setup-heading">Who is using this account?</h2>
-      <p class="wb-intro">Each partner needs a separate FamilyPal login. This connects the current login to the correct household name.</p>
+      <p class="wb-intro">WellbeingPal tracks mood, energy, sleep quality, and medication for both partners — each person logs from their own FamilyPal login. Select who you are to connect this account to the right household name.</p>
       <div class="wb-role-options">
         <button id="wellbeing-role-husband" type="button" onclick="createWellbeingProfile('husband',this)"><span data-person-1>Husband</span><br><small>Husband</small></button>
         <button id="wellbeing-role-wife" type="button" onclick="createWellbeingProfile('wife',this)"><span data-person-2>Wife</span><br><small>Wife</small></button>

@@ -125,6 +125,9 @@
   .sleep-session-item{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;cursor:pointer;}
   .sleep-session-item:active{opacity:.75;}
   #toast{bottom:100px;z-index:300;}
+  .sleep-chip{position:fixed;bottom:88px;left:50%;transform:translateX(-50%);background:var(--teal);border-radius:20px;padding:8px 16px;display:none;align-items:center;gap:10px;z-index:48;white-space:nowrap;box-shadow:0 4px 16px rgba(0,188,212,.45);color:#000;}
+  .sleep-chip-time{font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;}
+  .sleep-chip-end{background:rgba(0,0,0,.18);border:none;border-radius:10px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;color:#000;}
   .empty-log{text-align:center;padding:30px;color:var(--muted);font-size:13px;}
   .sd-counter-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);}
   .sd-counter-row:last-child{border-bottom:none;}
@@ -145,6 +148,7 @@
 <div id="baby-screen" class="app-screen">
   <header>
     <div class="header-left">
+      <a href="home.html" class="icon-btn" aria-label="FamilyPal home" title="Home" style="font-size:16px;font-weight:700;text-decoration:none;flex-shrink:0">←</a>
       <span class="header-icon" aria-hidden="true">🍼</span>
       <div class="header-title"><span>Baby</span>Pal — Geomé</div>
     </div>
@@ -365,6 +369,7 @@
   </div>
 </div>
 
+<div class="sleep-chip" id="sleep-chip"><span>😴</span><span class="sleep-chip-time" id="sleep-chip-timer">0:00</span><button class="sleep-chip-end" onclick="wakeUp()">End sleep</button></div>
 <div id="toast"></div>
 
 <script src="assets/js/familypal-core.js?v=20260715.10"></script>
