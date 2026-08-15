@@ -10,20 +10,24 @@
 <style>
   /* ── COLOURS — edit these to change the app theme ──────
      Change any value to update colours throughout the app  */
+  /* App accent & alias tokens — apply in both light and dark */
   :root{
-    --bg:#0f1117;          /* page background */
-    --surface:#1a1d27;     /* header / modal background */
-    --card:#22263a;        /* card background */
     --accent:#6c63ff;      /* primary purple accent */
     --accent2:#ff6584;     /* secondary pink accent */
     --green:#2ecc71;       /* stocked / good */
     --yellow:#f39c12;      /* open / warning */
     --red:#e74c3c;         /* empty / danger */
     --orange:#e67e22;      /* low stock */
+    --radius:14px;
+  }
+  /* Dark-mode surface tokens — only when theme.js picks dark */
+  html[data-theme="dark"]{
+    --bg:#0f1117;          /* page background */
+    --surface:#1a1d27;     /* header / modal background */
+    --card:#22263a;        /* card background */
     --text:#e8eaf6;        /* main text */
     --muted:#8892b0;       /* secondary text */
     --border:#2e3250;      /* borders */
-    --radius:14px;
   }
   #app-screen{display:none;}
   .header-title{font-weight:700;}

@@ -205,6 +205,8 @@ function closeModal(id){document.getElementById(id).style.display='none';}
 function openCatchUp(){document.getElementById('catchup-modal').style.display='flex';loadCatchUp();}
 
 async function loadCatchUp(){
+  var p1=(FamilyPal.profile&&FamilyPal.profile.person1Name)||'Tyron';
+  var p2=(FamilyPal.profile&&FamilyPal.profile.person2Name)||'Ansonette';
   var el=document.getElementById('catchup-content');
   el.innerHTML='<div style="color:var(--muted);text-align:center;padding:24px">Loading…</div>';
   var r=todayRange();
@@ -243,7 +245,18 @@ async function loadCatchUp(){
       '<div class="cu-row"><div class="cu-row-info"><div class="cu-row-label"'+(feedWarn?' style="color:var(--warning,#f59e0b)"':'')+'>Last feed</div><div class="cu-row-sub">'+gapStr+'</div></div>'+
       '<div style="display:flex;gap:5px"><button class="cu-btn" onclick="cuToggleFeedForm()">🍼 Bottle</button></div></div>'+
       '<div class="cu-row"><div class="cu-row-info"><div class="cu-row-label">Diapers today</div><div class="cu-row-sub">'+diapers.length+' logged</div></div>'+
-      '<div style="display:flex;gap:5px"><button class="cu-btn" onclick="cuLogDiaper(\'wet\')">💧 Wet</button><button class="cu-btn" onclick="cuLogDiaper(\'soiled\')">💩 Soiled</button></div></div>'+
+      '<div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end">'+
+        '<input type="time" id="cu-diaper-time" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px 8px;color:var(--text);font-size:12px;outline:none;width:96px" title="Time of diaper change">'+
+        '<button class="cu-btn" onclick="cuLogDiaper(\'wet\')">💧 Wet</button>'+
+        '<button class="cu-btn" onclick="cuLogDiaper(\'soiled\')">💩 Soiled</button>'+
+      '</div></div>'+
+      '<div style="display:flex;gap:4px;padding:2px 0 6px;flex-wrap:wrap;align-items:center">'+
+        '<span style="font-size:11px;color:var(--muted)">Time offset:</span>'+
+        '<button class="cu-btn" onclick="setCuDiaperTime(0)">Now</button>'+
+        '<button class="cu-btn" onclick="setCuDiaperTime(30)">−30m</button>'+
+        '<button class="cu-btn" onclick="setCuDiaperTime(60)">−1h</button>'+
+        '<button class="cu-btn" onclick="setCuDiaperTime(120)">−2h</button>'+
+      '</div>'+
       '<div class="cu-row"><div class="cu-row-info"><div class="cu-row-label">Sleep</div><div class="cu-row-sub">'+sleeps.length+' session'+(sleeps.length!==1?'s':'')+' today</div></div>'+
       '<a class="cu-btn" href="babypal.html" style="text-decoration:none">Open →</a></div>'+
       '<div id="cu-feed-form" style="display:none;padding-top:12px;border-top:1px solid var(--border) ;margin-top:4px">'+
@@ -263,8 +276,8 @@ async function loadCatchUp(){
         html+='<div class="cu-row" id="cu-chore-'+c.id+'">'+
           '<div class="cu-row-label">'+(c.emoji||'🧹')+' '+esc(c.name)+'</div>'+
           '<div style="display:flex;gap:4px">'+
-            '<button class="cu-btn" title="Tyron" onclick="cuLogChore(\''+c.id+'\',\'Tyron\',this)">👨</button>'+
-            '<button class="cu-btn" title="Ansonette" onclick="cuLogChore(\''+c.id+'\',\'Ansonette\',this)">👩</button>'+
+            '<button class="cu-btn" title="'+p1+'" onclick="cuLogChore(\''+c.id+'\',\''+p1+'\',this)">👨</button>'+
+            '<button class="cu-btn" title="'+p2+'" onclick="cuLogChore(\''+c.id+'\',\''+p2+'\',this)">👩</button>'+
             '<button class="cu-btn" title="Both" onclick="cuLogChore(\''+c.id+'\',\'Both\',this)">👨👩</button>'+
           '</div></div>';
       });
@@ -295,8 +308,11 @@ async function loadCatchUp(){
     el.innerHTML=html;
 
     var now=new Date();now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
+    var nowStr=now.toISOString().slice(11,16);
     var timeEl=document.getElementById('cu-feed-time');
-    if(timeEl)timeEl.value=now.toISOString().slice(11,16);
+    if(timeEl)timeEl.value=nowStr;
+    var diaperTimeEl=document.getElementById('cu-diaper-time');
+    if(diaperTimeEl)diaperTimeEl.value=nowStr;
 
   }catch(err){
     el.innerHTML='<div style="color:var(--danger,red);padding:20px">Error: '+err.message+'</div>';
@@ -304,6 +320,14 @@ async function loadCatchUp(){
 }
 
 function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
+
+function setCuDiaperTime(minsBack){
+  var el=document.getElementById('cu-diaper-time');
+  if(!el)return;
+  var d=new Date(Date.now()-minsBack*60000);
+  d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
+  el.value=d.toISOString().slice(11,16);
+}
 
 function cuToggleFeedForm(){
   var f=document.getElementById('cu-feed-form');
@@ -324,8 +348,12 @@ async function cuSaveBottle(){
 }
 
 async function cuLogDiaper(type){
+  var timeEl=document.getElementById('cu-diaper-time');
+  var ts=timeEl&&timeEl.value
+    ?new Date(new Date().toISOString().slice(0,10)+'T'+timeEl.value+':00').toISOString()
+    :new Date().toISOString();
   try{
-    await sbFetch('/rest/v1/baby_diapers',{method:'POST',body:JSON.stringify({diaper_type:type,logged_at:new Date().toISOString()})});
+    await sbFetch('/rest/v1/baby_diapers',{method:'POST',body:JSON.stringify({diaper_type:type,logged_at:ts})});
     try{await FamilyPal.decrementDiaperStock('Catch Up');}catch(e){}
     toast((type==='wet'?'💧 Wet':'💩 Soiled')+' diaper logged!');
     loadCatchUp();
@@ -334,13 +362,15 @@ async function cuLogDiaper(type){
 
 async function cuLogChore(choreId,person,btn){
   var shared=person==='Both';
+  var p1=(FamilyPal.profile&&FamilyPal.profile.person1Name)||'Tyron';
+  var p2=(FamilyPal.profile&&FamilyPal.profile.person2Name)||'Ansonette';
   try{
     await sbFetch('/rest/v1/chore_logs',{method:'POST',body:JSON.stringify({
       chore_id:choreId,
-      completed_by:shared?'Tyron':person,
+      completed_by:shared?p1:person,
       completed_at:new Date().toISOString(),
       shared:shared,
-      completed_by_2:shared?'Ansonette':null
+      completed_by_2:shared?p2:null
     })});
     var row=document.getElementById('cu-chore-'+choreId);
     if(row)row.classList.add('cu-done-row');
