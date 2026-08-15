@@ -14,7 +14,8 @@
   .catchup-btn-icon{font-size:26px;flex-shrink:0;}
   .catchup-btn-text strong{display:block;font-size:14px;font-weight:700;}
   .catchup-btn-text span{font-size:12px;color:var(--muted,#6b7280);}
-  .catchup-btn-arrow{margin-left:auto;font-size:18px;color:var(--muted,#6b7280);}
+  .catchup-btn-arrow{font-size:18px;color:var(--muted,#6b7280);margin-left:4px;}
+  .catchup-badge{display:none;background:var(--red,#ef4444);color:#fff;border-radius:10px;min-width:20px;height:20px;font-size:11px;font-weight:700;align-items:center;justify-content:center;padding:0 5px;flex-shrink:0;margin-left:auto;}
   .cu-section{background:var(--card,#fff);border:1px solid var(--border,#e5e7eb);border-radius:16px;padding:14px 16px;margin-bottom:12px;}
   .cu-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted,#6b7280);margin-bottom:10px;}
   .cu-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--border,#e5e7eb);}
@@ -44,7 +45,7 @@
   </div>
 
   <section aria-labelledby="home-greeting">
-    <h1 class="home-greeting" id="home-greeting">Good day, <span data-household-name>FamilyPal</span></h1>
+    <h1 class="home-greeting" id="home-greeting">Good day, <span data-household-name></span></h1>
     <p class="home-subtitle">Here is what needs your attention today.</p>
   </section>
 
@@ -104,6 +105,7 @@
       <strong>Catch Up Mode</strong>
       <span>See what needs logging across all apps</span>
     </div>
+    <span class="catchup-badge" id="catchup-badge" aria-label="pending items"></span>
     <div class="catchup-btn-arrow">›</div>
   </button>
 
@@ -161,6 +163,8 @@ async function loadDashboard(){
     document.getElementById('home-pantry-value').textContent=urgent?urgent+' item'+(urgent===1?'':'s')+' to buy':'Pantry is in good shape';
     document.getElementById('home-pantry-detail').textContent=urgent?'Priority items are out':low?low+' item'+(low===1?' is':'s are')+' running low':'No urgent shopping';
     document.getElementById('home-pantry-action').textContent=urgent?'Open shopping list →':'Open pantry →';
+    var badge=document.getElementById('catchup-badge');
+    if(badge){var count=urgent+low;if(count>0){badge.style.display='inline-flex';badge.textContent=count;}else{badge.style.display='none';}}
   }else{
     document.getElementById('home-pantry-value').textContent='Open your pantry';
     document.getElementById('home-pantry-detail').textContent='Pantry status is temporarily unavailable';
@@ -379,16 +383,29 @@ async function cuLogChore(choreId,person,btn){
 }
 
 async function cuBuyOne(itemId,btn){
+  if(btn){btn.disabled=true;btn.textContent='...';}
   try{
-    var res=await sbFetch('/rest/v1/items?id=eq.'+itemId+'&select=qty_stocked');
-    var newQty=((res[0]&&res[0].qty_stocked)||0)+1;
+    var res=await sbFetch('/rest/v1/items?id=eq.'+itemId+'&select=qty_stocked,min_stock');
+    var cur=res[0]||{};
+    var newQty=(cur.qty_stocked||0)+1;
+    var minStock=cur.min_stock||0;
     await Promise.all([
       sbFetch('/rest/v1/items?id=eq.'+itemId,{method:'PATCH',body:JSON.stringify({qty_stocked:newQty,updated_at:new Date().toISOString()})}),
       sbFetch('/rest/v1/history',{method:'POST',body:JSON.stringify({item_id:itemId,action:'Bought 1 more (catch up)'})})
     ]);
-    if(btn){btn.textContent='✓ Done';btn.disabled=true;btn.style.opacity='.5';}
-    toast('📦 Stock updated!');
-  }catch(e){toast('Error: '+e.message);}
+    var row=document.getElementById('cu-item-'+itemId);
+    if(row){
+      if(newQty>minStock){
+        row.innerHTML='<div class="cu-row-info"><div class="cu-row-sub">✅ Restocked — '+newQty+' now in stock</div></div>';
+        row.style.opacity='.6';
+      }else{
+        var sub=row.querySelector('.cu-row-sub');
+        if(sub)sub.textContent=newQty+' left · min '+minStock;
+        if(btn){btn.textContent='+1 📦';btn.disabled=false;}
+      }
+    }
+    toast('📦 +1 stocked');
+  }catch(e){if(btn){btn.disabled=false;btn.textContent='+1 📦';}toast('Error: '+e.message);}
 }
 
 window.onload=async function(){

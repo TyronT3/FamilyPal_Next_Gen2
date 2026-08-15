@@ -352,7 +352,7 @@ async function saveGoal(){
   var period=document.getElementById('goal-period').value;
   var prize=document.getElementById('goal-prize').value.trim();
   var target=parseInt(document.getElementById('goal-target').value)||null;
-  if(!prize){toast('Enter a prize');return;}
+  if(!prize){var errEl=document.getElementById('goal-prize-error');if(errEl)errEl.style.display='block';document.getElementById('goal-prize').focus();return;}
   var existing=goals.find(function(g){ return g.period===period; });
   if(existing){ if(!(await FamilyPalUI.confirm('The current '+period+' goal will be archived and replaced.',{title:'Replace existing goal?',confirmLabel:'Replace goal'})))return; await sbFetch('/rest/v1/chore_goals?id=eq.'+existing.id,{method:'PATCH',body:JSON.stringify({active:false})}); goals=goals.filter(function(g){ return g.id!==existing.id; }); }
   var start=period==='weekly'?getWeekStart():getMonthStart();
@@ -586,6 +586,7 @@ function switchTab(tab,btn){
   if(tab==='setup') renderSetup();
 }
 function switchTabById(tab){ var target=document.querySelector('[data-tab="'+tab+'"]'); if(target) switchTab(tab,target); }
+function focusAddChore(){ switchTabById('setup'); cancelEdit(); var inp=document.getElementById('new-name'); if(inp){inp.focus();inp.scrollIntoView({behavior:'smooth',block:'center'});} }
 
 function closeModal(id){ document.getElementById(id).style.display='none'; }
 function closeModalClick(e){ if(e.target===e.currentTarget) closeModal(e.currentTarget.id); }

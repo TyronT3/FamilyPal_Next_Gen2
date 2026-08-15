@@ -39,7 +39,7 @@
   .search-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:28px;height:28px;border:0;border-radius:7px;background:transparent;color:var(--muted);cursor:pointer;font-size:16px;display:none;align-items:center;justify-content:center;}
   .search-clear.visible{display:flex;}
   .search-clear:active{background:var(--surface);}
-  .filters{display:flex;gap:5px;flex-wrap:wrap;}
+  .filters{display:flex;gap:5px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;}
   .filter-btn{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:5px 10px;font-size:12px;color:var(--muted);cursor:pointer;white-space:nowrap;}
   .filter-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
   .sort-btn{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:5px 10px;font-size:12px;color:var(--muted);cursor:pointer;white-space:nowrap;}
@@ -210,8 +210,8 @@
     <div class="header-left"><a href="home.html" class="icon-btn" aria-label="FamilyPal home" title="Home" style="font-size:16px;font-weight:700;text-decoration:none;flex-shrink:0">←</a><span class="header-logo" aria-hidden="true">🥫</span><span class="header-title">PantryPal</span></div>
     <div class="header-actions">
       <button class="icon-btn header-text-btn primary" title="Shopping list" aria-label="Shopping list" onclick="openShoppingMode()"><span aria-hidden="true">✓</span><span class="label">Shopping</span></button>
-      <button class="icon-btn" title="Scan barcode" aria-label="Scan barcode" onclick="openScanModal()">⌁</button>
-      <button class="icon-btn" title="More pantry tools" aria-label="More pantry tools" onclick="document.getElementById('pantry-actions-modal').style.display='flex'">•••</button>
+      <button class="icon-btn" title="Scan barcode" aria-label="Scan barcode" onclick="openScanModal()">📷</button>
+      <button class="icon-btn header-text-btn" title="More pantry tools" aria-label="More pantry tools" onclick="document.getElementById('pantry-actions-modal').style.display='flex'"><span class="label">Tools</span><span aria-hidden="true">⚙</span></button>
     </div>
   </header>
   <div class="toolbar">
@@ -244,7 +244,7 @@
     <button class="modal-close" onclick="closeModal('pantry-actions-modal')" aria-label="Close">×</button>
     <h2>Pantry tools</h2>
     <div class="fp-more-grid">
-      <button class="fp-more-action" onclick="closeModal('pantry-actions-modal');openInventoryModal()"><strong>Quick inventory</strong><span>Adjust several quantities quickly</span></button>
+      <button class="fp-more-action" onclick="closeModal('pantry-actions-modal');openInventoryModal()"><strong>Inventory check</strong><span>Adjust several quantities quickly</span></button>
       <button class="fp-more-action" onclick="closeModal('pantry-actions-modal');openPriorityModal()"><strong>Priority items</strong><span>Choose essentials for the shopping list</span></button>
       <button class="fp-more-action" onclick="closeModal('pantry-actions-modal');openTableView()"><strong>Table view</strong><span>Edit detailed item information</span></button>
       <button class="fp-more-action" onclick="closeModal('pantry-actions-modal');openReportModal()"><strong>Reports</strong><span>Review stock value and activity</span></button>
@@ -319,7 +319,7 @@
 <div class="modal-overlay" id="inventory-modal" style="display:none" onclick="closeItemModal(event)">
   <div class="modal">
     <div class="modal-handle"></div><button class="modal-close" onclick="closeModal('inventory-modal')">✕</button>
-    <h2>📋 Quick Inventory</h2>
+    <h2>📋 Inventory Check</h2>
     <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Set quantities quickly. Changes save automatically. When everything is correct, finish the check so reports can measure real stock changes.</p>
     <div style="margin-bottom:12px"><input type="text" id="inv-search" placeholder="🔍 Filter…" oninput="renderInventory()" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:9px 14px;color:var(--text);font-size:14px;outline:none;"></div>
     <div id="inventory-list"></div>

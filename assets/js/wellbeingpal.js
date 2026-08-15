@@ -210,6 +210,8 @@
       });
       await loadWellbeingData();
       toast('Daily check-in saved');
+      var successEl=el('wellbeing-checkin-error');
+      if(successEl){successEl.style.color='var(--green)';successEl.textContent='✅ Today\'s check-in is saved — come back tomorrow to log again.';setTimeout(function(){if(successEl.style.color==='var(--green)'){successEl.style.color='';successEl.textContent='';}},4000);}
     } catch (error) {
       setError('wellbeing-checkin-error', error.message || 'Could not save the check-in.');
     } finally {

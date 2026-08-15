@@ -193,7 +193,7 @@
       <span class="header-logo" aria-hidden="true">🧹</span>
       <span class="header-title">ChoresPal</span>
     </div>
-    <div class="header-actions"><button class="icon-btn header-text-btn" data-tab="setup" onclick="switchTab('setup',this)" title="Manage chores"><span class="label">Manage</span><span aria-hidden="true">•••</span></button></div>
+    <div class="header-actions"><button class="icon-btn header-text-btn" data-tab="setup" onclick="switchTab('setup',this)" title="Manage chores"><span class="label">Manage</span><span aria-hidden="true">⚙</span></button></div>
   </header>
 
   <div class="tabs">
@@ -264,16 +264,16 @@
         <button class="btn btn-primary" style="margin-top:12px" onclick="saveChore()">Add Chore</button>
         <button class="btn btn-secondary" id="cancel-edit-btn" style="display:none" onclick="cancelEdit()">Cancel Edit</button>
       </div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:10px">Your chores (<span id="chore-count">0</span>)</div>
-      <div id="chore-setup-list"></div>
-      <div style="margin-top:16px;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">
+      <div style="margin-top:4px;margin-bottom:16px;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">
         <div style="font-size:13px;font-weight:700;margin-bottom:10px">⚡ Quick starter pack</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px" id="starter-pack"></div>
       </div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px">Your chores (<span id="chore-count">0</span>)</div>
+      <div id="chore-setup-list"></div>
     </div>
   </div>
 
-  <button class="fab" onclick="switchTabById('setup')">+ Add chore</button>
+  <button class="fab" onclick="focusAddChore()">+ Add chore</button>
 </div>
 
 <!-- Who did it? -->
@@ -326,7 +326,7 @@
         <option value="monthly">🗓️ Monthly (resets 1st)</option>
       </select>
     </div>
-    <div class="field"><label>Prize 🎁 *</label><input type="text" id="goal-prize" placeholder="e.g. Back massage, Dinner choice…"></div>
+    <div class="field"><label>Prize 🎁 *</label><input type="text" id="goal-prize" placeholder="e.g. Back massage, Dinner choice…" oninput="document.getElementById('goal-prize-error').style.display='none'"><div id="goal-prize-error" style="color:var(--red);font-size:11px;margin-top:4px;display:none">Please enter a prize before saving.</div></div>
     <div class="field"><label>Points target (optional)</label><input type="number" id="goal-target" placeholder="e.g. 20 — leave blank for no target" min="1"></div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Whoever earns the most points by the end wins!</div>
     <button class="btn btn-primary" onclick="saveGoal()">🏆 Set Goal</button>

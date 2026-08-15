@@ -237,6 +237,7 @@ async function openDetailModal(id){
         <button class="action-btn" onclick="openEditModal('${id}')">✏️ Edit<br><small>Adjust / settings</small></button>
         ${refillTarget?`<button class="action-btn" style="grid-column:1/-1;border-color:#8b5cf6;background:rgba(139,92,246,.08);color:#a78bfa" onclick="quickAction('${id}','refill');closeModal('detail-modal')">🔄 Refill ${esc(refillTarget.name)}<br><small>Use this sachet to refill it</small></button>`:''}
       </div>
+      <div style="font-size:11px;color:var(--muted);text-align:center;padding:8px 0 2px">Tapping <strong style="color:var(--text)">✅ Finished</strong> logs usage history — this is what the restock forecast learns from.</div>
       <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px">History (${hist.length})</div>
       <div class="history-list">${hist.length?hist.map(h=>`<div class="history-item"><div class="history-dot" style="background:${ac(h.action||'')}"></div><div><div>${esc(h.action||'')}${h.price?` <span style="color:var(--green);font-size:11px">R${parseFloat(h.price).toFixed(2)}</span>`:''}</div><div class="history-time">${new Date(h.created_at).toLocaleString()}</div></div></div>`).join(''):'<div style="color:var(--muted);font-size:13px;padding:8px 0">No history yet.</div>'}</div>`;
   }catch(e){document.getElementById('detail-content').innerHTML=`<div style="color:var(--red)">Error: ${e.message}</div>`;}

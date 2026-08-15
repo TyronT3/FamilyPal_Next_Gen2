@@ -234,6 +234,8 @@ async function loadTodayTrackingStatus(){
   renderTodayTrackingStatus();
 }
 async function toggleTodayTracking(button){
+  var optimisticText=todayTrackingComplete?'☑ Mark today as fully logged':'✅ Today fully logged — tap to reopen';
+  button.textContent=optimisticText;
   return FamilyPalUI.runBusy(button,todayTrackingComplete?'Reopening…':'Confirming…',async function(){try{
     var key=localDateKey(new Date());
     if(todayTrackingComplete){
@@ -541,9 +543,11 @@ async function loadToday(){
       health.map(function(h){return{icon:h.health_type==='temperature'?'🌡️':h.health_type==='weight'?'⚖️':h.health_type==='medicine'?'💊':'🩺',title:healthTitle(h),detail:h.notes,ts:h.logged_at};})
     ).sort(function(a,b){return new Date(b.ts)-new Date(a.ts);}).slice(0,6);
     var stockHtml=await diaperStockInsight();
+    var nothingToday=!feeds.length&&!diapers.length&&!sleeps.length&&!pumps.length;
     document.getElementById('summary-content').innerHTML=
       '<div style="padding:12px 16px 4px;font-size:13px;color:var(--muted)">'+new Date().toLocaleDateString([],{weekday:'long',month:'long',day:'numeric'})+'</div>'+
       stockHtml+
+      (nothingToday?'<div style="padding:10px 16px 14px;text-align:center"><div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;color:var(--muted);font-size:13px;line-height:1.6">Nothing logged yet today.<br><strong style="color:var(--text)">Tap <span style="background:var(--accent);color:#fff;border-radius:6px;padding:2px 8px;font-size:12px">+ Log</span> below to start.</strong></div></div>':'')+
       '<div class="summary-grid">'+
       '<div class="summary-card pink"><div class="s-icon">🍼</div><div class="s-val">'+totalMl+'ml</div><div class="s-lbl">Bottle milk</div><div class="s-sub">'+feeds.filter(function(f){return f.feed_type==='bottle';}).length+' bottles - '+breastFeeds.length+' breast</div></div>'+
       '<div class="summary-card blue"><div class="s-icon">🚿</div><div class="s-val">'+(wet+soiled)+'</div><div class="s-lbl">Diapers</div><div class="s-sub">'+wet+' wet - '+soiled+' soiled</div></div>'+
@@ -558,7 +562,9 @@ async function loadToday(){
       '</div>'+
       '<div style="padding:0 16px 16px"><button id="day-complete-btn" onclick="toggleTodayTracking(this)" style="width:100%;padding:13px;font-size:14px;font-weight:600;border-radius:12px;border:1.5px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;font-family:inherit">'+
       (todayTrackingComplete?'✅ Today fully logged — tap to reopen':'☑ Mark today as fully logged')+
-      '</button></div>';
+      '</button>'+
+      (!todayTrackingComplete?'<div style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px">Marks this day as complete so forecasts treat it as a confirmed sample</div>':'')+
+      '</div>';
   }catch(e){document.getElementById('summary-content').innerHTML='<div class="loading" style="color:var(--red)">Error: '+e.message+'</div>';}
 }
 
