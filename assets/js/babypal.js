@@ -216,8 +216,9 @@ function switchTab(tab,btn){
 // ── Today ─────────────────────────────────────────────────
 var todayTrackingComplete=false;
 function renderTodayTrackingStatus(){
-  var el=document.getElementById('baby-tracking-status');if(!el)return;
-  el.innerHTML='<div class="insight-card tracking-card'+(todayTrackingComplete?' complete':'')+'"><div><div class="insight-title">'+(todayTrackingComplete?'✓ Fully logged':'Daily tracking')+'</div><div class="log-detail">'+(todayTrackingComplete?'Today can safely count in daily averages.':'When today’s feeds, diapers and sleep are up to date, mark it complete.')+'</div></div><button onclick="toggleTodayTracking(this)">'+(todayTrackingComplete?'Reopen today':'Mark complete')+'</button></div>';
+  var el=document.getElementById(‘baby-tracking-status’);if(el)el.innerHTML=’’;
+  var btn=document.getElementById(‘day-complete-btn’);
+  if(btn)btn.textContent=todayTrackingComplete?’✅ Today fully logged — tap to reopen’:’☑ Mark today as fully logged’;
 }
 async function loadTodayTrackingStatus(){
   try{
@@ -335,8 +336,8 @@ async function loadTrends(days){
       var inner=data.map(function(x,i){
         var h=x.val===null?4:Math.max(3,Math.round(x.val/max*54));
         var lbl=(i%every===0||i===n-1)?x.lbl:'';
-        var title=x.state==='complete'?'Fully logged':x.state==='partial'?'Partial day — value is a minimum':'Not logged';
-        var style=x.state==='unknown'?'height:'+h+'px;background:transparent;border:1px dashed var(--border)':x.state==='partial'?'height:'+h+'px;background:repeating-linear-gradient(135deg,'+color+','+color+' 4px,transparent 4px,transparent 7px);border:1px solid '+color:'height:'+h+'px;background:'+color;
+        var title=x.state==='complete'?'Fully logged':x.state==='partial'?'Has data logged':'No data logged';
+        var style=x.state==='unknown'?'height:'+h+'px;background:transparent;border:1px dashed var(--border)':'height:'+h+'px;background:'+color;
         return'<div class="bar-col" style="min-width:'+minW+'px" title="'+title+'"><div class="bar-val">'+(x.val===null?'?':x.val>0?x.val+unit:'0')+'</div><div class="bar" style="'+style+'"></div><div class="bar-lbl">'+lbl+'</div></div>';
       }).join('');
       return'<div class="bar-chart-wrap"><div class="bar-chart" style="min-width:'+(n*minW+n*3)+'px">'+inner+'</div></div>';
@@ -507,6 +508,7 @@ async function saveDiaperLog(button){
 }
 
 async function loadToday(){
+  loadTodayTrackingStatus();
   var r=todayRange();
   try{
     var results=await Promise.all([
@@ -547,7 +549,10 @@ async function loadToday(){
       '</div>'+
       '<div style="padding:4px 16px 16px"><div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;margin-top:8px">Recent activity</div>'+
       (recent.length?recent.map(function(e){return '<div class="log-item"><div class="log-icon">'+e.icon+'</div><div class="log-info"><div class="log-title">'+esc(e.title)+'</div>'+(e.detail?'<div class="log-detail">'+esc(e.detail)+'</div>':'')+'</div><div class="log-time">'+fmtTime(e.ts)+'</div></div>';}).join(''):'<div class="empty-log">No activity yet today</div>')+
-      '</div>';
+      '</div>'+
+      '<div style="padding:0 16px 16px"><button id="day-complete-btn" onclick="toggleTodayTracking(this)" style="width:100%;padding:13px;font-size:14px;font-weight:600;border-radius:12px;border:1.5px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;font-family:inherit">'+
+      (todayTrackingComplete?'✅ Today fully logged — tap to reopen':'☑ Mark today as fully logged')+
+      '</button></div>';
   }catch(e){document.getElementById('summary-content').innerHTML='<div class="loading" style="color:var(--red)">Error: '+e.message+'</div>';}
 }
 
