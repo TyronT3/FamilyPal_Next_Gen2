@@ -222,9 +222,9 @@ function switchTab(tab,btn){
 // ── Today ─────────────────────────────────────────────────
 var todayTrackingComplete=false;
 function renderTodayTrackingStatus(){
-  var el=document.getElementById(‘baby-tracking-status’);if(el)el.innerHTML=’’;
-  var btn=document.getElementById(‘day-complete-btn’);
-  if(btn)btn.textContent=todayTrackingComplete?’✅ Today fully logged — tap to reopen’:’☑ Mark today as fully logged’;
+  var el=document.getElementById('baby-tracking-status');if(el)el.innerHTML='';
+  var btn=document.getElementById('day-complete-btn');
+  if(btn)btn.textContent=todayTrackingComplete?'✅ Today fully logged — tap to reopen':'☑ Mark today as fully logged';
 }
 async function loadTodayTrackingStatus(){
   try{
