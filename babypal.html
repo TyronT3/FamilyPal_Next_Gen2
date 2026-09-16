@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BabyPal — FamilyPal</title>
 <meta name="description" content="Record feeds, diapers, sleep, pumping and baby health in one private household log.">
-<script src="assets/js/familypal-theme.js?v=20260916.1"></script>
-<link rel="stylesheet" href="assets/css/familypal.css?v=20260916.1">
+<script src="assets/js/familypal-theme.js?v=20260916.2"></script>
+<link rel="stylesheet" href="assets/css/familypal.css?v=20260916.2">
 <style>
   /* App accent & alias tokens — apply in both light and dark */
   :root{
@@ -141,7 +141,7 @@
   .sd-remove{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);padding:7px 10px;font-size:12px;cursor:pointer;flex-shrink:0;}
   .sd-empty{font-size:13px;color:var(--muted);padding:6px 0;}
 </style>
-<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260916.1">
+<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260916.2">
 </head>
 <body data-app="baby">
 
@@ -222,8 +222,8 @@
       <label>Paper date<input type="date" id="paper-date" onchange="paperDateChange(this.value)"></label>
       <label>Bottle size, if known (ml)<input type="number" id="paper-ml" min="1" max="500" placeholder="Unknown" oninput="paperDay().ml=this.value;paperStore()" onchange="paperRender()"></label>
     </div>
-    <p class="paper-help">MILK: click for a bottle tick. DIAPERS: click to cycle blank → Wet → Dirty → blank.<br>SLEEP: each mark covers 30 minutes starting at the column time. Click consecutive cells to draw the nap; click again to erase. Tab and Space work too. Scroll sideways for later hours.</p>
-    <div id="paper-grid" class="paper-scroll" tabindex="0" aria-label="School paper grid, scroll for more hours"></div>
+    <p class="paper-help">MILK: click for a bottle tick. DIAPERS: click to cycle blank → Wet → Dirty → blank.<br>SLEEP: each mark covers 30 minutes starting at the column time. Click consecutive cells to draw the nap; click again to erase. The final sleep cell ends at 17:00. Tab and Space work too.</p>
+    <div id="paper-grid" class="paper-scroll" tabindex="0" aria-label="School paper grid, 07:00 to 17:00"></div>
     <p id="paper-review" aria-live="polite"></p>
     <p class="paper-help">School records are added to BabyPal. Home nappy stock stays unchanged. A school paper does not mark the entire day as fully logged.</p>
     <div class="paper-actions">
@@ -394,10 +394,10 @@
 <div class="sleep-chip" id="sleep-chip"><span>😴</span><span class="sleep-chip-time" id="sleep-chip-timer">0:00</span><button class="sleep-chip-end" onclick="wakeUp()">End sleep</button></div>
 <div id="toast"></div>
 
-<script src="assets/js/familypal-core.js?v=20260916.1"></script>
-<script src="assets/js/familypal-ui.js?v=20260916.1"></script>
-<script src="assets/js/babypal.js?v=20260916.1"></script>
-<script src="assets/js/babypal-school-grid.js?v=20260916.1"></script>
-<link rel="stylesheet" href="assets/css/babypal-school-grid.css?v=20260916.1">
+<script src="assets/js/familypal-core.js?v=20260916.2"></script>
+<script src="assets/js/familypal-ui.js?v=20260916.2"></script>
+<script src="assets/js/babypal.js?v=20260916.2"></script>
+<script src="assets/js/babypal-school-grid.js?v=20260916.2"></script>
+<link rel="stylesheet" href="assets/css/babypal-school-grid.css?v=20260916.2">
 </body>
 </html>

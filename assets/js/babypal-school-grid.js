@@ -14,7 +14,7 @@ function paperTime(slot){return String(Math.floor(slot/2)).padStart(2,'0')+':'+(
 function paperDateChange(value){if(!value||paperBusy)return;paperState.date=value;paperStore();paperRender();}
 function paperNext(){var d=new Date(paperState.date+'T12:00:00');do{d.setDate(d.getDate()+1);}while(d.getDay()===0||d.getDay()===6);paperDateChange(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));}
 function paperToggle(row,slot){
-  var d=paperDay();if(paperBusy||d.pending||d.saved)return;
+  var d=paperDay();if(paperBusy||d.pending||d.saved||slot<14||slot>34||(row==='sleep'&&slot===34))return;
   if(row==='diapers'){var values=[undefined,'wet','soiled'];var next=values[(values.indexOf(d.diapers[slot])+1)%3];if(next)d.diapers[slot]=next;else delete d.diapers[slot];}
   else{var a=d[row],i=a.indexOf(slot);if(i<0)a.push(slot);else a.splice(i,1);}
   paperStore();paperRender();document.getElementById('paper-'+row+'-'+slot).focus();
@@ -26,10 +26,10 @@ function paperRender(){
   document.getElementById('paper-date').disabled=paperBusy;
   document.getElementById('paper-ml').value=d.ml;
   document.getElementById('paper-ml').disabled=locked;
-  var html='<table><caption>School paper · 06:00–19:00 · each cell is 30 minutes</caption><thead><tr><th scope="col">Record</th>';
-  for(var s=12;s<38;s++)html+='<th scope="col">'+paperTime(s)+'</th>';
+  var html='<table><caption>School paper · 07:00–17:00 · each cell is 30 minutes</caption><thead><tr><th scope="col">Record</th>';
+  for(var s=14;s<=34;s++)html+='<th scope="col">'+paperTime(s)+'</th>';
   html+='</tr></thead><tbody>';
-  ['milk','diapers','sleep'].forEach(function(row){html+='<tr class="paper-'+row+'"><th scope="row">'+row.toUpperCase()+'</th>';for(var s=12;s<38;s++){var value=row==='diapers'?d.diapers[s]:d[row].indexOf(s)>=0;var label=value?(row==='diapers'?(value==='wet'?'Wet':'Dirty'):row==='milk'?'✓':'━'):'·';html+='<td><button id="paper-'+row+'-'+s+'" type="button" '+(locked?'disabled ':'')+'aria-label="'+row+' '+paperTime(s)+': '+(value?label:'blank')+'" aria-pressed="'+!!value+'" onclick="paperToggle(\''+row+'\','+s+')">'+label+'</button></td>'; }html+='</tr>';});
+  ['milk','diapers','sleep'].forEach(function(row){html+='<tr class="paper-'+row+'"><th scope="row">'+row.toUpperCase()+'</th>';for(var s=14;s<=34;s++){if(row==='sleep'&&s===34){html+='<td aria-label="School closes at 17:00">—</td>';continue;}var value=row==='diapers'?d.diapers[s]:d[row].indexOf(s)>=0;var label=value?(row==='diapers'?(value==='wet'?'Wet':'Dirty'):row==='milk'?'✓':'━'):'·';html+='<td><button id="paper-'+row+'-'+s+'" type="button" '+(locked?'disabled ':'')+'aria-label="'+row+' '+paperTime(s)+': '+(value?label:'blank')+'" aria-pressed="'+!!value+'" onclick="paperToggle(\''+row+'\','+s+')">'+label+'</button></td>'; }html+='</tr>';});
   document.getElementById('paper-grid').innerHTML=html+'</tbody></table>';
   var sleeps=paperSleeps(d.sleep);
   document.getElementById('paper-review').textContent=d.milk.length+' bottles'+(d.ml?' ('+d.ml+' ml each)':' (amount unknown)')+' · '+Object.keys(d.diapers).length+' nappies · '+(sleeps.length?sleeps.map(function(s){return paperTime(s.start)+'–'+paperTime(s.end);}).join(', '):'No sleep marked');
