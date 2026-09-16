@@ -5,13 +5,16 @@ function fmtTime(ts){return new Date(ts).toLocaleTimeString([],{hour:'2-digit',m
 function fmtDateTime(ts){return new Date(ts).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}
 function todayRange(){var s=new Date();s.setHours(0,0,0,0);var e=new Date();e.setHours(23,59,59,999);return{start:s.toISOString(),end:e.toISOString()};}
 function localDateKey(value){var d=value instanceof Date?value:new Date(value);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-function buildObservedDaySeries(dayArr,rows,completeDates,labelFn,timestampFn,valueFn){
+function buildObservedDaySeries(dayArr,rows,labelFn,timestampFn,valueFn){
   return dayArr.map(function(day){
     var key=localDateKey(day);
     var matches=rows.filter(function(row){var ts=timestampFn(row);return ts&&localDateKey(ts)===key;});
-    var complete=completeDates.has(key);
-    return{date:key,lbl:labelFn(day),val:(complete||matches.length)?matches.reduce(function(sum,row){return sum+valueFn(row);},0):null,state:complete?'complete':matches.length?'partial':'unknown'};
+    return{date:key,lbl:labelFn(day),val:matches.length?matches.reduce(function(sum,row){return sum+valueFn(row);},0):null,state:matches.length?'logged':'unknown'};
   });
+}
+function estimateRecordedDiaperUsage(series){
+  var days=series.filter(function(day){return day.val!==null&&day.val>0;});
+  return {days:days.length,average:days.length?days.reduce(function(sum,day){return sum+day.val;},0)/days.length:null};
 }
 function inputTimeMinutesAgo(mins){var n=new Date();n.setMinutes(n.getMinutes()-mins-n.getTimezoneOffset());return n.toISOString().slice(0,16);}
 function setLogTime(id,mins){var el=document.getElementById(id);if(el)el.value=inputTimeMinutesAgo(mins||0);}
@@ -220,37 +223,7 @@ function switchTab(tab,btn){
 }
 
 // ── Today ─────────────────────────────────────────────────
-var todayTrackingComplete=false;
-function renderTodayTrackingStatus(){
-  var el=document.getElementById('baby-tracking-status');if(el)el.innerHTML='';
-  var btn=document.getElementById('day-complete-btn');
-  if(btn)btn.textContent=todayTrackingComplete?'✅ Today fully logged — tap to reopen':'☑ Mark today as fully logged';
-}
-async function loadTodayTrackingStatus(){
-  try{
-    var rows=await sbFetch('/rest/v1/baby_tracking_days?track_date=eq.'+localDateKey(new Date())+'&status=eq.complete&select=track_date');
-    todayTrackingComplete=!!rows.length;
-  }catch(e){todayTrackingComplete=false;}
-  renderTodayTrackingStatus();
-}
-async function toggleTodayTracking(button){
-  var optimisticText=todayTrackingComplete?'☑ Mark today as fully logged':'✅ Today fully logged — tap to reopen';
-  button.textContent=optimisticText;
-  return FamilyPalUI.runBusy(button,todayTrackingComplete?'Reopening…':'Confirming…',async function(){try{
-    var key=localDateKey(new Date());
-    if(todayTrackingComplete){
-      await sbFetch('/rest/v1/baby_tracking_days?track_date=eq.'+key,{method:'DELETE'});
-      todayTrackingComplete=false;toast('Today is open for more logging');
-    }else{
-      await sbFetch('/rest/v1/baby_tracking_days?on_conflict=track_date',{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=representation'},body:JSON.stringify({track_date:key,status:'complete',updated_at:new Date().toISOString()})});
-      todayTrackingComplete=true;toast('✓ Today marked fully logged');
-    }
-    renderTodayTrackingStatus();
-    if(activeTab==='trends')loadTrends();
-  }catch(e){toast('Could not update tracking status: '+e.message);}});
-}
 async function loadToday(){
-  loadTodayTrackingStatus();
   var r=todayRange();
   try{
     var results=await Promise.all([
@@ -326,17 +299,14 @@ async function loadTrends(days){
       sbFetch('/rest/v1/baby_sleep?logged_at=gte.'+since.toISOString()+'&select=*'),
       sbFetch('/rest/v1/chore_logs?completed_at=gte.'+since.toISOString()+'&select=completed_by,shared,notes')
     ]);
-    var trackingDays=[],trackingError=null;
-    try{trackingDays=await sbFetch('/rest/v1/baby_tracking_days?track_date=gte.'+localDateKey(since)+'&track_date=lte.'+localDateKey(new Date())+'&status=eq.complete&select=track_date');}catch(e){trackingError=e;}
     var feeds=results[0],diapers=results[1],sleeps=results[2],choreLogs=results[3];
     var dayArr=[];for(var i=d-1;i>=0;i--){var dd=new Date();dd.setDate(dd.getDate()-i);dayArr.push(dd);}
     function dl(day){return d>14?day.toLocaleDateString([],{month:'short',day:'numeric'}):day.toLocaleDateString([],{weekday:'short'});} // label per bar; bar() skips most when n is large
-    var completeDates=new Set(trackingDays.map(function(row){return row.track_date;}));
     var bottleFeedsForSeries=feeds.filter(function(f){return f.feed_type==='bottle'&&f.amount_ml!=null;});
     var completedSleepsForSeries=sleeps.filter(function(s){return s.sleep_start&&s.sleep_end;});
-    var mlPerDay=buildObservedDaySeries(dayArr,bottleFeedsForSeries,completeDates,dl,function(f){return f.logged_at;},function(f){return f.amount_ml||0;});
-    var diapersPerDay=buildObservedDaySeries(dayArr,diapers,completeDates,dl,function(dia){return dia.logged_at;},function(){return 1;});
-    var sleepPerDay=buildObservedDaySeries(dayArr,completedSleepsForSeries,completeDates,dl,function(s){return s.logged_at||s.sleep_start;},function(sl){return Math.round((new Date(sl.sleep_end)-new Date(sl.sleep_start))/60000);});
+    var mlPerDay=buildObservedDaySeries(dayArr,bottleFeedsForSeries,dl,function(f){return f.logged_at;},function(f){return f.amount_ml||0;});
+    var diapersPerDay=buildObservedDaySeries(dayArr,diapers,dl,function(dia){return dia.logged_at;},function(){return 1;});
+    var sleepPerDay=buildObservedDaySeries(dayArr,completedSleepsForSeries,dl,function(s){return s.logged_at||s.sleep_start;},function(sl){return Math.round((new Date(sl.sleep_end)-new Date(sl.sleep_start))/60000);});
     function bar(data,color,unit){
       var n=data.length,max=Math.max.apply(null,data.filter(function(x){return x.val!==null;}).map(function(x){return x.val;}).concat([1]));
       var every=n<=7?1:n<=14?2:n<=30?5:7;
@@ -344,7 +314,7 @@ async function loadTrends(days){
       var inner=data.map(function(x,i){
         var h=x.val===null?4:Math.max(3,Math.round(x.val/max*54));
         var lbl=(i%every===0||i===n-1)?x.lbl:'';
-        var title=x.state==='complete'?'Fully logged':x.state==='partial'?'Has data logged':'No data logged';
+        var title=x.state==='logged'?'Recorded usage':'No data logged';
         var style=x.state==='unknown'?'height:'+h+'px;background:transparent;border:1px dashed var(--border)':'height:'+h+'px;background:'+color;
         return'<div class="bar-col" style="min-width:'+minW+'px" title="'+title+'"><div class="bar-val">'+(x.val===null?'?':x.val>0?x.val+unit:'0')+'</div><div class="bar" style="'+style+'"></div><div class="bar-lbl">'+lbl+'</div></div>';
       }).join('');
@@ -366,18 +336,14 @@ async function loadTrends(days){
     var avgBottle=measuredBottles.length?Math.round(measuredBottles.reduce(function(s,f){return s+f.amount_ml;},0)/measuredBottles.length):0;
     var totalFeeds=bottleFeeds.length+breastFeedsArr.length;
     var bPct=totalFeeds?Math.round(bottleFeeds.length/totalFeeds*100):0;
-    var confirmedDiaperDays=diapersPerDay.filter(function(day){return day.state==='complete'&&day.val>0;});
-    var allDiaperDays=diapersPerDay.filter(function(day){return day.val!==null&&day.val>0;});
-    var suspiciousZeroDiaperDays=diapersPerDay.filter(function(day){return day.state==='complete'&&day.val===0;}).length;
-    var avgDiapersPerDay=confirmedDiaperDays.length?confirmedDiaperDays.reduce(function(sum,day){return sum+day.val;},0)/confirmedDiaperDays.length:allDiaperDays.length?allDiaperDays.reduce(function(sum,day){return sum+day.val;},0)/allDiaperDays.length:null;
-    var forecastDayCount=confirmedDiaperDays.length||allDiaperDays.length;
-    var forecastQuality=confirmedDiaperDays.length?confirmedDiaperDays.length+' complete day'+(confirmedDiaperDays.length!==1?'s':''):allDiaperDays.length+' logged day'+(allDiaperDays.length!==1?'s':'')+' (mark days complete for more accuracy)';
+    var diaperEstimate=estimateRecordedDiaperUsage(diapersPerDay);
+    var avgDiapersPerDay=diaperEstimate.average;
+    var forecastDayCount=diaperEstimate.days;
+    var forecastQuality=forecastDayCount+' logged day'+(forecastDayCount!==1?'s':'');
     var visibleDateKeys=new Set(dayArr.map(localDateKey));
-    var completeDayCount=Array.from(completeDates).filter(function(key){return visibleDateKeys.has(key);}).length;
     var activityDates=new Set([].concat(feeds,diapers,sleeps).map(function(row){return localDateKey(row.logged_at||row.sleep_start);}));
-    var partialDays=Array.from(activityDates).filter(function(key){return visibleDateKeys.has(key)&&!completeDates.has(key);}).length;
-    var unknownDays=d-completeDayCount-partialDays;
-    var coverageHtml='<div class="insight-card" style="margin:0 0 12px"><div class="insight-title">Tracking coverage</div><div class="insight-row"><span>✓ '+completeDayCount+' complete · ◐ '+partialDays+' partial · ? '+Math.max(0,unknownDays)+' unknown</span><strong>'+Math.round(completeDayCount/d*100)+'%</strong></div><div class="log-detail" style="margin-top:5px">Striped bars are partial minimums. Question marks are excluded from averages.</div>'+(trackingError?'<div class="log-detail" style="margin-top:5px;color:var(--orange)">Daily confirmation needs the latest database migration.</div>':'')+(suspiciousZeroDiaperDays?'<div class="log-detail" style="margin-top:5px;color:var(--orange)">'+suspiciousZeroDiaperDays+' complete day'+(suspiciousZeroDiaperDays!==1?'s':'')+' had no diaper entries and '+(suspiciousZeroDiaperDays!==1?'were':'was')+' excluded from the diaper forecast.</div>':'')+'</div>';
+    var loggedDays=Array.from(activityDates).filter(function(key){return visibleDateKeys.has(key);}).length;
+    var coverageHtml='<div class="insight-card" style="margin:0 0 12px"><div class="insight-title">Recorded days</div><div class="insight-row"><span>'+loggedDays+' with records · '+Math.max(0,d-loggedDays)+' without records</span></div><div class="log-detail" style="margin-top:5px">Estimates use all recorded usage in this date range. Days without records are excluded, including unlogged weekends. Missing changes can make stock appear to last longer.</div></div>';
     // Feed times grid heatmap (AM/PM × 12-hour grid)
     var hourCounts=Array(24).fill(0);
     feeds.forEach(function(f){hourCounts[new Date(f.logged_at).getHours()]++;});
@@ -449,7 +415,7 @@ async function loadTrends(days){
         '<div class="insight-stat"><div class="is-val">'+(avgSleep?minStr(avgSleep):'—')+'</div><div class="is-lbl">Avg logged nap</div></div>'+
         '<div class="insight-stat"><div class="is-val">'+(longestSleep?minStr(longestSleep):'—')+'</div><div class="is-lbl">Longest nap</div></div>'+
         '<div class="insight-stat"><div class="is-val">'+avgStartStr+'</div><div class="is-lbl">Avg sleep start</div></div>'+
-        '<div class="insight-stat"><div class="is-val">'+(avgDiapersPerDay?avgDiapersPerDay.toFixed(1):'—')+'</div><div class="is-lbl">Diapers/complete day</div></div>'+
+        '<div class="insight-stat"><div class="is-val">'+(avgDiapersPerDay?avgDiapersPerDay.toFixed(1):'—')+'</div><div class="is-lbl">Diapers/logged day</div></div>'+
       '</div>'+
       familyHtml+
       '<div class="chart-card" style="margin-top:12px">'+
@@ -517,7 +483,6 @@ async function saveDiaperLog(button){
 }
 
 async function loadToday(){
-  loadTodayTrackingStatus();
   var r=todayRange();
   try{
     var results=await Promise.all([
@@ -560,12 +525,8 @@ async function loadToday(){
       '</div>'+
       '<div style="padding:4px 16px 16px"><div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;margin-top:8px">Recent activity</div>'+
       (recent.length?recent.map(function(e){return '<div class="log-item"><div class="log-icon">'+e.icon+'</div><div class="log-info"><div class="log-title">'+esc(e.title)+'</div>'+(e.detail?'<div class="log-detail">'+esc(e.detail)+'</div>':'')+'</div><div class="log-time">'+fmtTime(e.ts)+'</div></div>';}).join(''):'<div class="empty-log">No activity yet today</div>')+
-      '</div>'+
-      '<div style="padding:0 16px 16px"><button id="day-complete-btn" onclick="toggleTodayTracking(this)" style="width:100%;padding:13px;font-size:14px;font-weight:600;border-radius:12px;border:1.5px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;font-family:inherit">'+
-      (todayTrackingComplete?'✅ Today fully logged — tap to reopen':'☑ Mark today as fully logged')+
-      '</button>'+
-      (!todayTrackingComplete?'<div style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px">Marks this day as complete so forecasts treat it as a confirmed sample</div>':'')+
       '</div>';
+
   }catch(e){document.getElementById('summary-content').innerHTML='<div class="loading" style="color:var(--red)">Error: '+e.message+'</div>';}
 }
 

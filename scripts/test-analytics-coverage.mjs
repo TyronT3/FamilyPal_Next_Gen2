@@ -44,13 +44,20 @@ const babyRows = [
 const babySeries = babyContext.buildObservedDaySeries(
   babyDays,
   babyRows,
-  new Set(['2026-07-01', '2026-07-03']),
   babyContext.localDateKey,
   row => row.logged_at,
   () => 1
 );
-assert.deepEqual(Array.from(babySeries, day => day.state), ['complete', 'partial', 'complete', 'unknown']);
-assert.deepEqual(Array.from(babySeries, day => day.val), [2, 1, 0, null]);
+assert.deepEqual(Array.from(babySeries, day => day.state), ['logged', 'logged', 'unknown', 'unknown']);
+assert.deepEqual(Array.from(babySeries, day => day.val), [2, 1, null, null]);
+assert.equal(babyContext.estimateRecordedDiaperUsage(babySeries).average, 1.5);
+assert.equal(babyContext.estimateRecordedDiaperUsage(babySeries).days, 2);
+// Legacy completion flags must not prefer one day over another or turn gaps into zero usage.
+const mixedDays = [{state:'complete',val:8},{state:'partial',val:4},{state:'unknown',val:null},{state:'unknown',val:null}];
+assert.equal(babyContext.estimateRecordedDiaperUsage(mixedDays).average, 6);
+assert.equal(babyContext.estimateRecordedDiaperUsage(mixedDays).days, 2);
+assert.equal(babyContext.estimateRecordedDiaperUsage([{val:null}]).average, null);
+assert.equal(babyContext.estimateRecordedDiaperUsage([{val:4}]).average, 4);
 
 const pantryContext = browserContext();
 pantryContext.window.window = pantryContext.window;
@@ -73,7 +80,8 @@ assert.equal(pantryContext.buildPantrySnapshotForecasts(pantryItems, [], pantryH
 const migration = readFileSync(resolve(root, 'supabase/migrations/20260716120000_add_analytics_observation_markers.sql'), 'utf8');
 assert.match(migration, /create table if not exists public\.baby_tracking_days/i);
 assert.match(migration, /create table if not exists public\.pantry_inventory_snapshots/i);
-assert.match(readFileSync(resolve(root, 'babypal.html'), 'utf8'), /id="baby-tracking-status"/);
+const babySource = readFileSync(resolve(root, 'assets/js/babypal.js'), 'utf8');
+assert.doesNotMatch(babySource, /baby_tracking_days|day-complete-btn|toggleTodayTracking/);
 assert.match(readFileSync(resolve(root, 'pantrypal.html'), 'utf8'), /Finish inventory check/);
 
 console.log('BabyPal and PantryPal analytics coverage checks passed.');

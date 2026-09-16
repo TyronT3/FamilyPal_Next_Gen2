@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BabyPal — FamilyPal</title>
 <meta name="description" content="Record feeds, diapers, sleep, pumping and baby health in one private household log.">
-<script src="assets/js/familypal-theme.js?v=20260916.2"></script>
-<link rel="stylesheet" href="assets/css/familypal.css?v=20260916.2">
+<script src="assets/js/familypal-theme.js?v=20260916.3"></script>
+<link rel="stylesheet" href="assets/css/familypal.css?v=20260916.3">
 <style>
   /* App accent & alias tokens — apply in both light and dark */
   :root{
@@ -94,10 +94,6 @@
   .insight-row{display:flex;justify-content:space-between;gap:10px;font-size:13px;margin-top:4px;}
   .insight-row strong{font-size:14px;}
   .warning-card{border-color:var(--orange);background:rgba(230,126,34,.12);}
-  .tracking-card{display:flex;align-items:center;justify-content:space-between;gap:12px;}
-  .tracking-card.complete{border-color:var(--green);background:rgba(76,175,80,.1);}
-  .tracking-card button{flex-shrink:0;border:1px solid var(--accent);border-radius:10px;background:var(--accent);color:#fff;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;}
-  .tracking-card.complete button{border-color:var(--border);background:transparent;color:var(--muted);}
   .log-actions{display:flex;gap:6px;align-items:center;}
   .undo-btn{background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);padding:5px 8px;font-size:11px;cursor:pointer;}
   .chip{background:var(--card);border:1px solid var(--border);border-radius:999px;padding:5px 14px;color:var(--muted);font-size:12px;cursor:pointer;}
@@ -141,7 +137,7 @@
   .sd-remove{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);padding:7px 10px;font-size:12px;cursor:pointer;flex-shrink:0;}
   .sd-empty{font-size:13px;color:var(--muted);padding:6px 0;}
 </style>
-<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260916.2">
+<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260916.3">
 </head>
 <body data-app="baby">
 
@@ -173,7 +169,7 @@
     <button class="wake-btn" onclick="wakeUp()">End sleep</button>
   </div>
 
-  <div id="tab-today"><div id="baby-tracking-status"></div><div id="summary-content"><div class="loading"><span class="spinner"></span></div></div></div>
+  <div id="tab-today"><div id="summary-content"><div class="loading"><span class="spinner"></span></div></div></div>
   <div id="tab-history" style="display:none"><div id="history-content"><div class="loading"><span class="spinner"></span></div></div></div>
   <div id="tab-trends" style="display:none"><div id="trends-content"><div class="loading"><span class="spinner"></span></div></div></div>
   <div id="tab-health" style="display:none"><div id="health-content"><div class="loading"><span class="spinner"></span></div></div></div>
@@ -225,7 +221,7 @@
     <p class="paper-help">MILK: click for a bottle tick. DIAPERS: click to cycle blank → Wet → Dirty → blank.<br>SLEEP: each mark covers 30 minutes starting at the column time. Click consecutive cells to draw the nap; click again to erase. The final sleep cell ends at 17:00. Tab and Space work too.</p>
     <div id="paper-grid" class="paper-scroll" tabindex="0" aria-label="School paper grid, 07:00 to 17:00"></div>
     <p id="paper-review" aria-live="polite"></p>
-    <p class="paper-help">School records are added to BabyPal. Home nappy stock stays unchanged. A school paper does not mark the entire day as fully logged.</p>
+    <p class="paper-help">School records are added to BabyPal. Home nappy stock stays unchanged. Recorded changes contribute to the usage forecast.</p>
     <div class="paper-actions">
       <button class="btn btn-primary" id="paper-save" onclick="paperSave(this)">Save paper &amp; next school day</button>
       <button class="btn btn-secondary" id="paper-next" onclick="paperNext()">Next school day</button>
@@ -394,10 +390,10 @@
 <div class="sleep-chip" id="sleep-chip"><span>😴</span><span class="sleep-chip-time" id="sleep-chip-timer">0:00</span><button class="sleep-chip-end" onclick="wakeUp()">End sleep</button></div>
 <div id="toast"></div>
 
-<script src="assets/js/familypal-core.js?v=20260916.2"></script>
-<script src="assets/js/familypal-ui.js?v=20260916.2"></script>
-<script src="assets/js/babypal.js?v=20260916.2"></script>
-<script src="assets/js/babypal-school-grid.js?v=20260916.2"></script>
-<link rel="stylesheet" href="assets/css/babypal-school-grid.css?v=20260916.2">
+<script src="assets/js/familypal-core.js?v=20260916.3"></script>
+<script src="assets/js/familypal-ui.js?v=20260916.3"></script>
+<script src="assets/js/babypal.js?v=20260916.3"></script>
+<script src="assets/js/babypal-school-grid.js?v=20260916.3"></script>
+<link rel="stylesheet" href="assets/css/babypal-school-grid.css?v=20260916.3">
 </body>
 </html>
