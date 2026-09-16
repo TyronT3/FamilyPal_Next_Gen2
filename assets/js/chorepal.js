@@ -18,7 +18,7 @@ const STARTER = [
 ];
 
 function esc(s){ var d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
-function dateStr(d){ return d.toISOString().slice(0,10); }
+function dateStr(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function getWeekStart(){ var d=new Date(); var day=d.getDay(); var diff=day===0?-6:1-day; d.setDate(d.getDate()+diff); d.setHours(0,0,0,0); return d; }
 function getWeekEnd(){ var d=getWeekStart(); d.setDate(d.getDate()+6); d.setHours(23,59,59,999); return d; }
 function getMonthStart(){ var d=new Date(); d.setDate(1); d.setHours(0,0,0,0); return d; }

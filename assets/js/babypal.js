@@ -625,7 +625,7 @@ function openSchoolDayModal(){
   schoolBottles=[];
   schoolSleeps=[];
   var today=new Date();
-  document.getElementById('sd-date').value=today.toISOString().slice(0,10);
+  document.getElementById('sd-date').value=localDateKey(today);
   document.getElementById('sd-diaper-time').value='12:00';
   renderSdDiapers();renderSdBottles();renderSdSleeps();
   document.getElementById('school-day-modal').style.display='flex';
@@ -718,6 +718,7 @@ async function saveSchoolDay(button){
     validSleeps.forEach(function(s){
       var start=new Date(date+'T'+s.start+':00');
       var end=s.end?new Date(date+'T'+s.end+':00'):null;
+      if(end&&end<start)end.setDate(end.getDate()+1);
       var diffMins=end?Math.round((end-start)/60000):null;
       if(diffMins!==null&&diffMins<0)diffMins+=1440; // overnight
       promises.push(sbFetch('/rest/v1/baby_sleep',{method:'POST',body:JSON.stringify({sleep_start:start.toISOString(),sleep_end:end?end.toISOString():null,duration_mins:diffMins,logged_at:start.toISOString()})}));

@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PeriodPal — FamilyPal</title>
 <meta name="description" content="Private cycle tracking, daily records, forecasts, medication logs and personal analytics.">
-<script src="assets/js/familypal-theme.js?v=20260916.3"></script>
-<link rel="stylesheet" href="assets/css/familypal.css?v=20260916.3">
+<script src="assets/js/familypal-theme.js?v=20260916.4"></script>
+<link rel="stylesheet" href="assets/css/familypal.css?v=20260916.4">
 <style>
   :root{
     --bg:#111217;--surface:#1b1d26;--card:#242634;--accent:#d9468f;--accent2:#f9737b;
@@ -55,6 +55,12 @@
   .weekdays,.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;}
   .weekday{text-align:center;font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding-bottom:3px;}
   .day{aspect-ratio:1;border-radius:10px;border:1px solid var(--border);background:var(--surface);padding:5px;position:relative;cursor:pointer;overflow:hidden;min-width:0;}
+  button.day{color:var(--text);font:inherit;text-align:left;}
+  .report-range{display:flex;align-items:center;gap:10px;margin:12px 16px;font-size:13px;font-weight:600;}
+  .report-range select,.report-range input{padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);max-width:100%;}
+  .period-tool{border:1px solid var(--border);border-radius:12px;margin:12px 0;padding:12px;}
+  .period-tool summary{cursor:pointer;font-weight:600;}
+  #period-maintenance-modal .modal{max-width:800px;}
   .day.out{opacity:.38;}
   .day.today{border-color:var(--accent);box-shadow:0 0 0 2px rgba(217,70,143,.16);}
   .day-num{font-size:12px;font-weight:800;position:relative;z-index:2;}
@@ -149,7 +155,7 @@
     .event-water-presets{grid-template-columns:repeat(2,minmax(0,1fr));}
   }
 </style>
-<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260916.3">
+<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260916.4">
 </head>
 <body data-app="period">
 <div id="period-screen" class="app-screen">
@@ -168,7 +174,7 @@
     <button type="button" class="tab" onclick="switchTab('analytics',this)">Analytics</button>
   </div>
 
-  <div class="hero-strip">
+  <div class="hero-strip" id="period-forecast-shell">
     <div id="forecast-content"><div class="loading"><span class="spinner"></span></div></div>
   </div>
 
@@ -210,7 +216,7 @@
 
   <div id="tab-analytics" style="display:none">
     <div class="analytics-nav" aria-label="Analytics sections">
-      <button id="analytics-insights-btn" class="active" onclick="switchAnalyticsView('insights')">Insights &amp; Cleanup</button>
+      <button id="analytics-insights-btn" class="active" onclick="switchAnalyticsView('insights')">Insights</button>
       <button id="analytics-timeline-btn" onclick="switchAnalyticsView('timeline')">Timeline</button>
     </div>
     <div id="analytics-insights">
@@ -230,8 +236,18 @@
     <p class="field-help">Manage backups and imported history separately from everyday insights.</p>
     <div class="fp-more-grid">
       <button class="fp-more-action" onclick="closeModal('period-data-modal');openImportModal()"><strong>Import history</strong><span>Add or restore previous records</span></button>
-      <button class="fp-more-action" onclick="closeModal('period-data-modal');exportPeriodPalData()"><strong>Export backup</strong><span>Download a private JSON copy</span></button>
+      <button class="fp-more-action" onclick="exportPeriodPalData(this)"><strong>Export backup</strong><span>Download all history, including medication trackers</span></button>
+      <button class="fp-more-action" onclick="closeModal('period-data-modal');openPeriodMaintenance()"><strong>History maintenance</strong><span>Optional import checks, duplicates, medicines and older reports</span></button>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="period-maintenance-modal" style="display:none" onclick="closeModalClick(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('period-maintenance-modal')" aria-label="Close history maintenance">×</button>
+    <h2>History maintenance</h2>
+    <p class="field-help">Optional tools for reviewing older records. There is no need to clear these checks to use PeriodPal. Your history is preserved.</p>
+    <div id="period-maintenance-content"></div>
   </div>
 </div>
 
@@ -258,7 +274,7 @@
     <div class="file-import">
       <div class="section-label" style="margin-top:0">Best option: full JSON export</div>
       <input type="file" id="json-import-file" accept=".json,application/json" onchange="loadJsonImportFile(this)">
-      <div class="import-help" style="margin-bottom:0">Use <strong>period_app_import_data.json</strong>. It imports confirmed cycles, the pregnancy exclusion, daily events, notes, measurements, medication logs, and sex history.</div>
+      <div class="import-help" style="margin-bottom:0">Choose a FamilyPal backup to restore missing records, or <strong>period_app_import_data.json</strong> to import history from your previous app.</div>
     </div>
     <div class="import-help">
       Or paste one period per line. Format:<br>
@@ -381,8 +397,8 @@
 </div>
 
 <div id="toast"></div>
-<script src="assets/js/familypal-core.js?v=20260916.3"></script>
-<script src="assets/js/familypal-ui.js?v=20260916.3"></script>
-<script src="assets/js/periodpal.js?v=20260916.3"></script>
+<script src="assets/js/familypal-core.js?v=20260916.4"></script>
+<script src="assets/js/familypal-ui.js?v=20260916.4"></script>
+<script src="assets/js/periodpal.js?v=20260916.4"></script>
 </body>
 </html>

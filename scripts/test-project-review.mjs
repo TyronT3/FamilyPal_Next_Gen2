@@ -1,0 +1,57 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const nodes=new Map();
+const context={Date,console,setTimeout,clearTimeout,localStorage:{getItem:()=>null},FamilyPal:{},FamilyPalUI:{runBusy:async(b,t,f)=>f(),confirm:async()=>true},window:{},document:{getElementById(id){if(!nodes.has(id))nodes.set(id,{style:{},innerHTML:'',textContent:''});return nodes.get(id);},createElement(){return {textContent:'',innerHTML:''};}}};
+vm.createContext(context);vm.runInContext(read('assets/js/periodpal.js'),context);
+context.renderCalendar=()=>{};
+context.viewMonth=new Date(2026,0,31);context.moveMonth(1);
+assert.equal(context.viewMonth.getMonth(),1);assert.equal(context.viewMonth.getDate(),1);
+context.moveMonth(-1);assert.equal(context.viewMonth.getMonth(),0);
+assert.equal(context.pregnancyTestResult({value_text:'not pregnant'}),'Negative');
+assert.equal(context.pregnancyTestResult({value_text:'Negative'}),'Negative');
+assert.equal(context.pregnancyTestResult({value_text:'Positive'}),'Positive');
+assert.equal(context.pregnancyTestResult({raw_value:'code 101'}),'Recorded');
+assert.equal(context.pregnancyTestResult({label:'Positive',value_text:'Negative'}),'Recorded');
+context.periodEvents=[{category:'pregnancy_test',value_text:'not pregnant',event_date:'2026-01-01'},{category:'pregnancy_test',raw_value:'101',event_date:'2026-01-02'},{category:'pregnancy_test',value_text:'Positive',event_date:'2026-01-03'}];
+assert.equal(context.positivePregnancyTests().length,1);
+// The server can cap the requested 500 rows to fewer rows. Pagination must still fetch all.
+const requests=[];
+context.sbFetch=async path=>{requests.push(path);const offset=Number(new URL('https://test'+path).searchParams.get('offset'));return [{id:'a'},{id:'b'},{id:'c'}].slice(offset,offset+2);};
+assert.equal((await context.fetchPeriodRows('period_cycles','id.asc')).length,3);
+assert.equal(requests.length,3);
+context.cycles=[{id:'only-loaded-row'}];
+const backup=await context.collectPeriodBackup();
+assert.equal(backup.cycles.length,3);assert.equal(backup.medication_definitions.length,3);
+assert.equal(backup.format,'familypal-periodpal');
+assert.throws(()=>context.validatePeriodBackup({version:99,cycles:[]}),/version/);
+assert.throws(()=>context.validatePeriodBackup({cycles:[{start_date:'2026-01-01'}]}),/Invalid cycles/);
+const valid={format:'familypal-periodpal',version:1,cycles:[{id:'cycle-1',start_date:'2026-01-01'}],medication_definitions:[{medication_id:'med-1'}]};
+context.validatePeriodBackup(valid);
+const writes=[];context.sbFetch=async(path,opts)=>{writes.push({path,opts});return [];};context.loadData=async()=>{};context.toast=()=>{};
+await context.restorePeriodBackup(valid);await context.restorePeriodBackup(valid);
+assert.equal(writes.length,4);
+assert.ok(writes.every(w=>w.opts.headers.Prefer.includes('ignore-duplicates')));
+assert.deepEqual(JSON.parse(writes[0].opts.body),JSON.parse(writes[2].opts.body));
+// Chore day keys must use local date fields, not UTC (around midnight in South Africa).
+const choreContext={window:{},document:{},localStorage:{getItem:()=>null},FamilyPal:{}};
+vm.createContext(choreContext);vm.runInContext(read('assets/js/chorepal.js'),choreContext);
+assert.equal(choreContext.dateStr({getFullYear:()=>2026,getMonth:()=>8,getDate:()=>17,toISOString:()=> '2026-09-16T22:30:00.000Z'}),'2026-09-17');
+console.log('Project review checks passed: month navigation, test-result parsing, pagination, complete backup, safe restore, local dates.');
+
+// A decryption already in progress must not repopulate plaintext after the journal locks.
+let finishDecrypt;
+const journalNode={innerHTML:''};
+const journalContext={TextEncoder,TextDecoder,console,FamilyPal:{requestJson:async()=>[{id:'entry'}]},document:{getElementById:()=>journalNode},window:{addEventListener(){}}};
+journalContext.window.decryptForTest=()=>new Promise(resolve=>{finishDecrypt=resolve;});
+vm.createContext(journalContext);
+vm.runInContext(read('assets/js/journalpal.js').replace('  global.createJournalVault =', `  global.journalTest={setKey:function(key){vaultKey=key;},load:loadJournalEntries,entries:function(){return decryptedEntries;}};
+  decryptEntry=global.decryptForTest;
+  global.createJournalVault =`),journalContext);
+const journal=journalContext.window.journalTest;
+journal.setKey({});const loading=journal.load();await new Promise(setImmediate);
+assert.equal(typeof finishDecrypt,'function');
+journal.setKey(null);journalNode.innerHTML='';finishDecrypt({id:'entry',title:'Private title',entryDate:'2026-09-16'});await loading;
+assert.equal(journal.entries().length,0);assert.equal(journalNode.innerHTML,'');
+console.log('Journal lock/decryption race check passed.');

@@ -277,15 +277,20 @@
 
   async function loadJournalEntries() {
     if (!vaultKey) return;
+    var loadingKey = vaultKey;
     element('journal-entries').innerHTML = '<div class="journal-loading"><span class="spinner"></span><div style="margin-top:10px">Decrypting entries on this device…</div></div>';
     try {
       var rows = await FamilyPal.requestJson('/rest/v1/journal_entries?order=created_at.desc&select=id,ciphertext,iv,crypto_version,created_at,updated_at');
-      decryptedEntries = await Promise.all((rows || []).map(decryptEntry));
+      if (vaultKey !== loadingKey) return;
+      var loadedEntries = await Promise.all((rows || []).map(decryptEntry));
+      if (vaultKey !== loadingKey) return;
+      decryptedEntries = loadedEntries;
       decryptedEntries.sort(function (a, b) {
         return (b.entryDate || b.createdAt || '').localeCompare(a.entryDate || a.createdAt || '');
       });
       renderJournalEntries();
     } catch (error) {
+      if (vaultKey !== loadingKey) return;
       element('journal-entries').innerHTML = '<div class="empty-state" style="color:var(--red)">Could not load encrypted entries: ' + escapeHtml(error.message) + '</div>';
     }
   }
