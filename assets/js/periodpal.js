@@ -29,6 +29,7 @@ async function fetchPeriodRows(table,order,filter){
 }
 function inReportRange(date){return date&&date<=todayKey()&&(!reportDays||date>=addDays(todayKey(),1-reportDays));}
 function setReportDays(value){reportDays=Number(value);renderReports();}
+function reportRangeLabel(){return reportDays?('Last '+(reportDays===183?'6 months':reportDays===365?'year':reportDays+' days')):'All history';}
 function setTimelineDays(value){timelineDays=Number(value);timelineLimit=100;renderHistory();}
 function showMoreTimeline(){timelineLimit+=100;renderHistory();}
 function openPeriodMaintenance(){renderReports();document.getElementById('period-maintenance-modal').style.display='flex';}
@@ -140,6 +141,8 @@ function buildModel(){
     ovulation:ovulation,
     fertileStart:ovulation?addDays(ovulation,-5):null,
     fertileEnd:ovulation?addDays(ovulation,1):null,
+    intervalCount:recentIntervals.length,
+    periodCount:lengths.length,
     confidence:recentIntervals.length>=3?'good':recentIntervals.length>=1?'medium':'low'
   };
 }
@@ -158,9 +161,9 @@ function renderForecast(){
   var fertileText=isBetween(todayKey(),model.fertileStart,model.fertileEnd)?'Now':fmtDate(model.fertileStart)+' - '+fmtDate(model.fertileEnd);
   var conf=model.confidence==='good'?'Good':model.confidence==='medium'?'Building':'Early';
   el.innerHTML='<div class="forecast-grid">'+
-    '<div class="forecast-card fc-rose"><div class="fc-lbl">Next period</div><div class="fc-val">'+esc(periodText)+'</div><div class="fc-sub">'+fmtDate(model.nextStart)+' · '+model.avgCycle+' day avg cycle</div></div>'+
+    '<div class="forecast-card fc-rose"><div class="fc-lbl">Next period</div><div class="fc-val">'+esc(periodText)+'</div><div class="fc-sub">'+fmtDate(model.nextStart)+' · '+model.avgCycle+' day average from '+model.intervalCount+' interval'+(model.intervalCount!==1?'s':'')+'</div></div>'+
     '<div class="forecast-card fc-blue"><div class="fc-lbl">Fertile window</div><div class="fc-val">'+esc(fertileText)+'</div><div class="fc-sub">Ovulation estimate '+fmtDate(model.ovulation)+'</div></div>'+
-    '<div class="forecast-card fc-coral"><div class="fc-lbl">Period length</div><div class="fc-val">'+model.avgPeriod+' days</div><div class="fc-sub">Based on completed logs</div></div>'+
+    '<div class="forecast-card fc-coral"><div class="fc-lbl">Period length</div><div class="fc-val">'+model.avgPeriod+' days</div><div class="fc-sub">Based on '+model.periodCount+' completed log'+(model.periodCount!==1?'s':'')+'</div></div>'+
       '<div class="forecast-card fc-yellow"><div class="fc-lbl">Confidence</div><div class="fc-val">'+conf+'</div><div class="fc-sub">'+(model.confidence==='good'?'3+ cycles logged':model.confidence==='medium'?'More cycles will improve this':'Using 28 day default')+'</div></div>'+
     '</div><div class="trust-note">Estimates use cycle history, a roughly 14 day luteal phase, and a fertile window around the 5 days before ovulation through about 1 day after. Calendar-only estimates can be wrong, especially with irregular cycles.</div>'+comfortSupplyWarning();
 }
@@ -1522,6 +1525,59 @@ function setSexReportRange(days){
   renderReports();
 }
 
+function phaseForLoggedDate(key){
+  var sorted=sortedModelCycles(),current=null,next=null;
+  for(var i=0;i<sorted.length;i++){
+    if(sorted[i].start_date<=key){current=sorted[i];next=sorted[i+1]||null;}else break;
+  }
+  if(!current)return'Unknown';
+  var estimatedNext=next?next.start_date:addDays(current.start_date,model.avgCycle);
+  if(key>=estimatedNext)return'Unknown';
+  var periodEnd=current.end_date||addDays(current.start_date,model.avgPeriod-1);
+  if(key<=periodEnd)return'Period';
+  var ovulation=addDays(estimatedNext,-14),fertileStart=addDays(ovulation,-5),fertileEnd=addDays(ovulation,1);
+  if(key<fertileStart)return'Before ovulation';
+  if(key<=fertileEnd)return'Fertile estimate';
+  return'After ovulation';
+}
+
+function buildSymptomPhaseSummary(cyclesIn,eventsIn){
+  var phases={};
+  function add(phase,date,names){
+    var group=phases[phase]||(phases[phase]={phase:phase,dates:{},symptomDates:{}});group.dates[date]=true;
+    names.forEach(function(name){name=String(name||'').trim().toLowerCase();if(name){group.symptomDates[name]=group.symptomDates[name]||{};group.symptomDates[name][date]=true;}});
+  }
+  cyclesIn.forEach(function(c){if(c.symptoms&&c.symptoms.length)add('Period',c.start_date,c.symptoms);});
+  eventsIn.filter(function(e){return e.category==='symptom'&&e.label;}).forEach(function(e){add(phaseForLoggedDate(e.event_date),e.event_date,String(e.label).split(/\s*[·|;,]\s*/));});
+  return ['Period','Before ovulation','Fertile estimate','After ovulation','Unknown'].map(function(phase){
+    var group=phases[phase]||{dates:{},symptomDates:{}},days=Object.keys(group.dates).length;
+    var symptoms=Object.keys(group.symptomDates).map(function(name){return{name:name,count:Object.keys(group.symptomDates[name]).length};}).sort(function(a,b){return b.count-a.count||a.name.localeCompare(b.name);});
+    return {phase:phase,days:days,ready:days>=3,symptoms:symptoms};
+  }).filter(function(group){return group.days>0;});
+}
+
+function buildPeriodSummaryRows(){
+  var all=modelCycles().sort(function(a,b){return a.start_date.localeCompare(b.start_date);});
+  var selected=all.filter(function(c){return inReportRange(c.start_date);});
+  return selected.map(function(c){
+    var index=all.indexOf(c),previous=index>0?all[index-1]:null;
+    return {start_date:c.start_date,end_date:c.end_date||'',period_days:c.end_date?daysBetween(c.start_date,c.end_date)+1:'',cycle_days:previous?daysBetween(previous.start_date,c.start_date):'',flow:c.flow||'',symptoms:(c.symptoms||[]).join(' | ')};
+  });
+}
+
+function periodSummaryCsv(){
+  var columns=['start_date','end_date','period_days','cycle_days','flow','symptoms'],rows=buildPeriodSummaryRows();
+  function cell(value){var text=String(value==null?'':value);return /[",\n]/.test(text)?'"'+text.replace(/"/g,'""')+'"':text;}
+  return [columns.join(',')].concat(rows.map(function(row){return columns.map(function(key){return cell(row[key]);}).join(',');})).join('\r\n');
+}
+
+function exportPeriodSummary(){
+  var rows=buildPeriodSummaryRows();if(!rows.length){toast('No periods in the selected report range');return;}
+  var blob=new Blob([periodSummaryCsv()],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='periodpal-summary-'+todayKey()+'.csv';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+  toast('Period summary exported for '+reportRangeLabel().toLowerCase());
+}
+
 async function collectPeriodBackup(){
   var data={format:'familypal-periodpal',version:1,exported_at:new Date().toISOString()};
   var keys=Object.keys(PERIOD_BACKUP_TABLES);
@@ -1578,7 +1634,8 @@ function renderReports(){
   var displayEvents=visibleEvents().filter(function(e){return inReportRange(e.event_date);});
   var sorted=usable.slice().sort(function(a,b){return b.start_date.localeCompare(a.start_date);});
   var completed=usable.filter(function(c){return c.end_date;});
-  var range=avgCycleRange();
+  var rangeValues=[];usable.slice().sort(function(a,b){return a.start_date.localeCompare(b.start_date);}).forEach(function(c,i,arr){if(i){var n=daysBetween(arr[i-1].start_date,c.start_date);if(n>=18&&n<=45)rangeValues.push(n);}});
+  var range=rangeValues.length?{min:Math.min.apply(null,rangeValues),max:Math.max.apply(null,rangeValues),count:rangeValues.length}:null;
   var noteCycles=sorted.filter(function(c){return c.notes||c.symptoms&&c.symptoms.length;});
   var symptomCounts={},flowCounts={},eventCatCounts={},measurementTypeCounts={},medCounts={};
   usable.forEach(function(c){
@@ -1592,6 +1649,7 @@ function renderReports(){
   periodMeasurements.forEach(function(m){measurementTypeCounts[m.measurement_type]=(measurementTypeCounts[m.measurement_type]||0)+1;});
   periodMedLogs.forEach(function(m){medCounts[m.name||'Medication']=(medCounts[m.name||'Medication']||0)+1;});
   var symptomRows=Object.keys(symptomCounts).sort(function(a,b){return symptomCounts[b]-symptomCounts[a];});
+  var phaseSummary=buildSymptomPhaseSummary(usable,displayEvents);
   var flowRows=Object.keys(flowCounts).sort(function(a,b){return flowCounts[b]-flowCounts[a];});
   var maxSym=symptomRows.length?symptomCounts[symptomRows[0]]:1;
   var maxFlow=flowRows.length?flowCounts[flowRows[0]]:1;
@@ -1618,9 +1676,9 @@ function renderReports(){
     '<div class="report-grid">'+
       '<div class="report-card"><div class="r-val">'+usable.length+'</div><div class="r-lbl">Periods in range</div></div>'+
       '<div class="report-card"><div class="r-val">'+modelCycles().length+'</div><div class="r-lbl">Recent eligible periods</div></div>'+
-      '<div class="report-card"><div class="r-val">'+model.avgCycle+'d</div><div class="r-lbl">Avg cycle</div></div>'+
-      '<div class="report-card"><div class="r-val">'+avgPeriod+'d</div><div class="r-lbl">Avg period</div></div>'+
-      '<div class="report-card"><div class="r-val">'+displayEvents.length+'</div><div class="r-lbl">Named events in range</div></div>'+
+      '<div class="report-card"><div class="r-val">'+model.avgCycle+'d</div><div class="r-lbl">Avg cycle</div><div class="r-sub">'+model.intervalCount+' recent eligible interval'+(model.intervalCount!==1?'s':'')+'</div></div>'+
+      '<div class="report-card"><div class="r-val">'+avgPeriod+'d</div><div class="r-lbl">Avg period</div><div class="r-sub">'+completed.length+' completed period'+(completed.length!==1?'s':'')+' in range</div></div>'+
+      '<div class="report-card"><div class="r-val">'+displayEvents.length+'</div><div class="r-lbl">Named events in range</div><div class="r-sub">'+reportRangeLabel()+'</div></div>'+
     '</div>'+
     '<div class="report-list" id="data-quality-centre"><h3>Data Quality Centre</h3>'+
       '<div class="report-row"><span>Items needing review</span><strong>'+qualityIssues+'</strong></div>'+
@@ -1671,10 +1729,11 @@ function renderReports(){
       (shownSexRows.length>120?'<div style="font-size:11px;color:var(--muted);padding-top:6px">Showing newest 120 records in this range.</div>':'')+
     '</details>':'')+
     (exclusions.length?'<div class="report-list" id="quality-exclusions"><h3>Excluded ranges</h3>'+exclusions.map(function(x){return '<div class="report-row"><span>'+fmtDate(x.start_date)+' - '+fmtDate(x.end_date)+'<br><small style="color:var(--muted)">'+esc(x.reason||'excluded')+(x.notes?' · '+esc(x.notes):'')+'</small></span><strong>'+daysBetween(x.start_date,x.end_date)+'d</strong></div>';}).join('')+'</div>':'<div id="quality-exclusions"></div>')+
-    '<div class="report-list"><h3>Cycle range</h3><div class="report-row"><span>Shortest - longest estimated cycle</span><strong>'+(range?range.min+'-'+range.max+'d':'-')+'</strong></div></div>'+
-    '<div class="report-list"><h3>Symptoms</h3>'+
+    '<div class="report-list"><h3>Cycle range</h3><div class="report-row"><span>Shortest - longest logged interval in range</span><strong>'+(range?range.min+'-'+range.max+'d ('+range.count+')':'-')+'</strong></div></div>'+
+    '<div class="report-list"><h3>Symptoms</h3><div class="log-detail">Counts come from '+usable.filter(function(c){return c.symptoms&&c.symptoms.length;}).length+' period log'+(usable.filter(function(c){return c.symptoms&&c.symptoms.length;}).length!==1?'s':'')+' and '+displayEvents.filter(function(e){return e.category==='symptom'&&e.label;}).length+' dated symptom entr'+(displayEvents.filter(function(e){return e.category==='symptom'&&e.label;}).length===1?'y':'ies')+'. Unlogged days are unknown.</div>'+
       (symptomRows.length?symptomRows.map(function(s){var pct=Math.round(symptomCounts[s]/maxSym*100);return '<div class="report-row"><div style="flex:1"><div>'+esc(s)+'</div><div class="report-bar"><span style="width:'+pct+'%"></span></div></div><strong>'+symptomCounts[s]+'</strong></div>';}).join(''):'<div class="empty-log" style="padding:12px">No symptoms logged yet</div>')+
     '</div>'+
+    (phaseSummary.length?'<div class="report-list"><h3>Symptoms by cycle phase</h3><div class="log-detail">Exploratory pattern from dated symptom logs. A phase appears only after 3 logged symptom days; this does not treat unlogged days as symptom-free.</div>'+phaseSummary.map(function(group){return '<div class="note-card"><div class="note-date">'+esc(group.phase)+'</div><div class="note-meta">'+group.days+' logged symptom day'+(group.days!==1?'s':'')+'</div>'+(group.ready&&group.symptoms.length?group.symptoms.slice(0,5).map(function(item){return '<div class="report-row"><span>'+esc(item.name)+'</span><strong>'+item.count+' of '+group.days+'</strong></div>';}).join(''):'<div class="log-detail">Need '+Math.max(0,3-group.days)+' more logged symptom day'+(3-group.days!==1?'s':'')+' before showing a pattern.</div>')+'</div>';}).join('')+'</div>':'')+
     (eventRows.length?'<div class="report-list" id="historical-categories"><h3>Imported event categories</h3>'+eventRows.map(function(k){return '<div class="report-row"><span>'+esc(k)+'</span><strong>'+eventCatCounts[k]+'</strong></div>';}).join('')+'</div>':'')+
     (periodNotes.length?'<div class="report-list" id="historical-notes"><h3>Imported notes</h3>'+periodNotes.slice().sort(function(a,b){return b.note_date.localeCompare(a.note_date);}).slice(0,30).map(function(n){return '<div class="note-card"><div class="note-date">'+fmtFullDate(n.note_date)+'</div><div class="log-detail">'+esc(n.note_text)+'</div></div>';}).join('')+'</div>':'')+
     (measurementRows.length?'<div class="report-list" id="historical-measurements"><h3>Measurements</h3>'+measurementRows.map(function(k){return '<div class="report-row"><span>'+esc(k)+'</span><strong>'+measurementTypeCounts[k]+'</strong></div>';}).join('')+'</div>':'')+

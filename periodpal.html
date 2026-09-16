@@ -89,6 +89,7 @@
   .report-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:13px 12px;}
   .report-card .r-val{font-size:21px;font-weight:800;color:var(--accent);line-height:1.1;}
   .report-card .r-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:4px;}
+  .report-card .r-sub{font-size:10px;color:var(--muted);margin-top:3px;}
   .report-list{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:12px;}
   .report-list h3{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
   .report-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--border);padding:8px 0;font-size:13px;}
@@ -237,6 +238,7 @@
     <div class="fp-more-grid">
       <button class="fp-more-action" onclick="closeModal('period-data-modal');openImportModal()"><strong>Import history</strong><span>Add or restore previous records</span></button>
       <button class="fp-more-action" onclick="exportPeriodPalData(this)"><strong>Export backup</strong><span>Download all history, including medication trackers</span></button>
+      <button class="fp-more-action" onclick="exportPeriodSummary()"><strong>Export period summary</strong><span>Download cycle dates, lengths, flow and symptoms for the selected Insights range</span></button>
       <button class="fp-more-action" onclick="closeModal('period-data-modal');openPeriodMaintenance()"><strong>History maintenance</strong><span>Optional import checks, duplicates, medicines and older reports</span></button>
     </div>
   </div>
@@ -399,6 +401,6 @@
 <div id="toast"></div>
 <script src="assets/js/familypal-core.js?v=20260916.4"></script>
 <script src="assets/js/familypal-ui.js?v=20260916.4"></script>
-<script src="assets/js/periodpal.js?v=20260916.4"></script>
+<script src="assets/js/periodpal.js?v=20260916.5"></script>
 </body>
 </html>

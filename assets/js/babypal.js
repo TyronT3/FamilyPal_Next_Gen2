@@ -410,17 +410,17 @@ async function loadTrends(days){
       '<div class="chart-card"><h3>🚿 Diapers per day</h3>'+bar(diapersPerDay,'var(--blue)','')+'</div>'+
       '<div class="chart-card"><h3>😴 Sleep (mins/day)</h3>'+bar(sleepPerDay,'var(--green)','m')+'</div>'+
       '<div class="insight-row-wrap">'+
-        '<div class="insight-stat"><div class="is-val">'+(avgBottle||'—')+(avgBottle?'ml':'')+'</div><div class="is-lbl">Avg logged bottle</div></div>'+
-        '<div class="insight-stat"><div class="is-val">'+bPct+'%</div><div class="is-lbl">Logged bottle %</div></div>'+
-        '<div class="insight-stat"><div class="is-val">'+(avgSleep?minStr(avgSleep):'—')+'</div><div class="is-lbl">Avg logged nap</div></div>'+
-        '<div class="insight-stat"><div class="is-val">'+(longestSleep?minStr(longestSleep):'—')+'</div><div class="is-lbl">Longest nap</div></div>'+
-        '<div class="insight-stat"><div class="is-val">'+avgStartStr+'</div><div class="is-lbl">Avg sleep start</div></div>'+
-        '<div class="insight-stat"><div class="is-val">'+(avgDiapersPerDay?avgDiapersPerDay.toFixed(1):'—')+'</div><div class="is-lbl">Diapers/logged day</div></div>'+
+        '<div class="insight-stat"><div class="is-val">'+(avgBottle||'—')+(avgBottle?'ml':'')+'</div><div class="is-lbl">Avg logged bottle · n='+measuredBottles.length+'</div></div>'+
+        '<div class="insight-stat"><div class="is-val">'+bPct+'%</div><div class="is-lbl">Logged bottle % · n='+totalFeeds+'</div></div>'+
+        '<div class="insight-stat"><div class="is-val">'+(avgSleep?minStr(avgSleep):'—')+'</div><div class="is-lbl">Avg logged nap · n='+completedSleeps.length+'</div></div>'+
+        '<div class="insight-stat"><div class="is-val">'+(longestSleep?minStr(longestSleep):'—')+'</div><div class="is-lbl">Longest nap · n='+completedSleeps.length+'</div></div>'+
+        '<div class="insight-stat"><div class="is-val">'+avgStartStr+'</div><div class="is-lbl">Avg sleep start · n='+startHours.length+'</div></div>'+
+        '<div class="insight-stat"><div class="is-val">'+(avgDiapersPerDay?avgDiapersPerDay.toFixed(1):'—')+'</div><div class="is-lbl">Diapers/logged day · n='+forecastDayCount+' days</div></div>'+
       '</div>'+
       familyHtml+
       '<div class="chart-card" style="margin-top:12px">'+
         '<h3>🕐 Feed times (24hr)</h3>'+
-        '<div style="font-size:11px;color:var(--muted);margin-bottom:4px">When feeds typically happen</div>'+
+        '<div style="font-size:11px;color:var(--muted);margin-bottom:4px">'+feeds.length+' recorded feeds across the last '+d+' days. Blank hours can mean no record.</div>'+
         heatmapHtml+
       '</div>';
   }catch(e){el.innerHTML='<div style="color:var(--red)">Error: '+e.message+'</div>';}

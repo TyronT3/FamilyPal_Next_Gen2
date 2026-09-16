@@ -48,8 +48,13 @@ This was a source review of the shared runtime, page shells and feature scripts,
 
 ## Suggested next reporting improvements
 
-1. Show sample counts alongside every average and label “recorded” totals consistently.
-2. Add PeriodPal symptom frequency by cycle phase with a minimum sample threshold and an explicit unknown/unlogged category.
-3. Separate school and home BabyPal patterns; compare similar time windows instead of treating school records as a whole day.
-4. Provide a focused PeriodPal summary export with selected dates, cycle lengths and reported symptoms, keeping technical import diagnostics separate.
-5. After data integrity work, add authenticated smoke tests in a dedicated test household, rather than writing test data to the live household.
+Completed after this review:
+
+- BabyPal and PeriodPal averages now show sample counts and reporting ranges more clearly.
+- PeriodPal reports symptom patterns by estimated cycle phase after at least three logged symptom days, while keeping unlogged days explicitly unknown.
+- PeriodPal has a focused CSV summary export for the selected Insights range.
+
+Further improvements:
+
+1. Separate school and home BabyPal patterns; compare similar time windows instead of treating school records as a whole day.
+2. After data integrity work, add authenticated smoke tests in a dedicated test household, rather than writing test data to the live household.

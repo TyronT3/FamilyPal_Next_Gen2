@@ -16,6 +16,28 @@ assert.equal(context.pregnancyTestResult({raw_value:'code 101'}),'Recorded');
 assert.equal(context.pregnancyTestResult({label:'Positive',value_text:'Negative'}),'Recorded');
 context.periodEvents=[{category:'pregnancy_test',value_text:'not pregnant',event_date:'2026-01-01'},{category:'pregnancy_test',raw_value:'101',event_date:'2026-01-02'},{category:'pregnancy_test',value_text:'Positive',event_date:'2026-01-03'}];
 assert.equal(context.positivePregnancyTests().length,1);
+context.cycles=[
+  {id:'c1',start_date:'2026-01-01',end_date:'2026-01-05',flow:'medium',symptoms:[]},
+  {id:'c2',start_date:'2026-01-29',end_date:'2026-02-02',flow:'light',symptoms:[]},
+  {id:'c3',start_date:'2026-02-26',end_date:'2026-03-02',flow:'medium',symptoms:[]}
+];
+context.exclusions=[];context.buildModel();
+assert.equal(context.phaseForLoggedDate('2026-01-03'),'Period');
+assert.equal(context.phaseForLoggedDate('2026-01-07'),'Before ovulation');
+assert.equal(context.phaseForLoggedDate('2026-01-12'),'Fertile estimate');
+assert.equal(context.phaseForLoggedDate('2026-01-20'),'After ovulation');
+const phaseSummary=context.buildSymptomPhaseSummary(context.cycles,[
+  {category:'symptom',event_date:'2026-01-06',label:'Cramps'},
+  {category:'symptom',event_date:'2026-01-06',label:'Cramps'},
+  {category:'symptom',event_date:'2026-01-07',label:'Cramps · Headache'},
+  {category:'symptom',event_date:'2026-01-08',label:'Cramps'}
+]);
+const before=phaseSummary.find(row=>row.phase==='Before ovulation');
+assert.equal(before.days,3);assert.equal(before.ready,true);assert.equal(before.symptoms[0].count,3);
+context.reportDays=0;
+const summaryRows=context.buildPeriodSummaryRows();
+assert.equal(summaryRows.length,3);assert.equal(summaryRows[1].cycle_days,28);
+assert.match(context.periodSummaryCsv(),/start_date,end_date,period_days,cycle_days,flow,symptoms/);
 // The server can cap the requested 500 rows to fewer rows. Pagination must still fetch all.
 const requests=[];
 context.sbFetch=async path=>{requests.push(path);const offset=Number(new URL('https://test'+path).searchParams.get('offset'));return [{id:'a'},{id:'b'},{id:'c'}].slice(offset,offset+2);};
