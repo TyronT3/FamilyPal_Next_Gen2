@@ -269,7 +269,7 @@ async function loadToday(){
     var totalPumped=pumps.reduce(function(s,p){return s+(p.amount_ml||0);},0);
     var sleepStr=totalSleep>=60?(Math.floor(totalSleep/60)+'h '+(totalSleep%60)+'m'):totalSleep+'m';
     var recent=[].concat(
-      feeds.map(function(f){return{icon:f.feed_type==='bottle'?'🍼':'🤱',title:f.feed_type==='bottle'?'Bottle — '+f.amount_ml+'ml':'Breast — '+f.duration_mins+'min ('+f.breast_side+')',detail:f.notes,ts:f.logged_at};}),
+      feeds.map(function(f){return{icon:f.feed_type==='bottle'?'🍼':'🤱',title:f.feed_type==='bottle'?(f.amount_ml==null?'Bottle — amount unknown':'Bottle — '+f.amount_ml+'ml'):'Breast — '+f.duration_mins+'min ('+f.breast_side+')',detail:f.notes,ts:f.logged_at};}),
       diapers.map(function(d){return{icon:d.diaper_type==='wet'?'💧':'💩',title:d.diaper_type==='wet'?'Wet diaper':'Soiled diaper',detail:d.notes,ts:d.logged_at};}),
       sleeps.map(function(s){var dur=s.sleep_end?Math.round((new Date(s.sleep_end)-new Date(s.sleep_start))/60000):null;return{icon:'😴',title:dur?'Sleep — '+Math.floor(dur/60)+'h '+(dur%60)+'m':'Sleep started',detail:s.notes,ts:s.logged_at};}),
       pumps.map(function(p){return{icon:'🥛',title:'Pumped — '+p.amount_ml+'ml',detail:p.notes,ts:p.logged_at};})
@@ -281,7 +281,7 @@ async function loadToday(){
       '<div class="summary-card blue"><div class="s-icon">🚿</div><div class="s-val">'+(wet+soiled)+'</div><div class="s-lbl">Diapers</div><div class="s-sub">💧 '+wet+' wet · 💩 '+soiled+' soiled</div></div>'+
       '<div class="summary-card green"><div class="s-icon">😴</div><div class="s-val">'+sleepStr+'</div><div class="s-lbl">Sleep</div><div class="s-sub">'+sleeps.length+' session'+(sleeps.length!==1?'s':'')+'</div></div>'+
       '<div class="summary-card teal"><div class="s-icon">🥛</div><div class="s-val">'+totalPumped+'ml</div><div class="s-lbl">Pumped</div><div class="s-sub">'+pumps.length+' session'+(pumps.length!==1?'s':'')+'</div></div>'+
-      '<div class="summary-card purple"><div class="s-icon">⏰</div><div class="s-val">'+(lastFeed?fmtTime(lastFeed.logged_at):'—')+'</div><div class="s-lbl">Last feed</div><div class="s-sub">'+(lastFeed?(lastFeed.feed_type==='bottle'?(lastFeed.amount_ml+'ml bottle'):(lastFeed.duration_mins+'min breast')):'No feeds yet')+'</div></div>'+
+      '<div class="summary-card purple"><div class="s-icon">⏰</div><div class="s-val">'+(lastFeed?fmtTime(lastFeed.logged_at):'—')+'</div><div class="s-lbl">Last feed</div><div class="s-sub">'+(lastFeed?(lastFeed.feed_type==='bottle'?((lastFeed.amount_ml==null?'Bottle · amount unknown':lastFeed.amount_ml+'ml bottle')):(lastFeed.duration_mins+'min breast')):'No feeds yet')+'</div></div>'+
       '</div>'+
       '<div style="padding:4px 16px 16px"><div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;margin-top:8px">Recent activity</div>'+
       (recent.length?recent.map(function(e){return '<div class="log-item"><div class="log-icon">'+e.icon+'</div><div class="log-info"><div class="log-title">'+esc(e.title)+'</div>'+(e.detail?'<div class="log-detail">'+esc(e.detail)+'</div>':'')+'</div><div class="log-time">'+fmtTime(e.ts)+'</div></div>';}).join(''):'<div class="empty-log">No activity yet today</div>')+
@@ -300,7 +300,7 @@ async function loadHistory(){
       sbFetch('/rest/v1/baby_pumping?logged_at=gte.'+since.toISOString()+'&order=logged_at.desc&limit=20&select=*')
     ]);
     var all=[].concat(
-      results[0].map(function(f){return{icon:f.feed_type==='bottle'?'🍼':'🤱',title:f.feed_type==='bottle'?'Bottle — '+f.amount_ml+'ml':'Breast — '+f.duration_mins+'min ('+f.breast_side+')',detail:f.notes,ts:f.logged_at};}),
+      results[0].map(function(f){return{icon:f.feed_type==='bottle'?'🍼':'🤱',title:f.feed_type==='bottle'?(f.amount_ml==null?'Bottle — amount unknown':'Bottle — '+f.amount_ml+'ml'):'Breast — '+f.duration_mins+'min ('+f.breast_side+')',detail:f.notes,ts:f.logged_at};}),
       results[1].map(function(d){return{icon:d.diaper_type==='wet'?'💧':'💩',title:d.diaper_type==='wet'?'Wet diaper':'Soiled diaper',detail:'',ts:d.logged_at};}),
       results[2].map(function(s){var dur=s.sleep_end?Math.round((new Date(s.sleep_end)-new Date(s.sleep_start))/60000):null;return{icon:'😴',title:dur?'Sleep — '+Math.floor(dur/60)+'h '+(dur%60)+'m':'Sleep started',detail:s.notes,ts:s.logged_at};}),
       results[3].map(function(p){return{icon:'🥛',title:'Pumped — '+p.amount_ml+'ml',detail:p.notes,ts:p.logged_at};})
@@ -332,7 +332,7 @@ async function loadTrends(days){
     var dayArr=[];for(var i=d-1;i>=0;i--){var dd=new Date();dd.setDate(dd.getDate()-i);dayArr.push(dd);}
     function dl(day){return d>14?day.toLocaleDateString([],{month:'short',day:'numeric'}):day.toLocaleDateString([],{weekday:'short'});} // label per bar; bar() skips most when n is large
     var completeDates=new Set(trackingDays.map(function(row){return row.track_date;}));
-    var bottleFeedsForSeries=feeds.filter(function(f){return f.feed_type==='bottle';});
+    var bottleFeedsForSeries=feeds.filter(function(f){return f.feed_type==='bottle'&&f.amount_ml!=null;});
     var completedSleepsForSeries=sleeps.filter(function(s){return s.sleep_start&&s.sleep_end;});
     var mlPerDay=buildObservedDaySeries(dayArr,bottleFeedsForSeries,completeDates,dl,function(f){return f.logged_at;},function(f){return f.amount_ml||0;});
     var diapersPerDay=buildObservedDaySeries(dayArr,diapers,completeDates,dl,function(dia){return dia.logged_at;},function(){return 1;});
@@ -361,8 +361,9 @@ async function loadTrends(days){
     function minStr(m){return Math.floor(m/60)+'h '+(m%60)+'m';}
     // Feed insights
     var bottleFeeds=feeds.filter(function(f){return f.feed_type==='bottle';});
+    var measuredBottles=bottleFeeds.filter(function(f){return f.amount_ml!=null;});
     var breastFeedsArr=feeds.filter(function(f){return f.feed_type==='breast';});
-    var avgBottle=bottleFeeds.length?Math.round(bottleFeeds.reduce(function(s,f){return s+(f.amount_ml||0);},0)/bottleFeeds.length):0;
+    var avgBottle=measuredBottles.length?Math.round(measuredBottles.reduce(function(s,f){return s+f.amount_ml;},0)/measuredBottles.length):0;
     var totalFeeds=bottleFeeds.length+breastFeedsArr.length;
     var bPct=totalFeeds?Math.round(bottleFeeds.length/totalFeeds*100):0;
     var confirmedDiaperDays=diapersPerDay.filter(function(day){return day.state==='complete'&&day.val>0;});
@@ -536,7 +537,7 @@ async function loadToday(){
     var totalPumped=pumps.reduce(function(s,p){return s+(p.amount_ml||0);},0);
     var sleepStr=totalSleep>=60?Math.floor(totalSleep/60)+'h '+(totalSleep%60)+'m':totalSleep+'m';
     var recent=[].concat(
-      feeds.map(function(f){return{icon:f.feed_type==='bottle'?'🍼':'🤱',title:f.feed_type==='bottle'?'Bottle - '+f.amount_ml+'ml':'Breast - '+f.duration_mins+'min ('+f.breast_side+')',detail:f.notes,ts:f.logged_at};}),
+      feeds.map(function(f){return{icon:f.feed_type==='bottle'?'🍼':'🤱',title:f.feed_type==='bottle'?(f.amount_ml==null?'Bottle - amount unknown':'Bottle - '+f.amount_ml+'ml'):'Breast - '+f.duration_mins+'min ('+f.breast_side+')',detail:f.notes,ts:f.logged_at};}),
       diapers.map(function(d){return{icon:d.diaper_type==='wet'?'💧':'💩',title:d.diaper_type==='wet'?'Wet diaper':'Soiled diaper',detail:d.notes,ts:d.logged_at};}),
       sleeps.map(function(s){var dur=s.sleep_end?Math.round((new Date(s.sleep_end)-new Date(s.sleep_start))/60000):null;return{icon:'😴',title:dur?'Sleep - '+Math.floor(dur/60)+'h '+(dur%60)+'m':'Sleep started',detail:s.notes,ts:s.logged_at};}),
       pumps.map(function(p){return{icon:'🥛',title:'Pumped - '+p.amount_ml+'ml',detail:p.notes,ts:p.logged_at};}),
@@ -553,7 +554,7 @@ async function loadToday(){
       '<div class="summary-card blue"><div class="s-icon">🚿</div><div class="s-val">'+(wet+soiled)+'</div><div class="s-lbl">Diapers</div><div class="s-sub">'+wet+' wet - '+soiled+' soiled</div></div>'+
       '<div class="summary-card green"><div class="s-icon">😴</div><div class="s-val">'+sleepStr+'</div><div class="s-lbl">Sleep</div><div class="s-sub">'+sleeps.length+' session'+(sleeps.length!==1?'s':'')+'</div></div>'+
       '<div class="summary-card teal"><div class="s-icon">🥛</div><div class="s-val">'+totalPumped+'ml</div><div class="s-lbl">Pumped</div><div class="s-sub">'+pumps.length+' session'+(pumps.length!==1?'s':'')+'</div></div>'+
-      '<div class="summary-card purple"><div class="s-icon">⏰</div><div class="s-val">'+(lastFeed?fmtTime(lastFeed.logged_at):'-')+'</div><div class="s-lbl">Last feed</div><div class="s-sub">'+(lastFeed?(lastFeed.feed_type==='bottle'?lastFeed.amount_ml+'ml bottle':lastFeed.duration_mins+'min breast'):'No feeds yet')+'</div></div>'+
+      '<div class="summary-card purple"><div class="s-icon">⏰</div><div class="s-val">'+(lastFeed?fmtTime(lastFeed.logged_at):'-')+'</div><div class="s-lbl">Last feed</div><div class="s-sub">'+(lastFeed?(lastFeed.feed_type==='bottle'?(lastFeed.amount_ml==null?'Bottle · amount unknown':lastFeed.amount_ml+'ml bottle'):lastFeed.duration_mins+'min breast'):'No feeds yet')+'</div></div>'+
       '<div class="summary-card yellow"><div class="s-icon">💧</div><div class="s-val">'+(lastDiaper?fmtTime(lastDiaper.logged_at):'-')+'</div><div class="s-lbl">Last diaper</div><div class="s-sub">'+(lastDiaper?(lastDiaper.diaper_type==='wet'?'Wet':'Soiled'):'No diapers yet')+'</div></div>'+
       '<div class="summary-card green"><div class="s-icon">💤</div><div class="s-val">'+(lastSleep?fmtTime(lastSleep.logged_at):'-')+'</div><div class="s-lbl">Last sleep</div><div class="s-sub">'+(lastSleep&&lastSleep.duration_mins?Math.floor(lastSleep.duration_mins/60)+'h '+(lastSleep.duration_mins%60)+'m':'No completed sleep')+'</div></div>'+
       '</div>'+
@@ -617,8 +618,10 @@ async function loadHealth(){
 async function deleteBabyLog(table,id,label){
   if(!(await FamilyPalUI.confirm('This '+label+' entry will be permanently removed.',{title:'Delete '+label+'?',confirmLabel:'Delete'})))return;
   try{
+    var schoolPaper=false;
+    if(table==='baby_diapers'){var original=await sbFetch('/rest/v1/baby_diapers?id=eq.'+id+'&select=notes');schoolPaper=original.some(function(row){return (row.notes||'').indexOf('School paper • ')===0&&(row.notes||'').includes('no home stock adjustment');});}
     await sbFetch('/rest/v1/'+table+'?id=eq.'+id,{method:'DELETE'});
-    if(table==='baby_diapers'){
+    if(table==='baby_diapers'&&!schoolPaper){
       try{await FamilyPal.incrementDiaperStock('BabyPal undo');}catch(e){}
     }
     toast('Deleted '+label);
@@ -639,7 +642,7 @@ async function loadHistory(){
       sbFetch('/rest/v1/baby_health?logged_at=gte.'+since.toISOString()+'&order=logged_at.desc&limit=20&select=*')
     ]);
     var all=[].concat(
-      results[0].map(function(f){return{table:'baby_feeds',id:f.id,label:'feed',icon:f.feed_type==='bottle'?'🍼':'🤱',title:f.feed_type==='bottle'?'Bottle - '+f.amount_ml+'ml':'Breast - '+f.duration_mins+'min ('+f.breast_side+')',detail:f.notes,ts:f.logged_at};}),
+      results[0].map(function(f){return{table:'baby_feeds',id:f.id,label:'feed',icon:f.feed_type==='bottle'?'🍼':'🤱',title:f.feed_type==='bottle'?(f.amount_ml==null?'Bottle - amount unknown':'Bottle - '+f.amount_ml+'ml'):'Breast - '+f.duration_mins+'min ('+f.breast_side+')',detail:f.notes,ts:f.logged_at};}),
       results[1].map(function(d){return{table:'baby_diapers',id:d.id,label:'diaper',icon:d.diaper_type==='wet'?'💧':'💩',title:d.diaper_type==='wet'?'Wet diaper':'Soiled diaper',detail:d.notes,ts:d.logged_at};}),
       results[2].map(function(s){var dur=s.sleep_end?Math.round((new Date(s.sleep_end)-new Date(s.sleep_start))/60000):null;return{table:'baby_sleep',id:s.id,label:'sleep session',icon:'😴',title:dur?'Sleep - '+Math.floor(dur/60)+'h '+(dur%60)+'m':'Sleep started',detail:s.notes,ts:s.logged_at};}),
       results[3].map(function(p){return{table:'baby_pumping',id:p.id,label:'pump log',icon:'🥛',title:'Pumped - '+p.amount_ml+'ml',detail:p.notes,ts:p.logged_at};}),

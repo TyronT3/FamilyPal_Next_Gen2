@@ -32,6 +32,12 @@ FamilyPal has no framework or build step. GitHub Pages serves the files directly
 
 ## Local development
 
+### Entering school papers on a computer
+
+In BabyPal, open **+ Log → School Day → Enter a pile of school papers**. Select the date on the paper, tick milk cells, cycle nappy cells through Wet and Dirty, and mark consecutive half-hour sleep cells. The grid covers 06:00–19:00. Bottle volume is optional; leave it blank when the paper only has ticks. Use the original School Day form when you need other times or different bottle sizes.
+
+**Save paper & next school day** saves that paper and moves to the next weekday. Dates can also be selected manually. Drafts and saved-paper progress stay in this browser for the signed-in email. Existing logs trigger a duplicate warning, and interrupted saves can be retried with stable record IDs. School-paper entries do not change home nappy stock or mark a whole day complete. The original school-day form and all regular logging remain available.
+
 Serve the repository root with any static file server. For example:
 
 ```powershell

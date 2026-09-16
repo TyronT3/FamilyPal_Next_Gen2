@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BabyPal — FamilyPal</title>
 <meta name="description" content="Record feeds, diapers, sleep, pumping and baby health in one private household log.">
-<script src="assets/js/familypal-theme.js?v=20260715.10"></script>
-<link rel="stylesheet" href="assets/css/familypal.css?v=20260715.12">
+<script src="assets/js/familypal-theme.js?v=20260916.1"></script>
+<link rel="stylesheet" href="assets/css/familypal.css?v=20260916.1">
 <style>
   /* App accent & alias tokens — apply in both light and dark */
   :root{
@@ -141,7 +141,7 @@
   .sd-remove{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);padding:7px 10px;font-size:12px;cursor:pointer;flex-shrink:0;}
   .sd-empty{font-size:13px;color:var(--muted);padding:6px 0;}
 </style>
-<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260716.15">
+<link rel="stylesheet" href="assets/css/familypal-refined.css?v=20260916.1">
 </head>
 <body data-app="baby">
 
@@ -187,6 +187,7 @@
     <div class="modal-handle"></div>
     <button class="modal-close" onclick="closeModal('school-day-modal')">✕</button>
     <h2>🏫 Geomé's School Day</h2>
+    <button class="btn btn-secondary" onclick="openSchoolGrid()">Enter a pile of school papers →</button>
 
     <div class="time-row" style="margin-bottom:16px">
       <label>Day</label>
@@ -209,6 +210,27 @@
     <button class="btn btn-secondary" style="margin-top:6px;font-size:13px;padding:10px 16px" onclick="sdAddSleep()">+ Add sleep</button>
 
     <button class="btn btn-primary" style="margin-top:24px" onclick="saveSchoolDay(this)">✅ Log School Day</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="school-grid-modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="paper-title">
+  <div class="modal">
+    <button class="modal-close" aria-label="Close paper grid" onclick="document.getElementById('school-grid-modal').style.display='none'">✕</button>
+    <h2 id="paper-title">School papers</h2>
+    <p class="paper-help">One paper at a time. Pick its date, copy the marks, then save and move to the next school day.</p>
+    <div class="paper-toolbar">
+      <label>Paper date<input type="date" id="paper-date" onchange="paperDateChange(this.value)"></label>
+      <label>Bottle size, if known (ml)<input type="number" id="paper-ml" min="1" max="500" placeholder="Unknown" oninput="paperDay().ml=this.value;paperStore()" onchange="paperRender()"></label>
+    </div>
+    <p class="paper-help">MILK: click for a bottle tick. DIAPERS: click to cycle blank → Wet → Dirty → blank.<br>SLEEP: each mark covers 30 minutes starting at the column time. Click consecutive cells to draw the nap; click again to erase. Tab and Space work too. Scroll sideways for later hours.</p>
+    <div id="paper-grid" class="paper-scroll" tabindex="0" aria-label="School paper grid, scroll for more hours"></div>
+    <p id="paper-review" aria-live="polite"></p>
+    <p class="paper-help">School records are added to BabyPal. Home nappy stock stays unchanged. A school paper does not mark the entire day as fully logged.</p>
+    <div class="paper-actions">
+      <button class="btn btn-primary" id="paper-save" onclick="paperSave(this)">Save paper &amp; next school day</button>
+      <button class="btn btn-secondary" id="paper-next" onclick="paperNext()">Next school day</button>
+    </div>
+    <div id="paper-status" role="status"></div>
   </div>
 </div>
 
@@ -372,8 +394,10 @@
 <div class="sleep-chip" id="sleep-chip"><span>😴</span><span class="sleep-chip-time" id="sleep-chip-timer">0:00</span><button class="sleep-chip-end" onclick="wakeUp()">End sleep</button></div>
 <div id="toast"></div>
 
-<script src="assets/js/familypal-core.js?v=20260715.10"></script>
-<script src="assets/js/familypal-ui.js?v=20260716.15"></script>
-<script src="assets/js/babypal.js?v=20260716.16"></script>
+<script src="assets/js/familypal-core.js?v=20260916.1"></script>
+<script src="assets/js/familypal-ui.js?v=20260916.1"></script>
+<script src="assets/js/babypal.js?v=20260916.1"></script>
+<script src="assets/js/babypal-school-grid.js?v=20260916.1"></script>
+<link rel="stylesheet" href="assets/css/babypal-school-grid.css?v=20260916.1">
 </body>
 </html>
