@@ -36,7 +36,7 @@ FamilyPal has no framework or build step. GitHub Pages serves the files directly
 
 In BabyPal, open **+ Log → School Day → Enter a pile of school papers**. Select the date on the paper, tick milk cells, cycle nappy cells through Wet and Dirty, and mark consecutive half-hour sleep cells. The grid covers 07:00–17:00. Bottle volume is optional; leave it blank when the paper only has ticks. Use the original School Day form when you need other times or different bottle sizes.
 
-**Save paper & next school day** saves that paper and moves to the next weekday. Dates can also be selected manually. Drafts and saved-paper progress stay in this browser for the signed-in email. Existing logs trigger a duplicate warning, and interrupted saves can be retried with stable record IDs. School-paper entries do not change home nappy stock. BabyPal forecasts average all recorded nappy changes across days with nappy records in the selected date range; blank days are excluded. No full-day confirmation is needed. The original school-day form and all regular logging remain available.
+**Save paper & next school day** saves that paper and moves to the next weekday. Dates can also be selected manually. Drafts and saved-paper progress stay in this browser for the signed-in email. Existing logs trigger a duplicate warning, and interrupted saves can be retried with stable record IDs and saved stock-update progress. Each Wet or Dirty mark reduces the linked PantryPal nappy stock by one; moving six nappies into the school bag or box does not count as usage. BabyPal forecasts average all recorded nappy changes across days with nappy records in the selected date range; blank days are excluded. Trends also compare school and home-only records over the same 07:00–17:00 window after at least three recorded days in a group. No full-day confirmation is needed. The original school-day form and all regular logging remain available.
 
 Serve the repository root with any static file server. For example:
 
@@ -99,7 +99,7 @@ Application data lives in Supabase and is not changed by a GitHub Pages deployme
 
 ## Current limitations
 
-- No authenticated browser end-to-end test suite; CI currently covers static regression checks.
+- Authenticated CRUD smoke testing is opt-in against a separate Supabase test project; CI covers the no-credential static regression suite.
 - No service worker or full offline mode; PantryPal only queues supported shopping scans.
 - Page-specific CSS still lives inside some HTML files.
 - Scripts use browser globals rather than ES modules.

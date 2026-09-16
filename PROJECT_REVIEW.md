@@ -54,7 +54,7 @@ Completed after this review:
 - PeriodPal reports symptom patterns by estimated cycle phase after at least three logged symptom days, while keeping unlogged days explicitly unknown.
 - PeriodPal has a focused CSV summary export for the selected Insights range.
 
-Further improvements:
+Further improvements completed:
 
-1. Separate school and home BabyPal patterns; compare similar time windows instead of treating school records as a whole day.
-2. After data integrity work, add authenticated smoke tests in a dedicated test household, rather than writing test data to the live household.
+- BabyPal Trends separates tagged school records from home-only dates and compares bottles, nappies and sleep over the same 07:00–17:00 window. Each group needs at least three recorded days before averages appear.
+- Added an opt-in authenticated CRUD smoke harness for a dedicated Supabase test project. It refuses the known production URL, requires an explicit confirmation value, uses a unique record ID and cleans up its test record. The harness has not been run because test-project credentials are not stored in this repository.

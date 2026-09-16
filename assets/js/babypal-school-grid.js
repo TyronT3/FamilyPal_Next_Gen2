@@ -40,7 +40,7 @@ function paperRender(){
 }
 function paperRows(d,date){
   function stamp(s){return new Date(date+'T'+paperTime(s)+':00').toISOString();}
-  function base(s){return {id:crypto.randomUUID(),logged_at:stamp(s),notes:'School paper • '+date+' • no home stock adjustment'};}
+  function base(s){return {id:crypto.randomUUID(),logged_at:stamp(s),notes:'School paper • '+date};}
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(new Date(date+'T12:00:00').getTime())||date>paperToday())throw new Error('Choose a valid date, today or earlier.');
   if(d.ml!==''&&(!Number.isInteger(Number(d.ml))||Number(d.ml)<=0||Number(d.ml)>500))throw new Error('Bottle amount must be 1–500 ml, or left blank.');
   return {
@@ -68,6 +68,14 @@ async function paperSave(button){
         if(d.pending[table].length)await sbFetch('/rest/v1/'+table+'?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify(d.pending[table])});
       }
     });
+    // Keep progress in the draft so a normal interrupted retry continues with the
+    // next nappy instead of deliberately decrementing completed updates again.
+    d.stockAdjusted=d.stockAdjusted||0;
+    while(d.stockAdjusted<d.pending.baby_diapers.length){
+      var stock=await consumeDiaperStock('BabyPal school paper');
+      if(stock.failed)throw new Error('The care records were saved, but nappy stock could not be updated. Retry to finish the remaining stock updates.');
+      d.stockAdjusted++;paperStore();
+    }
     d.saved=true;delete d.pending;if(paperState.saved.indexOf(paperState.date)<0)paperState.saved.push(paperState.date);paperStore();
     toast('School paper saved');paperBusy=false;paperNext();
     if(activeTab==='today')loadToday();if(activeTab==='history')loadHistory();

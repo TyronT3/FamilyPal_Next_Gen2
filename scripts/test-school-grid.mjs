@@ -10,6 +10,7 @@ const day={milk:[16,22],diapers:{18:'wet',24:'soiled'},sleep:[19,20,21,27],ml:''
 const rows=c.paperRows(day,'2026-01-09');
 assert.equal(rows.baby_feeds[0].amount_ml,null);
 assert.equal(rows.baby_diapers[1].diaper_type,'soiled');
+assert.match(rows.baby_diapers[0].notes,/^School paper • 2026-01-09$/);
 assert.deepEqual(Array.from(rows.baby_sleep,s=>s.duration_mins),[90,30]);
 assert.equal(new Date(rows.baby_sleep[0].sleep_start).getHours(),9);
 assert.equal(new Date(rows.baby_sleep[0].sleep_start).getMinutes(),30);
@@ -24,6 +25,9 @@ c.paperNext();assert.equal(c.paperState.date,'2026-01-12');
 c.paperDateChange('2026-01-09');assert.equal(c.paperDay().milk.length,2);
 // Simulate a response lost after an insert. A reload/retry must reuse the same IDs.
 const inserted=new Map();let fail=true,posts=0;
+c.paperDay().diapers[18]='wet';
+let stockCalls=0,stockFailure=true;
+c.consumeDiaperStock=async()=>{stockCalls++;if(stockFailure&&stockCalls===2)return {failed:true};return {changed:true};};
 c.sbFetch=async(url,opts)=>{
   if(!opts)return [];
   posts++;
@@ -38,7 +42,10 @@ const pendingIds=Object.values(c.paperDay().pending).flat().map(r=>r.id);
 c.openSchoolGrid(); // restore the persisted pending paper, as after a reload
 assert.deepEqual(Object.values(c.paperDay().pending).flat().map(r=>r.id),pendingIds);
 fail=false;await c.paperSave({});
+assert.equal(c.paperDay().stockAdjusted,1);assert.equal(c.paperState.date,'2026-01-09');
+stockFailure=false;await c.paperSave({});
 assert.equal(inserted.size,pendingIds.length);
+assert.equal(stockCalls,3); // two successful stock decrements and one failed attempt
 assert.equal(c.paperState.date,'2026-01-12');
 assert.equal(c.paperState.saved.length,1);
 c.paperDateChange('2026-01-09');const before=posts;await c.paperSave({});assert.equal(posts,before);

@@ -59,6 +59,34 @@ assert.equal(babyContext.estimateRecordedDiaperUsage(mixedDays).days, 2);
 assert.equal(babyContext.estimateRecordedDiaperUsage([{val:null}]).average, null);
 assert.equal(babyContext.estimateRecordedDiaperUsage([{val:4}]).average, 4);
 
+const at = (day, hour, minute = 0) => new Date(2026, 6, day, hour, minute).toISOString();
+const schoolNote = 'School paper • 2026-07-01';
+const comparison = babyContext.buildSchoolHomeComparison(
+  [
+    { feed_type:'bottle', logged_at:at(1,8), notes:schoolNote },
+    { feed_type:'bottle', logged_at:at(2,9), notes:'School day form • 2026-07-02' },
+    { feed_type:'bottle', logged_at:at(1,10), notes:null }, // excluded: tagged school date
+    { feed_type:'bottle', logged_at:at(3,11), notes:null }
+  ],
+  [
+    { logged_at:at(1,12), notes:schoolNote },
+    { logged_at:at(2,12), notes:'School day form • 2026-07-02' },
+    { logged_at:at(3,13), notes:null },
+    { logged_at:at(4,18), notes:null } // excluded: outside the comparable window
+  ],
+  [
+    { sleep_start:at(1,8), sleep_end:at(1,9), notes:schoolNote },
+    { sleep_start:at(3,6,30), sleep_end:at(3,7,30), notes:null }
+  ]
+);
+assert.equal(comparison.school.days,2);
+assert.equal(comparison.school.bottlesPerDay,1);
+assert.equal(comparison.school.diapersPerDay,1);
+assert.equal(comparison.school.sleepMinutes,60);
+assert.equal(comparison.home.days,1);
+assert.equal(comparison.home.bottles,1);
+assert.equal(comparison.home.sleepMinutes,30);
+
 const pantryContext = browserContext();
 pantryContext.window.window = pantryContext.window;
 vm.createContext(pantryContext);
@@ -82,6 +110,9 @@ assert.match(migration, /create table if not exists public\.baby_tracking_days/i
 assert.match(migration, /create table if not exists public\.pantry_inventory_snapshots/i);
 const babySource = readFileSync(resolve(root, 'assets/js/babypal.js'), 'utf8');
 assert.doesNotMatch(babySource, /baby_tracking_days|day-complete-btn|toggleTodayTracking/);
+const schoolSaveSource = babySource.slice(babySource.indexOf('async function saveSchoolDay'), babySource.indexOf('// ── Modal helpers'));
+assert.match(schoolSaveSource, /School day form/);
+assert.match(schoolSaveSource, /consumeDiaperStock\('BabyPal school day'\)/);
 assert.match(readFileSync(resolve(root, 'pantrypal.html'), 'utf8'), /Finish inventory check/);
 
 console.log('BabyPal and PantryPal analytics coverage checks passed.');

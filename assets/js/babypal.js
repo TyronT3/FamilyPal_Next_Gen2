@@ -16,6 +16,37 @@ function estimateRecordedDiaperUsage(series){
   var days=series.filter(function(day){return day.val!==null&&day.val>0;});
   return {days:days.length,average:days.length?days.reduce(function(sum,day){return sum+day.val;},0)/days.length:null};
 }
+function isSchoolCareRecord(row){return /^School (?:paper|day form) • /.test(String(row&&row.notes||''));}
+function schoolHourMinutes(value){var d=new Date(value);return d.getHours()*60+d.getMinutes();}
+function inSchoolHours(value){var minutes=schoolHourMinutes(value);return minutes>=7*60&&minutes<=17*60;}
+function sleepMinutesInSchoolHours(row){
+  if(!row.sleep_start||!row.sleep_end)return 0;
+  var start=new Date(row.sleep_start),end=new Date(row.sleep_end),open=new Date(start),close=new Date(start);
+  open.setHours(7,0,0,0);close.setHours(17,0,0,0);
+  return Math.max(0,Math.round((Math.min(end,close)-Math.max(start,open))/60000));
+}
+function buildSchoolHomeComparison(feeds,diapers,sleeps){
+  var schoolDates=new Set();
+  [feeds,diapers].forEach(function(rows){rows.forEach(function(row){if(isSchoolCareRecord(row)&&inSchoolHours(row.logged_at))schoolDates.add(localDateKey(row.logged_at));});});
+  sleeps.forEach(function(row){if(isSchoolCareRecord(row)&&sleepMinutesInSchoolHours(row)>0)schoolDates.add(localDateKey(row.sleep_start));});
+  function summarize(school){
+    var contextFeeds=feeds.filter(function(row){var date=localDateKey(row.logged_at);return row.feed_type==='bottle'&&inSchoolHours(row.logged_at)&&(school?isSchoolCareRecord(row):!isSchoolCareRecord(row)&&!schoolDates.has(date));});
+    var contextDiapers=diapers.filter(function(row){var date=localDateKey(row.logged_at);return inSchoolHours(row.logged_at)&&(school?isSchoolCareRecord(row):!isSchoolCareRecord(row)&&!schoolDates.has(date));});
+    var contextSleeps=sleeps.filter(function(row){var date=localDateKey(row.sleep_start);return sleepMinutesInSchoolHours(row)>0&&(school?isSchoolCareRecord(row):!isSchoolCareRecord(row)&&!schoolDates.has(date));});
+    var dates=new Set();[contextFeeds,contextDiapers].forEach(function(rows){rows.forEach(function(row){dates.add(localDateKey(row.logged_at));});});contextSleeps.forEach(function(row){dates.add(localDateKey(row.sleep_start));});
+    var days=dates.size,sleepMinutes=contextSleeps.reduce(function(total,row){return total+sleepMinutesInSchoolHours(row);},0);
+    return {days:days,bottles:contextFeeds.length,diapers:contextDiapers.length,sleepMinutes:sleepMinutes,bottlesPerDay:days?contextFeeds.length/days:0,diapersPerDay:days?contextDiapers.length/days:0,sleepMinutesPerDay:days?sleepMinutes/days:0};
+  }
+  return {school:summarize(true),home:summarize(false)};
+}
+function schoolHomeComparisonHtml(comparison){
+  if(!comparison.school.days&&!comparison.home.days)return'';
+  function card(label,data){
+    var detail=data.days>=3?'<strong>'+data.diapersPerDay.toFixed(1)+'</strong> nappies/day · <strong>'+data.bottlesPerDay.toFixed(1)+'</strong> bottles/day · <strong>'+(data.sleepMinutesPerDay/60).toFixed(1)+'h</strong> sleep/day':'Need '+(3-data.days)+' more recorded day'+(3-data.days!==1?'s':'')+' before comparing patterns.';
+    return '<div class="insight-stat"><div class="is-val">'+data.days+'</div><div class="is-lbl">'+label+' days · 07:00–17:00</div><div class="log-detail" style="margin-top:7px">'+detail+'</div></div>';
+  }
+  return '<div class="chart-card"><h3>🏫 School and home daytime</h3><div class="log-detail" style="margin-bottom:10px">Compares the same 07:00–17:00 window. Home excludes dates containing tagged school records. Older school-form entries saved before tagging may still appear as home.</div><div class="insight-row-wrap">'+card('School',comparison.school)+card('Home-only',comparison.home)+'</div></div>';
+}
 function inputTimeMinutesAgo(mins){var n=new Date();n.setMinutes(n.getMinutes()-mins-n.getTimezoneOffset());return n.toISOString().slice(0,16);}
 function setLogTime(id,mins){var el=document.getElementById(id);if(el)el.value=inputTimeMinutesAgo(mins||0);}
 function getSleepWarn(){return parseInt(localStorage.getItem('bp_sleep_warn')||'6');}
@@ -40,10 +71,10 @@ async function loadDiaperItemOptions(){
 async function consumeDiaperStock(source){
   try{
     var result=await FamilyPal.decrementDiaperStock(source);
-    if(result.skipped)return {message:'',changed:false};
+    if(result.skipped)return {message:'',changed:false,skipped:true};
     if(result.previousQty<1)return {message:' Diaper stock already 0.',changed:false};
     return {message:' '+result.name+' now '+result.qty_stocked+'.',changed:true};
-  }catch(e){return {message:' Diaper logged, but pantry stock was not updated.',changed:false};}
+  }catch(e){return {message:' Diaper logged, but pantry stock was not updated.',changed:false,failed:true};}
 }
 async function diaperStockInsight(){
   try{
@@ -344,6 +375,7 @@ async function loadTrends(days){
     var activityDates=new Set([].concat(feeds,diapers,sleeps).map(function(row){return localDateKey(row.logged_at||row.sleep_start);}));
     var loggedDays=Array.from(activityDates).filter(function(key){return visibleDateKeys.has(key);}).length;
     var coverageHtml='<div class="insight-card" style="margin:0 0 12px"><div class="insight-title">Recorded days</div><div class="insight-row"><span>'+loggedDays+' with records · '+Math.max(0,d-loggedDays)+' without records</span></div><div class="log-detail" style="margin-top:5px">Estimates use all recorded usage in this date range. Days without records are excluded, including unlogged weekends. Missing changes can make stock appear to last longer.</div></div>';
+    var schoolHomeHtml=schoolHomeComparisonHtml(buildSchoolHomeComparison(feeds,diapers,sleeps));
     // Feed times grid heatmap (AM/PM × 12-hour grid)
     var hourCounts=Array(24).fill(0);
     feeds.forEach(function(f){hourCounts[new Date(f.logged_at).getHours()]++;});
@@ -406,6 +438,7 @@ async function loadTrends(days){
       '</div>'+
       coverageHtml+
       forecastHtml+
+      schoolHomeHtml+
       '<div class="chart-card"><h3>🍼 Bottle milk (ml/day)</h3>'+bar(mlPerDay,'var(--pink)','')+'</div>'+
       '<div class="chart-card"><h3>🚿 Diapers per day</h3>'+bar(diapersPerDay,'var(--blue)','')+'</div>'+
       '<div class="chart-card"><h3>😴 Sleep (mins/day)</h3>'+bar(sleepPerDay,'var(--green)','m')+'</div>'+
@@ -580,7 +613,7 @@ async function deleteBabyLog(table,id,label){
   if(!(await FamilyPalUI.confirm('This '+label+' entry will be permanently removed.',{title:'Delete '+label+'?',confirmLabel:'Delete'})))return;
   try{
     var schoolPaper=false;
-    if(table==='baby_diapers'){var original=await sbFetch('/rest/v1/baby_diapers?id=eq.'+id+'&select=notes');schoolPaper=original.some(function(row){return (row.notes||'').indexOf('School paper • ')===0&&(row.notes||'').includes('no home stock adjustment');});}
+    if(table==='baby_diapers'){var original=await sbFetch('/rest/v1/baby_diapers?id=eq.'+id+'&select=notes');schoolPaper=original.some(function(row){return isSchoolCareRecord(row)&&(row.notes||'').includes('no home stock adjustment');});}
     await sbFetch('/rest/v1/'+table+'?id=eq.'+id,{method:'DELETE'});
     if(table==='baby_diapers'&&!schoolPaper){
       try{await FamilyPal.incrementDiaperStock('BabyPal undo');}catch(e){}
@@ -704,16 +737,17 @@ async function saveSchoolDay(button){
   if(!totalDiapers&&!validBottles.length&&!validSleeps.length){toast('Nothing to log');return;}
   return FamilyPalUI.runBusy(button,'Logging day…',async function(){try{
     var promises=[];
+    var schoolNote='School day form • '+date;
     var offset=0;
     ['wet','soiled','light','blowout'].forEach(function(type){
       for(var n=0;n<schoolDiapers[type];n++){
         var ts=new Date(date+'T'+diaperTime+':00');
         ts.setMinutes(ts.getMinutes()+offset);offset+=5;
-        promises.push(sbFetch('/rest/v1/baby_diapers',{method:'POST',body:JSON.stringify({diaper_type:type,logged_at:ts.toISOString()})}));
+        promises.push(sbFetch('/rest/v1/baby_diapers',{method:'POST',body:JSON.stringify({diaper_type:type,logged_at:ts.toISOString(),notes:schoolNote})}));
       }
     });
     validBottles.forEach(function(b){
-      promises.push(sbFetch('/rest/v1/baby_feeds',{method:'POST',body:JSON.stringify({feed_type:'bottle',amount_ml:b.ml,logged_at:new Date(date+'T'+b.time+':00').toISOString()})}));
+      promises.push(sbFetch('/rest/v1/baby_feeds',{method:'POST',body:JSON.stringify({feed_type:'bottle',amount_ml:b.ml,logged_at:new Date(date+'T'+b.time+':00').toISOString(),notes:schoolNote})}));
     });
     validSleeps.forEach(function(s){
       var start=new Date(date+'T'+s.start+':00');
@@ -721,17 +755,22 @@ async function saveSchoolDay(button){
       if(end&&end<start)end.setDate(end.getDate()+1);
       var diffMins=end?Math.round((end-start)/60000):null;
       if(diffMins!==null&&diffMins<0)diffMins+=1440; // overnight
-      promises.push(sbFetch('/rest/v1/baby_sleep',{method:'POST',body:JSON.stringify({sleep_start:start.toISOString(),sleep_end:end?end.toISOString():null,duration_mins:diffMins,logged_at:start.toISOString()})}));
+      promises.push(sbFetch('/rest/v1/baby_sleep',{method:'POST',body:JSON.stringify({sleep_start:start.toISOString(),sleep_end:end?end.toISOString():null,duration_mins:diffMins,logged_at:start.toISOString(),notes:schoolNote})}));
     });
     await Promise.all(promises);
-    // decrement diaper stock sequentially to avoid race conditions
-    for(var n=0;n<totalDiapers;n++)await consumeDiaperStock('BabyPal school day');
+    // School uses the same household supply. Decrement only nappies actually used,
+    // rather than the six transferred to the school bag or box each day.
+    var stockFailures=0;
+    for(var n=0;n<totalDiapers;n++){
+      var stock=await consumeDiaperStock('BabyPal school day');
+      if(stock.failed)stockFailures++;
+    }
     closeModal('school-day-modal');
     var parts=[];
     if(totalDiapers)parts.push(totalDiapers+' diaper'+(totalDiapers>1?'s':''));
     if(validBottles.length)parts.push(validBottles.length+' bottle'+(validBottles.length>1?'s':''));
     if(validSleeps.length)parts.push(validSleeps.length+' sleep session'+(validSleeps.length>1?'s':''));
-    toast('🏫 Logged! '+parts.join(', '));
+    toast('🏫 Logged! '+parts.join(', ')+(stockFailures?' · '+stockFailures+' nappy stock update'+(stockFailures>1?'s':'')+' failed; adjust PantryPal.':''));
     if(activeTab==='today')loadToday();
     if(activeTab==='history')loadHistory();
   }catch(e){toast('Error: '+e.message);}});

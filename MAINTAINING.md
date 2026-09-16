@@ -140,6 +140,19 @@ git status --short
 
 `npm test` has no external dependencies. GitHub Actions runs the same command for every push and pull request.
 
+An opt-in authenticated CRUD smoke check is available for a dedicated Supabase test project. The test project must have the same migrations and a disposable Auth account. Never point this command at the live FamilyPal project; the script also refuses the known production URL. Set the values only in the current shell and do not commit credentials:
+
+```powershell
+$env:FAMILYPAL_SMOKE_URL='https://your-test-project.supabase.co'
+$env:FAMILYPAL_SMOKE_ANON_KEY='your-test-project-anon-key'
+$env:FAMILYPAL_SMOKE_EMAIL='disposable-test-account@example.com'
+$env:FAMILYPAL_SMOKE_PASSWORD='test-account-password'
+$env:FAMILYPAL_SMOKE_CONFIRM='separate-test-project'
+npm run smoke:test-project
+```
+
+The check signs in, reads `baby_health`, creates and updates one uniquely identified note, verifies it, and removes it in `finally`. It is intentionally excluded from `npm test` because it performs authenticated writes.
+
 ### Authentication and navigation
 
 - Sign in with the form button and by pressing Enter.
@@ -168,7 +181,7 @@ git status --short
 ## Known technical debt
 
 - Introduce household and membership tables before supporting unrelated families.
-- Add automated authentication/navigation and feature smoke tests.
+- Expand the separate-project authenticated CRUD check into browser navigation and feature smoke tests.
 - Continue extracting large page-specific style blocks from HTML.
 - Consider ES modules only as a deliberate repository-wide migration.
 - Add full offline support only with a conflict strategy for stock changes.
