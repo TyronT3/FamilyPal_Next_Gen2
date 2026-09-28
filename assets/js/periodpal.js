@@ -165,7 +165,7 @@ function renderForecast(){
     '<div class="forecast-card fc-blue"><div class="fc-lbl">Fertile window</div><div class="fc-val">'+esc(fertileText)+'</div><div class="fc-sub">Ovulation estimate '+fmtDate(model.ovulation)+'</div></div>'+
     '<div class="forecast-card fc-coral"><div class="fc-lbl">Period length</div><div class="fc-val">'+model.avgPeriod+' days</div><div class="fc-sub">Based on '+model.periodCount+' completed log'+(model.periodCount!==1?'s':'')+'</div></div>'+
       '<div class="forecast-card fc-yellow"><div class="fc-lbl">Confidence</div><div class="fc-val">'+conf+'</div><div class="fc-sub">'+(model.confidence==='good'?'3+ cycles logged':model.confidence==='medium'?'More cycles will improve this':'Using 28 day default')+'</div></div>'+
-    '</div><div class="trust-note">Estimates use up to 6 recent eligible intervals of 18–45 days and completed period lengths capped at 1–12 days. With no eligible interval, the cycle estimate defaults to 28 days. The confidence label counts usable intervals only; it does not measure regularity or recency. Calendar-only estimates can be wrong, especially with irregular cycles.</div>'+fertilitySummaryHtml(todayKey())+comfortSupplyWarning();
+    '</div><details class="trust-note estimate-details"><summary>How estimates work</summary><div>Estimates use up to 6 recent eligible intervals of 18–45 days and completed period lengths capped at 1–12 days. With no eligible interval, the cycle estimate defaults to 28 days. The confidence label counts usable intervals only; it does not measure regularity or recency. Calendar-only estimates can be wrong, especially with irregular cycles.</div></details>'+comfortSupplyWarning();
 }
 
 function parseComfortSupplyIds(value){
@@ -386,7 +386,7 @@ function fertilitySummaryHtml(key){
   var info=fertilitySummary(key);
   return '<div class="note-card"><div class="note-date">Fertility and pregnancy risk · '+fmtDate(key)+'</div><div class="note-meta">'+esc(info.title)+'</div><div class="log-detail">'+esc(info.detail)+'</div>'+
     (model.ovulation?'<div class="log-detail">Estimated ovulation: '+fmtDate(model.ovulation)+'<br>Estimated fertile window: '+fmtDate(model.fertileStart)+' - '+fmtDate(model.fertileEnd)+'</div>':'')+
-    '<div class="log-detail">Personal pregnancy risk depends on sex and contraception, not dates alone.</div><div class="quality-actions"><button type="button" onclick="openIntimacyModal(null,\''+key+'\')">Log sex / contraception</button></div></div>';
+    '</div>';
 }
 
 function riskForDate(key,protection,ec){
