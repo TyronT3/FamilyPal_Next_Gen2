@@ -12,6 +12,14 @@ const history = [
   { id: 'one', start_date: '2026-07-01', end_date: '2026-07-05' },
   { id: 'two', start_date: '2026-07-29', end_date: '2026-08-02' }
 ];
+context.cycles = history.concat([{ id:'open', start_date:'2026-09-26', end_date:null }]);
+context.buildModel();
+assert.equal(context.isLoggedPeriod('2026-09-26'), true);
+assert.equal(context.isLoggedPeriod('2026-09-27'), true, 'An unstopped period remains logged after its start');
+assert.equal(context.isLoggedPeriod('2026-09-28'), true, 'An unstopped period remains logged through today');
+assert.equal(context.isLoggedPeriod('2026-09-29'), false, 'A future continuation is not logged');
+assert.equal(context.isPredictedPeriod('2026-09-29'), true, 'A future continuation may be predicted from average duration');
+assert.equal(context.isPredictedPeriod('2026-10-01'), false);
 context.cycles = history.slice();
 context.buildModel();
 assert.equal(context.model.nextStart, '2026-08-26');
@@ -72,6 +80,7 @@ context.openDay('2026-09-29');
 assert.match(nodes.get('forecast-content').innerHTML, /Fertility and pregnancy risk/);
 assert.match(nodes.get('forecast-content').innerHTML, /Estimated ovulation:/);
 assert.match(nodes.get('calendar-grid').innerHTML, /class="day predicted" onclick="openDay\('2026-09-29'\)/);
+assert.match(nodes.get('calendar-grid').innerHTML, /aria-label="Tuesday, September 29, 2026, predicted period"/);
 assert.doesNotMatch(nodes.get('day-content').innerHTML, /Logged period/);
 assert.match(nodes.get('day-content').innerHTML, /Predicted period/);
 assert.match(nodes.get('day-content').innerHTML, /Before estimated fertile window/);

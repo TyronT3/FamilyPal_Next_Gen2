@@ -288,7 +288,12 @@ function renderCalendar(){
     if(calendarFilters.intimacy&&intimacy.some(function(x){return x.logged_date===key;}))dots.push('tag-intimacy');
     if(calendarFilters.notes&&periodNotes.some(function(x){return x.note_date===key;}))dots.push('tag-note');
     if(calendarFilters.events&&visibleEvents().some(function(x){return x.event_date===key;}))dots.push('tag-event');
-    html+='<button type="button" aria-label="'+fmtFullDate(key)+'" class="'+cls.join(' ')+'" onclick="openDay(\''+key+'\')"><div class="day-num">'+d.getDate()+'</div><div class="day-tags">'+dots.slice(0,4).map(function(c){return'<i class="tag-dot '+c+'"></i>';}).join('')+'</div></button>';
+    var meanings=[];
+    if(isLoggedPeriod(key))meanings.push('logged period');
+    if(isPredictedPeriod(key))meanings.push('predicted period');
+    if(isBetween(key,model.fertileStart,model.fertileEnd))meanings.push('estimated fertile window');
+    if(key===model.ovulation)meanings.push('estimated ovulation');
+    html+='<button type="button" aria-label="'+fmtFullDate(key)+(meanings.length?', '+meanings.join(', '):'')+'" class="'+cls.join(' ')+'" onclick="openDay(\''+key+'\')"><div class="day-num">'+d.getDate()+'</div><div class="day-tags">'+dots.slice(0,4).map(function(c){return'<i class="tag-dot '+c+'"></i>';}).join('')+'</div></button>';
   }
   document.getElementById('calendar-grid').innerHTML=html;
   renderCalendarFilters();
@@ -299,7 +304,7 @@ function renderCalendarFilters(){
   if(!el)return;
   var labels={period:'Logged',predicted:'Predicted',fertile:'Fertile',ovulation:'Ovulation',intimacy:'Intimacy',notes:'Notes',events:'Symptoms'};
   el.innerHTML=Object.keys(labels).map(function(k){
-    return '<button class="filter-chip '+(calendarFilters[k]?'active':'')+'" onclick="toggleCalendarFilter(\''+k+'\')">'+esc(labels[k])+'</button>';
+    return '<button class="filter-chip filter-'+k+' '+(calendarFilters[k]?'active':'')+'" onclick="toggleCalendarFilter(\''+k+'\')">'+esc(labels[k])+'</button>';
   }).join('');
 }
 
@@ -313,7 +318,8 @@ function cycleForDay(key){
 }
 function loggedPeriodEnd(c){
   if(c.is_prediction||c.is_confirmed===false||c.start_date>todayKey())return '';
-  return c.end_date?(c.end_date<todayKey()?c.end_date:todayKey()):c.start_date;
+  var end=c.end_date||addDays(c.start_date,clamp(model.avgPeriod||5,1,12)-1);
+  return end<todayKey()?end:todayKey();
 }
 function periodLengthLabel(c){if(c.end_date){var days=daysBetween(c.start_date,c.end_date)+1;return days+' day'+(days!==1?'s':'');}return'End date not logged · shown as '+(clamp(model.avgPeriod||5,1,12))+' estimated days';}
 function modelCycles(){
