@@ -165,7 +165,7 @@ function renderForecast(){
     '<div class="forecast-card fc-blue"><div class="fc-lbl">Fertile window</div><div class="fc-val">'+esc(fertileText)+'</div><div class="fc-sub">Ovulation estimate '+fmtDate(model.ovulation)+'</div></div>'+
     '<div class="forecast-card fc-coral"><div class="fc-lbl">Period length</div><div class="fc-val">'+model.avgPeriod+' days</div><div class="fc-sub">Based on '+model.periodCount+' completed log'+(model.periodCount!==1?'s':'')+'</div></div>'+
       '<div class="forecast-card fc-yellow"><div class="fc-lbl">Confidence</div><div class="fc-val">'+conf+'</div><div class="fc-sub">'+(model.confidence==='good'?'3+ cycles logged':model.confidence==='medium'?'More cycles will improve this':'Using 28 day default')+'</div></div>'+
-    '</div><div class="trust-note">Estimates use up to 6 recent eligible intervals of 18–45 days and completed period lengths capped at 1–12 days. With no eligible interval, the cycle estimate defaults to 28 days. The confidence label counts usable intervals only; it does not measure regularity or recency. Calendar-only estimates can be wrong, especially with irregular cycles.</div>'+comfortSupplyWarning();
+    '</div><div class="trust-note">Estimates use up to 6 recent eligible intervals of 18–45 days and completed period lengths capped at 1–12 days. With no eligible interval, the cycle estimate defaults to 28 days. The confidence label counts usable intervals only; it does not measure regularity or recency. Calendar-only estimates can be wrong, especially with irregular cycles.</div>'+fertilitySummaryHtml(todayKey())+comfortSupplyWarning();
 }
 
 function parseComfortSupplyIds(value){
@@ -311,7 +311,10 @@ function usableCycles(){return cycles.filter(function(c){return !isExcludedCycle
 function cycleForDay(key){
   return cycles.slice().sort(function(a,b){return cycleRank(b)-cycleRank(a);}).find(function(c){return key>=c.start_date&&key<=loggedPeriodEnd(c);})||null;
 }
-function loggedPeriodEnd(c){return c.end_date||addDays(c.start_date,clamp(model.avgPeriod||5,1,12)-1);}
+function loggedPeriodEnd(c){
+  if(c.is_prediction||c.is_confirmed===false||c.start_date>todayKey())return '';
+  return c.end_date?(c.end_date<todayKey()?c.end_date:todayKey()):c.start_date;
+}
 function periodLengthLabel(c){if(c.end_date){var days=daysBetween(c.start_date,c.end_date)+1;return days+' day'+(days!==1?'s':'');}return'End date not logged · shown as '+(clamp(model.avgPeriod||5,1,12))+' estimated days';}
 function modelCycles(){
   var byStart={};
@@ -359,10 +362,29 @@ function modelDiagnostics(){
   return {used:used,ignored:ignored,cycleCount:sorted.length};
 }
 function isLoggedPeriod(key){return cycles.some(function(c){return key>=c.start_date&&key<=loggedPeriodEnd(c);});}
-function isPredictedPeriod(key){return isBetween(key,model.nextStart,model.periodEnd);}
+function isPredictedPeriod(key){
+  if(isLoggedPeriod(key))return false;
+  var current=modelCycles().find(function(c){return c.start_date===model.lastStart;});
+  var continuation=current&&!current.end_date&&key>current.start_date&&isBetween(key,current.start_date,addDays(current.start_date,model.avgPeriod-1));
+  return !!continuation||!!isBetween(key,model.nextStart,model.periodEnd);
+}
+
+function fertilitySummary(key){
+  if(!model.lastStart||key<model.lastStart||key>=model.nextStart||isExcludedDate(key))return {title:'Timing uncertain',detail:'No current cycle estimate for this date. Calendar dates cannot determine pregnancy risk.'};
+  if(key===model.ovulation)return {title:'Possible ovulation today',detail:'This is a calendar estimate, not confirmed ovulation. Unprotected sex around this time may lead to pregnancy.'};
+  if(isBetween(key,model.fertileStart,model.fertileEnd))return {title:'Inside estimated fertile window',detail:'Pregnancy may be more likely from unprotected sex around this estimated window. Ovulation is not confirmed.'};
+  return {title:key<model.fertileStart?'Before estimated fertile window':'After estimated fertile window',detail:'Pregnancy is still possible outside the estimated window. A late or irregular cycle can shift ovulation; these dates are not safe-day guidance.'};
+}
+
+function fertilitySummaryHtml(key){
+  var info=fertilitySummary(key);
+  return '<div class="note-card"><div class="note-date">Fertility and pregnancy risk · '+fmtDate(key)+'</div><div class="note-meta">'+esc(info.title)+'</div><div class="log-detail">'+esc(info.detail)+'</div>'+
+    (model.ovulation?'<div class="log-detail">Estimated ovulation: '+fmtDate(model.ovulation)+'<br>Estimated fertile window: '+fmtDate(model.fertileStart)+' - '+fmtDate(model.fertileEnd)+'</div>':'')+
+    '<div class="log-detail">Personal pregnancy risk depends on sex and contraception, not dates alone.</div><div class="quality-actions"><button type="button" onclick="openIntimacyModal(null,\''+key+'\')">Log sex / contraception</button></div></div>';
+}
 
 function riskForDate(key,protection,ec){
-  if(!model.lastStart)return{level:'unknown',label:'Unknown',detail:'Not enough cycle history yet.'};
+  if(!model.lastStart||key<model.lastStart||key>=model.nextStart||isExcludedDate(key))return{level:'unknown',label:'Timing uncertain',detail:'No current cycle estimate for this date. Pregnancy risk depends on sex and contraception; calendar dates alone cannot determine it.'};
   var fertile=isBetween(key,model.fertileStart,model.fertileEnd);
   var ov=key===model.ovulation;
   var protectedStrong=['pill','iud','implant','injection'].indexOf(protection)>=0;
@@ -371,7 +393,7 @@ function riskForDate(key,protection,ec){
   if(protection==='condom')return{level:fertile?'medium':'low',label:fertile?'Some risk':'Low estimate',detail:fertile?'Condom use during the estimated fertile window.':'Condom use outside the estimated fertile window.'};
   if(protection==='withdrawal')return{level:fertile?'high':'medium',label:fertile?'Higher risk':'Some risk',detail:'Withdrawal is less reliable, especially near fertile days.'};
   if(protection==='other')return{level:fertile?'medium':'low',label:fertile?'Review method':'Lower estimate',detail:'Risk depends on what protection was used.'};
-  if(fertile)return{level:'high',label:ov?'Highest estimate':'High estimate',detail:'Unprotected intimacy during the estimated fertile window.'};
+  if(fertile)return{level:'high',label:ov?'Near estimated ovulation':'Within estimated fertile window',detail:'Unprotected intimacy during the estimated fertile window. Ovulation is not confirmed and no pregnancy probability can be calculated from these dates.'};
   return{level:'medium',label:'Possible',detail:'Outside the estimated fertile window, but ovulation can shift.'};
 }
 
@@ -386,7 +408,7 @@ function openDay(key){
   var tags=[];
   if(dayExclusions.length)dayExclusions.forEach(function(x){tags.push('<div class="log-item" onclick="closeModal(\'day-modal\');openExclusionModal(\''+x.id+'\')"><div class="log-icon">🚫</div><div class="log-info"><div class="log-title">Excluded from estimates</div><div class="log-detail">'+esc(x.reason||'excluded')+' · '+fmtDate(x.start_date)+' - '+fmtDate(x.end_date)+(x.notes?' · '+esc(x.notes):'')+'</div></div></div>');});
   if(dayCycles.length)dayCycles.forEach(function(c){tags.push('<div class="log-item" onclick="closeModal(\'day-modal\');openCycleModal(\''+c.id+'\')"><div class="log-icon">🩸</div><div class="log-info"><div class="log-title">Logged period</div><div class="log-detail">'+esc(c.flow||'medium')+(c.symptoms&&c.symptoms.length?' · '+esc(c.symptoms.join(', ')):'')+(c.notes?' · '+esc(c.notes):'')+'</div></div></div>');});
-  if(isPredictedPeriod(key))tags.push('<div class="log-item"><div class="log-icon">🌙</div><div class="log-info"><div class="log-title">Predicted period</div><div class="log-detail">Based on '+model.avgCycle+' day average cycle.</div></div></div>');
+  if(isPredictedPeriod(key))tags.push('<div class="log-item"><div class="log-icon">🌙</div><div class="log-info"><div class="log-title">Predicted period</div><div class="log-detail">Estimated from logged starts and average period length; this day has not been logged.</div></div></div>');
   if(isBetween(key,model.fertileStart,model.fertileEnd))tags.push('<div class="log-item"><div class="log-icon">🌱</div><div class="log-info"><div class="log-title">Estimated fertile window</div><div class="log-detail">Ovulation estimate: '+fmtDate(model.ovulation)+'.</div></div></div>');
   dayNotes.forEach(function(n){tags.push('<div class="log-item" onclick="closeModal(\'day-modal\');openNoteModal(\''+n.note_id+'\')"><div class="log-icon">📝</div><div class="log-info"><div class="log-title">Note</div><div class="log-detail">'+esc(n.note_text)+'</div></div></div>');});
   dayEvents.forEach(function(e){tags.push('<div class="log-item" onclick="closeModal(\'day-modal\');openEventModal(\''+e.event_id+'\')"><div class="log-icon">✨</div><div class="log-info"><div class="log-title">'+esc(eventTitle(e))+'</div><div class="log-detail">'+esc(eventDetail(e))+'</div></div></div>');});
@@ -397,7 +419,7 @@ function openDay(key){
     tags.push('<div class="log-item" onclick="openIntimacyModal(\''+x.id+'\')"><div class="log-icon">🛡️</div><div class="log-info"><div class="log-title">Pregnancy risk note</div><div class="log-detail">'+esc(protectionLabel(x.protection))+(x.notes?' · '+esc(x.notes):'')+'<br><span class="risk-pill risk-'+r.level+'">'+esc(r.label)+'</span></div></div></div>');
   });
   document.getElementById('day-title').textContent=fmtFullDate(key);
-  document.getElementById('day-content').innerHTML=(tags.length?tags.join(''):'<div class="empty-log">Nothing logged for this day</div>')+
+  document.getElementById('day-content').innerHTML=fertilitySummaryHtml(key)+(tags.length?tags.join(''):'<div class="empty-log">Nothing logged for this day</div>')+
     '<button class="btn btn-primary" onclick="closeModal(\'day-modal\');openCycleModal(null,\''+key+'\')">Log Period Here</button>'+
     '<button class="btn btn-secondary" onclick="closeModal(\'day-modal\');openEventModal(null,\''+key+'\',\'mood\')">Log daily entry</button>'+
     '<button class="btn btn-secondary" onclick="closeModal(\'day-modal\');openIntimacyModal(null,\''+key+'\')">Log Pregnancy Risk Note</button>';

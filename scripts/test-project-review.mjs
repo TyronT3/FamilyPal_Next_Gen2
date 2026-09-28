@@ -23,8 +23,9 @@ context.cycles=[
 ];
 context.exclusions=[];context.buildModel();
 context.cycles.push({id:'old-open',start_date:'2025-01-01',end_date:null,flow:'medium',symptoms:[]});
-assert.equal(context.loggedPeriodEnd(context.cycles.at(-1)),'2025-01-05');
-assert.equal(context.isLoggedPeriod('2025-01-03'),true);
+assert.equal(context.loggedPeriodEnd(context.cycles.at(-1)),'2025-01-01');
+assert.equal(context.isLoggedPeriod('2025-01-01'),true);
+assert.equal(context.isLoggedPeriod('2025-01-03'),false);
 assert.equal(context.isLoggedPeriod('2025-02-01'),false);
 assert.match(context.periodLengthLabel(context.cycles.at(-1)),/End date not logged/);
 context.cycles.pop();
