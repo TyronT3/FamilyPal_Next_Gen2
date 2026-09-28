@@ -16,6 +16,18 @@ function estimateRecordedDiaperUsage(series){
   var days=series.filter(function(day){return day.val!==null&&day.val>0;});
   return {days:days.length,average:days.length?days.reduce(function(sum,day){return sum+day.val;},0)/days.length:null};
 }
+function sleepStartGroups(rows){
+  var groups=[{key:'morning',label:'Morning',start:5,end:12,minutes:[]},{key:'afternoon',label:'Afternoon',start:12,end:18,minutes:[]},{key:'night',label:'Night',minutes:[]}];
+  rows.forEach(function(row){
+    var date=new Date(row.sleep_start),minutes=date.getHours()*60+date.getMinutes(),group=date.getHours()>=5&&date.getHours()<12?groups[0]:date.getHours()>=12&&date.getHours()<18?groups[1]:groups[2];
+    group.minutes.push(group.key==='night'&&minutes<5*60?minutes+1440:minutes);
+  });
+  return groups.map(function(group){
+    if(!group.minutes.length)return {key:group.key,label:group.label,count:0,average:null};
+    var average=Math.round(group.minutes.reduce(function(sum,value){return sum+value;},0)/group.minutes.length)%1440,hour=Math.floor(average/60),minute=average%60;
+    return {key:group.key,label:group.label,count:group.minutes.length,average:(hour%12||12)+':'+String(minute).padStart(2,'0')+(hour>=12?'pm':'am')};
+  });
+}
 function isSchoolCareRecord(row){return /^School (?:paper|day form) • /.test(String(row&&row.notes||''));}
 function schoolHourMinutes(value){var d=new Date(value);return d.getHours()*60+d.getMinutes();}
 function inSchoolHours(value){var minutes=schoolHourMinutes(value);return minutes>=7*60&&minutes<=17*60;}
@@ -356,9 +368,8 @@ async function loadTrends(days){
     var durations=completedSleeps.map(function(s){return Math.round((new Date(s.sleep_end)-new Date(s.sleep_start))/60000);});
     var avgSleep=durations.length?Math.round(durations.reduce(function(a,b){return a+b;},0)/durations.length):0;
     var longestSleep=durations.length?Math.max.apply(null,durations):0;
-    var startHours=completedSleeps.map(function(s){return new Date(s.sleep_start).getHours();});
-    var avgStartHour=startHours.length?Math.round(startHours.reduce(function(a,b){return a+b;},0)/startHours.length):null;
-    var avgStartStr=avgStartHour!==null?((avgStartHour%12||12)+(avgStartHour>=12?'pm':'am')):'—';
+    var sleepGroups=sleepStartGroups(completedSleeps);
+    var sleepGroupHtml='<div class="chart-card"><h3>🕐 Sleep start patterns</h3><div class="log-detail" style="margin-bottom:10px">Separate averages avoid combining morning naps, afternoon naps and night sleep into one misleading time.</div><div class="insight-row-wrap">'+sleepGroups.map(function(group){return '<div class="insight-stat"><div class="is-val">'+(group.average||'—')+'</div><div class="is-lbl">'+group.label+' starts · n='+group.count+'</div></div>';}).join('')+'</div></div>';
     function minStr(m){return Math.floor(m/60)+'h '+(m%60)+'m';}
     // Feed insights
     var bottleFeeds=feeds.filter(function(f){return f.feed_type==='bottle';});
@@ -442,12 +453,12 @@ async function loadTrends(days){
       '<div class="chart-card"><h3>🍼 Bottle milk (ml/day)</h3>'+bar(mlPerDay,'var(--pink)','')+'</div>'+
       '<div class="chart-card"><h3>🚿 Diapers per day</h3>'+bar(diapersPerDay,'var(--blue)','')+'</div>'+
       '<div class="chart-card"><h3>😴 Sleep (mins/day)</h3>'+bar(sleepPerDay,'var(--green)','m')+'</div>'+
+      sleepGroupHtml+
       '<div class="insight-row-wrap">'+
         '<div class="insight-stat"><div class="is-val">'+(avgBottle||'—')+(avgBottle?'ml':'')+'</div><div class="is-lbl">Avg logged bottle · n='+measuredBottles.length+'</div></div>'+
         '<div class="insight-stat"><div class="is-val">'+bPct+'%</div><div class="is-lbl">Logged bottle % · n='+totalFeeds+'</div></div>'+
         '<div class="insight-stat"><div class="is-val">'+(avgSleep?minStr(avgSleep):'—')+'</div><div class="is-lbl">Avg logged nap · n='+completedSleeps.length+'</div></div>'+
         '<div class="insight-stat"><div class="is-val">'+(longestSleep?minStr(longestSleep):'—')+'</div><div class="is-lbl">Longest nap · n='+completedSleeps.length+'</div></div>'+
-        '<div class="insight-stat"><div class="is-val">'+avgStartStr+'</div><div class="is-lbl">Avg sleep start · n='+startHours.length+'</div></div>'+
         '<div class="insight-stat"><div class="is-val">'+(avgDiapersPerDay?avgDiapersPerDay.toFixed(1):'—')+'</div><div class="is-lbl">Diapers/logged day · n='+forecastDayCount+' days</div></div>'+
       '</div>'+
       familyHtml+
@@ -652,14 +663,41 @@ async function loadHistory(){
 var schoolDiapers={wet:0,soiled:0,light:0,blowout:0};
 var schoolBottles=[];
 var schoolSleeps=[];
+var schoolFormPending=null;
+
+function schoolFormKey(){return'bp_school_form_pending_v1:'+localStorage.getItem('fp_email');}
+function loadSchoolFormPending(){try{return JSON.parse(localStorage.getItem(schoolFormKey())||'null');}catch(e){return null;}}
+function storeSchoolFormPending(value){try{if(value)localStorage.setItem(schoolFormKey(),JSON.stringify(value));else localStorage.removeItem(schoolFormKey());return true;}catch(e){return false;}}
+function buildSchoolDayRows(date,diaperTime,diaperCounts,bottles,sleeps){
+  var rows={baby_diapers:[],baby_feeds:[],baby_sleep:[]},note='School day form • '+date,offset=0;
+  ['wet','soiled','light','blowout'].forEach(function(type){
+    for(var n=0;n<(diaperCounts[type]||0);n++){
+      var ts=new Date(date+'T'+diaperTime+':00');ts.setMinutes(ts.getMinutes()+offset);offset+=5;
+      rows.baby_diapers.push({id:crypto.randomUUID(),diaper_type:type,logged_at:ts.toISOString(),notes:note});
+    }
+  });
+  bottles.filter(function(b){return b.ml>0&&b.time;}).forEach(function(b){rows.baby_feeds.push({id:crypto.randomUUID(),feed_type:'bottle',amount_ml:b.ml,logged_at:new Date(date+'T'+b.time+':00').toISOString(),notes:note});});
+  sleeps.filter(function(s){return s.start;}).forEach(function(s){
+    var start=new Date(date+'T'+s.start+':00'),end=s.end?new Date(date+'T'+s.end+':00'):null;
+    if(end&&end<start)end.setDate(end.getDate()+1);
+    rows.baby_sleep.push({id:crypto.randomUUID(),sleep_start:start.toISOString(),sleep_end:end?end.toISOString():null,duration_mins:end?Math.round((end-start)/60000):null,logged_at:start.toISOString(),notes:note});
+  });
+  return rows;
+}
 
 function openSchoolDayModal(){
-  schoolDiapers={wet:0,soiled:0,light:0,blowout:0};
-  schoolBottles=[];
-  schoolSleeps=[];
-  var today=new Date();
-  document.getElementById('sd-date').value=localDateKey(today);
-  document.getElementById('sd-diaper-time').value='12:00';
+  schoolFormPending=loadSchoolFormPending();
+  var draft=schoolFormPending&&schoolFormPending.draft;
+  schoolDiapers=draft?draft.diapers:{wet:0,soiled:0,light:0,blowout:0};
+  schoolBottles=draft?draft.bottles:[];
+  schoolSleeps=draft?draft.sleeps:[];
+  document.getElementById('sd-date').value=draft?draft.date:localDateKey(new Date());
+  document.getElementById('sd-diaper-time').value=draft?draft.diaperTime:'12:00';
+  document.getElementById('sd-date').disabled=!!draft;
+  document.getElementById('sd-diaper-time').disabled=!!draft;
+  document.getElementById('sd-add-bottle').disabled=!!draft;
+  document.getElementById('sd-add-sleep').disabled=!!draft;
+  var status=document.getElementById('sd-save-status');if(status)status.textContent=draft?'An interrupted save is ready to retry safely. The restored entries are shown below.':'';
   renderSdDiapers();renderSdBottles();renderSdSleeps();
   document.getElementById('school-day-modal').style.display='flex';
 }
@@ -669,9 +707,9 @@ function renderSdDiapers(){
   document.getElementById('sd-diapers').innerHTML=types.map(function(t){
     return'<div class="sd-counter-row"><span class="sd-counter-label">'+t.label+'</span>'+
       '<div class="sd-counter">'+
-        '<button onclick="sdAdjDiaper(\''+t.key+'\',-1)">−</button>'+
+        '<button '+(schoolFormPending?'disabled ':'')+'onclick="sdAdjDiaper(\''+t.key+'\',-1)">−</button>'+
         '<span id="sd-d-'+t.key+'">'+schoolDiapers[t.key]+'</span>'+
-        '<button onclick="sdAdjDiaper(\''+t.key+'\',1)">+</button>'+
+        '<button '+(schoolFormPending?'disabled ':'')+'onclick="sdAdjDiaper(\''+t.key+'\',1)">+</button>'+
       '</div></div>';
   }).join('');
 }
@@ -687,10 +725,10 @@ function renderSdBottles(){
   if(!schoolBottles.length){el.innerHTML='<div class="sd-empty">No bottles added yet</div>';return;}
   el.innerHTML=schoolBottles.map(function(b,i){
     return'<div class="sd-entry-row">'+
-      '<input type="number" class="sd-ml" placeholder="ml" min="0" max="500" value="'+(b.ml||'')+'" oninput="schoolBottles['+i+'].ml=parseInt(this.value)||0">'+
+      '<input '+(schoolFormPending?'disabled ':'')+'type="number" class="sd-ml" placeholder="ml" min="0" max="500" value="'+(b.ml||'')+'" oninput="schoolBottles['+i+'].ml=parseInt(this.value)||0">'+
       '<span style="color:var(--muted);font-size:13px">ml at</span>'+
-      '<input type="time" class="sd-time-in" value="'+(b.time||'')+'" oninput="schoolBottles['+i+'].time=this.value">'+
-      '<button class="sd-remove" onclick="sdRemoveBottle('+i+')">✕</button>'+
+      '<input '+(schoolFormPending?'disabled ':'')+'type="time" class="sd-time-in" value="'+(b.time||'')+'" oninput="schoolBottles['+i+'].time=this.value">'+
+      '<button '+(schoolFormPending?'disabled ':'')+'class="sd-remove" onclick="sdRemoveBottle('+i+')">✕</button>'+
     '</div>';
   }).join('');
 }
@@ -709,10 +747,10 @@ function renderSdSleeps(){
   if(!schoolSleeps.length){el.innerHTML='<div class="sd-empty">No sleep sessions added yet</div>';return;}
   el.innerHTML=schoolSleeps.map(function(s,i){
     return'<div class="sd-entry-row">'+
-      '<input type="time" class="sd-time-in" placeholder="From" value="'+(s.start||'')+'" oninput="schoolSleeps['+i+'].start=this.value">'+
+      '<input '+(schoolFormPending?'disabled ':'')+'type="time" class="sd-time-in" placeholder="From" value="'+(s.start||'')+'" oninput="schoolSleeps['+i+'].start=this.value">'+
       '<span style="color:var(--muted);font-size:12px">→</span>'+
-      '<input type="time" class="sd-time-in" placeholder="To" value="'+(s.end||'')+'" oninput="schoolSleeps['+i+'].end=this.value">'+
-      '<button class="sd-remove" onclick="sdRemoveSleep('+i+')">✕</button>'+
+      '<input '+(schoolFormPending?'disabled ':'')+'type="time" class="sd-time-in" placeholder="To" value="'+(s.end||'')+'" oninput="schoolSleeps['+i+'].end=this.value">'+
+      '<button '+(schoolFormPending?'disabled ':'')+'class="sd-remove" onclick="sdRemoveSleep('+i+')">✕</button>'+
     '</div>';
   }).join('');
 }
@@ -731,49 +769,37 @@ async function saveSchoolDay(button){
   var date=document.getElementById('sd-date').value;
   if(!date){toast('Pick a date');return;}
   var diaperTime=document.getElementById('sd-diaper-time').value||'12:00';
-  var totalDiapers=schoolDiapers.wet+schoolDiapers.soiled+schoolDiapers.light+schoolDiapers.blowout;
-  var validBottles=schoolBottles.filter(function(b){return b.ml>0&&b.time;});
-  var validSleeps=schoolSleeps.filter(function(s){return s.start;});
-  if(!totalDiapers&&!validBottles.length&&!validSleeps.length){toast('Nothing to log');return;}
   return FamilyPalUI.runBusy(button,'Logging day…',async function(){try{
-    var promises=[];
-    var schoolNote='School day form • '+date;
-    var offset=0;
-    ['wet','soiled','light','blowout'].forEach(function(type){
-      for(var n=0;n<schoolDiapers[type];n++){
-        var ts=new Date(date+'T'+diaperTime+':00');
-        ts.setMinutes(ts.getMinutes()+offset);offset+=5;
-        promises.push(sbFetch('/rest/v1/baby_diapers',{method:'POST',body:JSON.stringify({diaper_type:type,logged_at:ts.toISOString(),notes:schoolNote})}));
-      }
-    });
-    validBottles.forEach(function(b){
-      promises.push(sbFetch('/rest/v1/baby_feeds',{method:'POST',body:JSON.stringify({feed_type:'bottle',amount_ml:b.ml,logged_at:new Date(date+'T'+b.time+':00').toISOString(),notes:schoolNote})}));
-    });
-    validSleeps.forEach(function(s){
-      var start=new Date(date+'T'+s.start+':00');
-      var end=s.end?new Date(date+'T'+s.end+':00'):null;
-      if(end&&end<start)end.setDate(end.getDate()+1);
-      var diffMins=end?Math.round((end-start)/60000):null;
-      if(diffMins!==null&&diffMins<0)diffMins+=1440; // overnight
-      promises.push(sbFetch('/rest/v1/baby_sleep',{method:'POST',body:JSON.stringify({sleep_start:start.toISOString(),sleep_end:end?end.toISOString():null,duration_mins:diffMins,logged_at:start.toISOString(),notes:schoolNote})}));
-    });
-    await Promise.all(promises);
-    // School uses the same household supply. Decrement only nappies actually used,
-    // rather than the six transferred to the school bag or box each day.
-    var stockFailures=0;
-    for(var n=0;n<totalDiapers;n++){
-      var stock=await consumeDiaperStock('BabyPal school day');
-      if(stock.failed)stockFailures++;
+    schoolFormPending=schoolFormPending||loadSchoolFormPending();
+    if(!schoolFormPending){
+      var rows=buildSchoolDayRows(date,diaperTime,schoolDiapers,schoolBottles,schoolSleeps);
+      if(!Object.values(rows).some(function(values){return values.length;})){toast('Nothing to log');return;}
+      var start=new Date(date+'T00:00:00'),end=new Date(start);end.setDate(end.getDate()+1);
+      var existing=await Promise.all(Object.keys(rows).map(function(table){return sbFetch('/rest/v1/'+table+'?logged_at=gte.'+start.toISOString()+'&logged_at=lt.'+end.toISOString()+'&select=id&limit=1');}));
+      if(existing.some(function(values){return values.length;})&&!await FamilyPalUI.confirm('There are already care logs on '+date+'. Check that this school day has not been entered before. Add these entries as well?',{title:'Existing entries for this date',confirmLabel:'Add school day'}))return;
+      schoolFormPending={version:1,draft:{date:date,diaperTime:diaperTime,diapers:Object.assign({},schoolDiapers),bottles:schoolBottles.map(function(b){return Object.assign({},b);}),sleeps:schoolSleeps.map(function(s){return Object.assign({},s);})},rows:rows,stockAdjusted:0};
+      if(!storeSchoolFormPending(schoolFormPending)){schoolFormPending=null;throw new Error('Allow browser storage before saving, so retries cannot duplicate entries.');}
     }
+    for(var table of Object.keys(schoolFormPending.rows)){
+      var tableRows=schoolFormPending.rows[table];
+      if(tableRows.length)await sbFetch('/rest/v1/'+table+'?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify(tableRows)});
+    }
+    while(schoolFormPending.stockAdjusted<schoolFormPending.rows.baby_diapers.length){
+      var stock=await consumeDiaperStock('BabyPal school day');
+      if(stock.failed)throw new Error('The care records were saved, but nappy stock could not be updated. Retry to finish the remaining stock updates.');
+      schoolFormPending.stockAdjusted++;storeSchoolFormPending(schoolFormPending);
+    }
+    var totalDiapers=schoolFormPending.rows.baby_diapers.length,validBottles=schoolFormPending.rows.baby_feeds,validSleeps=schoolFormPending.rows.baby_sleep;
+    storeSchoolFormPending(null);schoolFormPending=null;
     closeModal('school-day-modal');
     var parts=[];
     if(totalDiapers)parts.push(totalDiapers+' diaper'+(totalDiapers>1?'s':''));
     if(validBottles.length)parts.push(validBottles.length+' bottle'+(validBottles.length>1?'s':''));
     if(validSleeps.length)parts.push(validSleeps.length+' sleep session'+(validSleeps.length>1?'s':''));
-    toast('🏫 Logged! '+parts.join(', ')+(stockFailures?' · '+stockFailures+' nappy stock update'+(stockFailures>1?'s':'')+' failed; adjust PantryPal.':''));
+    toast('🏫 Logged! '+parts.join(', '));
     if(activeTab==='today')loadToday();
     if(activeTab==='history')loadHistory();
-  }catch(e){toast('Error: '+e.message);}});
+  }catch(e){var status=document.getElementById('sd-save-status');if(status)status.textContent='Could not finish saving: '+e.message;toast('Error: '+e.message);}});
 }
 
 // ── Modal helpers ─────────────────────────────────────────

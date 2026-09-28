@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
+import { randomUUID } from 'node:crypto';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 
@@ -11,6 +12,7 @@ function browserContext() {
     clearInterval,
     clearTimeout,
     console,
+    crypto:{randomUUID},
     Date,
     document: {
       createElement: () => ({ textContent: '', innerHTML: '' }),
@@ -58,6 +60,21 @@ assert.equal(babyContext.estimateRecordedDiaperUsage(mixedDays).average, 6);
 assert.equal(babyContext.estimateRecordedDiaperUsage(mixedDays).days, 2);
 assert.equal(babyContext.estimateRecordedDiaperUsage([{val:null}]).average, null);
 assert.equal(babyContext.estimateRecordedDiaperUsage([{val:4}]).average, 4);
+const sleepGroups = babyContext.sleepStartGroups([
+  {sleep_start:new Date(2026,6,1,9,15).toISOString()},
+  {sleep_start:new Date(2026,6,2,13,45).toISOString()},
+  {sleep_start:new Date(2026,6,3,23,30).toISOString()},
+  {sleep_start:new Date(2026,6,4,0,30).toISOString()}
+]);
+assert.equal(sleepGroups[0].average,'9:15am');
+assert.equal(sleepGroups[1].average,'1:45pm');
+assert.equal(sleepGroups[2].average,'12:00am');
+assert.equal(sleepGroups[2].count,2);
+const schoolFormRows=babyContext.buildSchoolDayRows('2026-07-07','12:00',{wet:1,soiled:1,light:0,blowout:0},[{ml:150,time:'09:00'}],[{start:'16:30',end:'08:00'}]);
+assert.equal(schoolFormRows.baby_diapers.length,2);
+assert.equal(new Set(Object.values(schoolFormRows).flat().map(row=>row.id)).size,4);
+assert.equal(schoolFormRows.baby_sleep[0].duration_mins,930);
+assert.match(schoolFormRows.baby_feeds[0].notes,/^School day form • 2026-07-07$/);
 
 const at = (day, hour, minute = 0) => new Date(2026, 6, day, hour, minute).toISOString();
 const schoolNote = 'School paper • 2026-07-01';
@@ -111,8 +128,13 @@ assert.match(migration, /create table if not exists public\.pantry_inventory_sna
 const babySource = readFileSync(resolve(root, 'assets/js/babypal.js'), 'utf8');
 assert.doesNotMatch(babySource, /baby_tracking_days|day-complete-btn|toggleTodayTracking/);
 const schoolSaveSource = babySource.slice(babySource.indexOf('async function saveSchoolDay'), babySource.indexOf('// ── Modal helpers'));
-assert.match(schoolSaveSource, /School day form/);
+const schoolRows = babyContext.buildSchoolDayRows('2026-09-28', '12:00', {wet:1}, [{ml:120,time:'10:00'}], [{start:'13:00',end:'14:00'}]);
+for (const table of ['baby_diapers', 'baby_feeds', 'baby_sleep']) {
+  assert.equal(schoolRows[table].length, 1);
+  assert.equal(schoolRows[table][0].notes, 'School day form • 2026-09-28', `${table} must retain its school-day source marker`);
+}
 assert.match(schoolSaveSource, /consumeDiaperStock\('BabyPal school day'\)/);
+assert.match(schoolSaveSource, /resolution=ignore-duplicates/);
 assert.match(readFileSync(resolve(root, 'pantrypal.html'), 'utf8'), /Finish inventory check/);
 
 console.log('BabyPal and PantryPal analytics coverage checks passed.');

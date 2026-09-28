@@ -58,14 +58,24 @@
     return values;
   }
 
-  async function setSetting(key, value) {
-    var body = { key: key, value: value || '', updated_at: new Date().toISOString() };
+  async function setSettings(values) {
+    values = values && typeof values === 'object' ? values : {};
+    var updatedAt = new Date().toISOString();
+    var body = Object.keys(values).map(function (key) {
+      return { key: key, value: values[key] == null ? '' : String(values[key]), updated_at: updatedAt };
+    });
+    if (!body.length) return [];
     var rows = await requestJson('/rest/v1/settings?on_conflict=key', {
       method: 'POST',
       headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' },
       body: JSON.stringify(body)
     });
-    return rows && rows[0] ? rows[0] : body;
+    return rows || body;
+  }
+
+  async function setSetting(key, value) {
+    var rows = await setSettings((function () { var values = {}; values[key] = value; return values; })());
+    return rows && rows[0] ? rows[0] : { key: key, value: value == null ? '' : String(value) };
   }
 
   async function getDiaperItemId() {
@@ -329,6 +339,7 @@
     getSetting: getSetting,
     getSettings: getSettings,
     setSetting: setSetting,
+    setSettings: setSettings,
     getDiaperItemId: getDiaperItemId,
     setDiaperItemId: setDiaperItemId,
     requireSession: requireSession,

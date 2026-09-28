@@ -112,6 +112,10 @@
   .file-import{background:var(--card);border:1px dashed var(--border);border-radius:12px;padding:12px;margin:8px 0 14px;}
   .file-import input{width:100%;font-size:13px;color:var(--muted);}
   .log-item{border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px;}
+  button.log-item,button.note-card,button.report-row{width:100%;color:var(--text);font:inherit;text-align:left;cursor:pointer;}
+  button.log-item,button.note-card{appearance:none;}
+  button.note-card>span,button.log-item .log-title,button.log-item .log-detail{display:block;}
+  button.report-row{background:transparent;border-left:0;border-right:0;border-top:0;}
   .log-icon{font-size:22px;flex-shrink:0;}
   .log-info{flex:1;min-width:0;}
   .log-title{font-size:14px;font-weight:700;margin-bottom:2px;}
@@ -399,8 +403,8 @@
 </div>
 
 <div id="toast"></div>
-<script src="assets/js/familypal-core.js?v=20260916.4"></script>
+<script src="assets/js/familypal-core.js?v=20260916.5"></script>
 <script src="assets/js/familypal-ui.js?v=20260916.4"></script>
-<script src="assets/js/periodpal.js?v=20260916.5"></script>
+<script src="assets/js/periodpal.js?v=20260928.1"></script>
 </body>
 </html>

@@ -22,6 +22,12 @@ context.cycles=[
   {id:'c3',start_date:'2026-02-26',end_date:'2026-03-02',flow:'medium',symptoms:[]}
 ];
 context.exclusions=[];context.buildModel();
+context.cycles.push({id:'old-open',start_date:'2025-01-01',end_date:null,flow:'medium',symptoms:[]});
+assert.equal(context.loggedPeriodEnd(context.cycles.at(-1)),'2025-01-05');
+assert.equal(context.isLoggedPeriod('2025-01-03'),true);
+assert.equal(context.isLoggedPeriod('2025-02-01'),false);
+assert.match(context.periodLengthLabel(context.cycles.at(-1)),/End date not logged/);
+context.cycles.pop();
 assert.equal(context.phaseForLoggedDate('2026-01-03'),'Period');
 assert.equal(context.phaseForLoggedDate('2026-01-07'),'Before ovulation');
 assert.equal(context.phaseForLoggedDate('2026-01-12'),'Fertile estimate');
@@ -60,7 +66,7 @@ assert.deepEqual(JSON.parse(writes[0].opts.body),JSON.parse(writes[2].opts.body)
 const choreContext={window:{},document:{},localStorage:{getItem:()=>null},FamilyPal:{}};
 vm.createContext(choreContext);vm.runInContext(read('assets/js/chorepal.js'),choreContext);
 assert.equal(choreContext.dateStr({getFullYear:()=>2026,getMonth:()=>8,getDate:()=>17,toISOString:()=> '2026-09-16T22:30:00.000Z'}),'2026-09-17');
-console.log('Project review checks passed: month navigation, test-result parsing, pagination, complete backup, safe restore, local dates.');
+console.log('Project review checks passed: month navigation, period end bounds, test-result parsing, pagination, complete backup, safe restore, local dates.');
 
 // A decryption already in progress must not repopulate plaintext after the journal locks.
 let finishDecrypt;

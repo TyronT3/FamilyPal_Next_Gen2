@@ -26,13 +26,13 @@ async function saveHouseholdSettings(button){
   if(husbandName.toLocaleLowerCase()===wifeName.toLocaleLowerCase()){toast('Use a different name for each partner');return;}
   FamilyPalUI.setBusy(button,true,'Saving…');
   try{
-    await Promise.all([
-      FamilyPal.setSetting('household_name',document.getElementById('setting-household-name').value.trim()),
-      FamilyPal.setSetting('baby_name',document.getElementById('setting-baby-name').value.trim()),
-      FamilyPal.setSetting('person_1_name',husbandName),
-      FamilyPal.setSetting('person_2_name',wifeName),
-      FamilyPal.setSetting('baby_pronouns',document.getElementById('setting-baby-pronouns').value)
-    ]);
+    await FamilyPal.setSettings({
+      household_name:document.getElementById('setting-household-name').value.trim(),
+      baby_name:document.getElementById('setting-baby-name').value.trim(),
+      person_1_name:husbandName,
+      person_2_name:wifeName,
+      baby_pronouns:document.getElementById('setting-baby-pronouns').value
+    });
     await FamilyPalUI.loadProfile(true);
     toast('Household settings saved');
   }catch(e){toast('Could not save household settings: '+e.message);}

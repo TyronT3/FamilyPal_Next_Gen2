@@ -18,6 +18,7 @@
   var medicationLogs = [];
   var periodCycles = [];
   var choreLogs = [];
+  var auxiliaryInsights = { period: true, chores: true };
   var insightOwnerId = null;
   var activeTab = 'today';
 
@@ -156,7 +157,9 @@
       FamilyPal.requestJson('/rest/v1/wellbeing_daily_logs?log_date=gte.' + since + '&order=log_date.desc&select=*'),
       FamilyPal.requestJson('/rest/v1/wellbeing_household_context?context_date=gte.' + since + '&order=context_date.desc&select=*'),
       FamilyPal.requestJson('/rest/v1/wellbeing_medications?order=created_at.asc&select=*'),
-      FamilyPal.requestJson('/rest/v1/wellbeing_medication_logs?log_date=gte.' + since + '&order=log_date.desc&select=*'),
+      FamilyPal.requestJson('/rest/v1/wellbeing_medication_logs?log_date=gte.' + since + '&order=log_date.desc&select=*')
+    ]);
+    var optional = await Promise.allSettled([
       FamilyPal.requestJson('/rest/v1/period_cycles?start_date=gte.' + daysAgoKey(180) + '&order=start_date.asc&select=start_date,end_date'),
       FamilyPal.requestJson('/rest/v1/chore_logs?completed_at=gte.' + encodeURIComponent(sinceIso) + '&select=completed_at,completed_by,shared')
     ]);
@@ -166,8 +169,10 @@
     householdContext = results[2] || [];
     medications = results[3] || [];
     medicationLogs = results[4] || [];
-    periodCycles = results[5] || [];
-    choreLogs = results[6] || [];
+    auxiliaryInsights.period = optional[0].status === 'fulfilled';
+    auxiliaryInsights.chores = optional[1].status === 'fulfilled';
+    periodCycles = auxiliaryInsights.period ? optional[0].value || [] : [];
+    choreLogs = auxiliaryInsights.chores ? optional[1].value || [] : [];
     if (!insightOwnerId) insightOwnerId = currentUserId;
     populateTodayForm();
     renderMedicationToday();
@@ -493,8 +498,8 @@
     html += comparisonCard('Home-cooked meals and mood', 'Home-cooked days', homeMood, 'Takeaway days', takeawayMood);
     html += relationshipCard('Meal balance and mood', mealPairs, 'More balanced meal days tended to align with better mood.', 'More balanced meal days tended to align with lower mood.');
     html += relationshipCard('How the home feels and mood', homePairs, 'Calmer, tidier home days tended to align with better mood.', 'Calmer, tidier home days tended to align with lower mood.');
-    html += relationshipCard('Chore activity and mood', chorePairs, 'Days with more completed chores tended to align with better mood.', 'Days with more completed chores tended to align with lower mood.');
-    html += comparisonCard('Mood while wife is on her period', 'Period days', periodMood, 'Other days', otherMood);
+    html += auxiliaryInsights.chores ? relationshipCard('Chore activity and mood', chorePairs, 'Days with more completed chores tended to align with better mood.', 'Days with more completed chores tended to align with lower mood.') : insightCard('Chore activity and mood', 'Temporarily unavailable', 'ChoresPal data could not be loaded. Your wellbeing check-ins are still available.');
+    html += auxiliaryInsights.period ? comparisonCard('Mood while wife is on her period', 'Period days', periodMood, 'Other days', otherMood) : insightCard('Mood while wife is on her period', 'Temporarily unavailable', 'PeriodPal data could not be loaded. Your wellbeing check-ins are still available.');
     html += comparisonCard('Medication adherence and mood', 'Medication taken', takenMood, 'Medication missed', missedMood);
     html += relationshipCard('Sleep quality and mood', sleepMoodPairs, 'Better sleep tended to align with better mood.', 'Better sleep tended to align with lower mood.');
     html += relationshipCard('Movement and energy', movementEnergyPairs, 'More movement tended to align with more energy.', 'More movement tended to align with less energy.');

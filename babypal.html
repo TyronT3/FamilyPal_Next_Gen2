@@ -200,12 +200,13 @@
 
     <div class="section-label" style="margin-top:18px">🍼 Bottles</div>
     <div id="sd-bottles"></div>
-    <button class="btn btn-secondary" style="margin-top:6px;font-size:13px;padding:10px 16px" onclick="sdAddBottle()">+ Add bottle</button>
+    <button class="btn btn-secondary" id="sd-add-bottle" style="margin-top:6px;font-size:13px;padding:10px 16px" onclick="sdAddBottle()">+ Add bottle</button>
 
     <div class="section-label" style="margin-top:18px">😴 Sleep sessions</div>
     <div id="sd-sleeps"></div>
-    <button class="btn btn-secondary" style="margin-top:6px;font-size:13px;padding:10px 16px" onclick="sdAddSleep()">+ Add sleep</button>
+    <button class="btn btn-secondary" id="sd-add-sleep" style="margin-top:6px;font-size:13px;padding:10px 16px" onclick="sdAddSleep()">+ Add sleep</button>
 
+    <p class="field-help" id="sd-save-status" aria-live="polite"></p>
     <button class="btn btn-primary" style="margin-top:24px" onclick="saveSchoolDay(this)">✅ Log School Day</button>
   </div>
 </div>
@@ -391,9 +392,9 @@
 <div class="sleep-chip" id="sleep-chip"><span>😴</span><span class="sleep-chip-time" id="sleep-chip-timer">0:00</span><button class="sleep-chip-end" onclick="wakeUp()">End sleep</button></div>
 <div id="toast"></div>
 
-<script src="assets/js/familypal-core.js?v=20260916.4"></script>
+<script src="assets/js/familypal-core.js?v=20260916.5"></script>
 <script src="assets/js/familypal-ui.js?v=20260916.4"></script>
-<script src="assets/js/babypal.js?v=20260916.6"></script>
+<script src="assets/js/babypal.js?v=20260916.8"></script>
 <script src="assets/js/babypal-school-grid.js?v=20260916.5"></script>
 <link rel="stylesheet" href="assets/css/babypal-school-grid.css?v=20260916.4">
 </body>
